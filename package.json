@@ -10,7 +10,8 @@
     "ingest:github": "node scripts/ingest-github.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:unit": "vitest run tests/automationSignals.test.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -32,6 +33,7 @@
     "globals": "^17.5.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
   }
 }
