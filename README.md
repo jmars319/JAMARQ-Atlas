@@ -1,12 +1,35 @@
 # JAMARQ Atlas
 
-JAMARQ Atlas is a local-first operator dashboard for organizing open work across client websites, software suites, experiments, business infrastructure, and outlier repositories.
+JAMARQ Atlas is a local-first operator dashboard for mapping open work across client systems, software suites, experiments, business infrastructure, and outlier repositories.
 
-Atlas is not a replacement for GitHub, deployment dashboards, or human judgment. GitHub can show what happened. Atlas keeps the manual operational interpretation separate: status, next action, blockers, risk, deferred work, decisions, and verification state.
+Atlas is not a replacement for GitHub, deployment dashboards, or human judgment. GitHub can show what happened. Atlas keeps the operational interpretation separate: status, next action, blockers, risk, deferred work, decisions, and verification state.
 
 Atlas Dispatch extends that model for deployment readiness. Atlas maps work. Dispatch tracks whether a project can be safely shipped. Humans decide what ships.
 
-## Stack
+## Current Reality
+
+This is a working local-first MVP, not a placeholder. It runs as a React/Vite app, stores manual workspace state in browser local storage, and keeps GitHub access behind the local Vite server so tokens stay out of browser code.
+
+The dashboard currently supports:
+
+- Board-level review of sections, project groups, and projects.
+- Project detail pages for status, next action, blockers, deferred work, not-doing items, notes, decisions, and last verification.
+- Optional read-only GitHub panels for repository activity.
+- Atlas Dispatch for deployment target posture, readiness notes, health check signals, rollback posture, and deployment history.
+- AI writing-assistance boundaries that generate draft prompts only. AI does not decide status, priority, risk, roadmap, or deployment readiness.
+
+No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
+
+## What This Repo Contains
+
+- React dashboard and project detail surfaces.
+- Local seed data for the initial Atlas sections and Dispatch targets.
+- Separate local storage hooks for workspace state and Dispatch state.
+- Optional GitHub REST integration through `/api/github`.
+- Dispatch domain models, readiness evaluation, health-check stubs, and safe no-op runner phases.
+- Unit and Playwright smoke tests for the main operator flows.
+
+## Tech Stack
 
 - React + TypeScript for the dashboard and detail surfaces.
 - Vite for the local app and local `/api/github` boundary.
@@ -14,10 +37,11 @@ Atlas Dispatch extends that model for deployment readiness. Atlas maps work. Dis
 - Server-side environment variables for GitHub tokens.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
 
-## Run Locally
+## Quick Start
 
 ```sh
 npm install
+cp .env.example .env
 npm run dev
 ```
 
@@ -37,7 +61,7 @@ The app runs without GitHub credentials. Repo panels show a clear missing-token 
 GitHub data is fetched through the local Vite server. The token is never placed in browser code.
 
 ```sh
-GITHUB_TOKEN=ghp_your_token GITHUB_REPOS=jmars319/JAMARQ-Atlas npm run dev
+GITHUB_TOKEN=ghp_your_read_only_token GITHUB_REPOS=jmars319/JAMARQ-Atlas npm run dev
 ```
 
 Supported env vars:
@@ -66,7 +90,7 @@ The older `npm run ingest:github` snapshot command remains available for raw cac
 
 ## Atlas Dispatch
 
-Dispatch tracks deployment posture without executing deployments.
+Dispatch tracks deployment posture without executing deployments. Dispatch data is stored separately from Atlas workspace state under `jamarq-atlas.dispatch.v1`.
 
 Current Dispatch data:
 
@@ -113,6 +137,17 @@ Future deployment runner phases are stubbed:
 
 Every runner phase currently returns a structured no-op result. No network write, file overwrite, database operation, or deployment command is executed.
 
+## Documentation
+
+Start here:
+
+- `docs/SYSTEM_OVERVIEW.md`
+
+Focused references:
+
+- `docs/GITHUB_INTEGRATION.md`
+- `docs/DISPATCH.md`
+
 ## Architecture
 
 Atlas separates manual intent from raw activity.
@@ -132,7 +167,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
 - `src/services/aiWritingAssistant.ts` creates reviewable writing prompts only.
 
-## Operational Rules
+## Guardrails
 
 Manual fields are the source of truth:
 
@@ -182,7 +217,7 @@ Dispatch safety rules:
 - Not Doing
 - Archived
 
-## Next Steps
+## Roadmap
 
 1. Add a repo binding/import screen so configured GitHub repos can be attached to Atlas projects from the UI.
 2. Add hosted persistence only after the manual model is stable.

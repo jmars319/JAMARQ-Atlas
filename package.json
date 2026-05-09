@@ -2,7 +2,7 @@
   "name": "jamarq-atlas",
   "private": true,
   "version": "0.1.0",
-  "description": "Local-first operator dashboard for JAMARQ open work.",
+  "description": "Local-first operator dashboard for mapping work, GitHub activity, and deployment readiness across JAMARQ systems.",
   "type": "module",
   "scripts": {
     "dev": "vite",
