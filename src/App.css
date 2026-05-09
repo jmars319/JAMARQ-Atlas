@@ -51,6 +51,26 @@
   align-items: center;
 }
 
+.app-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.app-tabs button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 8px 14px;
+}
+
+.app-tabs button.is-selected {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+}
+
 .brand-lockup {
   min-width: 220px;
   gap: 12px;
@@ -791,6 +811,201 @@ h3 {
   color: var(--warning);
 }
 
+.dispatch-dashboard {
+  min-width: 0;
+}
+
+.dispatch-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dispatch-card,
+.dispatch-summary-card,
+.dispatch-readiness,
+.dispatch-target-detail {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.dispatch-card {
+  display: grid;
+  gap: 10px;
+  color: inherit;
+  padding: 12px;
+  text-align: left;
+}
+
+.dispatch-card:hover,
+.dispatch-card.is-selected {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.dispatch-summary-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dispatch-summary-heading strong {
+  display: block;
+  color: var(--paper-white);
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.dispatch-status {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: rgba(9, 166, 214, 0.12);
+  color: #bdefff;
+  padding: 4px 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dispatch-blocked,
+.dispatch-failed,
+.dispatch-rollback-needed {
+  background: rgba(249, 115, 115, 0.13);
+  color: #ffb3b3;
+}
+
+.dispatch-verification,
+.dispatch-deploying {
+  background: rgba(244, 199, 107, 0.16);
+  color: var(--warning);
+}
+
+.dispatch-stable,
+.dispatch-ready {
+  background: rgba(128, 213, 138, 0.15);
+  color: var(--success);
+}
+
+.dispatch-mini-grid,
+.dispatch-summary-grid,
+.dispatch-signal-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.dispatch-mini-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dispatch-summary-grid,
+.dispatch-signal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dispatch-mini-grid div,
+.dispatch-summary-grid div,
+.dispatch-signal-grid div {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.dispatch-mini-grid span,
+.dispatch-summary-grid span,
+.dispatch-signal-grid span,
+.dispatch-url {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dispatch-mini-grid strong,
+.dispatch-summary-grid strong,
+.dispatch-signal-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
+.dispatch-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-cyan);
+}
+
+.dispatch-panel,
+.dispatch-target-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.dispatch-target-detail {
+  padding: 12px;
+}
+
+.dispatch-summary-card,
+.dispatch-readiness {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.dispatch-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.dispatch-warning-list {
+  color: var(--warning);
+}
+
+.dispatch-history {
+  display: grid;
+  gap: 10px;
+}
+
+.dispatch-safety {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  border: 1px solid rgba(244, 199, 107, 0.28);
+  background: rgba(244, 199, 107, 0.08);
+  color: var(--warning);
+  padding: 10px;
+}
+
+.dispatch-safety p {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  min-height: 38px;
+  padding: 9px 10px;
+  font-size: 0.8rem;
+}
+
+.check-field input {
+  accent-color: var(--accent-cyan);
+}
+
 .integration-footer {
   justify-content: space-between;
   gap: 14px;
@@ -878,7 +1093,10 @@ code {
   .field-grid,
   .verification-grid,
   .repo-overview-grid,
-  .ai-action-grid {
+  .ai-action-grid,
+  .dispatch-mini-grid,
+  .dispatch-summary-grid,
+  .dispatch-signal-grid {
     grid-template-columns: 1fr;
   }
 

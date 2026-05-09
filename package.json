@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:unit": "vitest run tests/automationSignals.test.ts"
+    "test:unit": "vitest run tests/automationSignals.test.ts tests/dispatch.test.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

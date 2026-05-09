@@ -4,11 +4,13 @@ JAMARQ Atlas is a local-first operator dashboard for organizing open work across
 
 Atlas is not a replacement for GitHub, deployment dashboards, or human judgment. GitHub can show what happened. Atlas keeps the manual operational interpretation separate: status, next action, blockers, risk, deferred work, decisions, and verification state.
 
+Atlas Dispatch extends that model for deployment readiness. Atlas maps work. Dispatch tracks whether a project can be safely shipped. Humans decide what ships.
+
 ## Stack
 
 - React + TypeScript for the dashboard and detail surfaces.
 - Vite for the local app and local `/api/github` boundary.
-- Local storage for manual workspace edits.
+- Local storage for manual workspace edits and separate Dispatch state.
 - Server-side environment variables for GitHub tokens.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
 
@@ -62,15 +64,71 @@ Each resource reports its own permission or availability problem. If a token can
 
 The older `npm run ingest:github` snapshot command remains available for raw cache experiments, but the app now uses `/api/github` for interactive read-only views.
 
+## Atlas Dispatch
+
+Dispatch tracks deployment posture without executing deployments.
+
+Current Dispatch data:
+
+- Deployment targets and environments.
+- Host type and placeholder host/path configuration.
+- Public URL and health check URLs.
+- Deployment notes, blockers, and target notes.
+- Last deployed and last verified dates.
+- Deployment records and health check results.
+- Rollback reference and database backup reference.
+- Backup-required and destructive-confirmation-required flags.
+- Advisory readiness blockers and warnings.
+
+Seed targets exist for:
+
+- Midway Music Hall production, GoDaddy/cPanel.
+- Midway Mobile Storage production, GoDaddy/cPanel.
+- Thunder Road production, GoDaddy/cPanel.
+- Surplus Containers production, GoDaddy/cPanel.
+- JAMARQ website production.
+- Tenra public site production.
+
+Placeholder values are clearly marked and must be confirmed before any future automation work.
+
+Dispatch intentionally does not automate:
+
+- Live deployment.
+- SSH/SFTP.
+- cPanel or GoDaddy writes.
+- Production file overwrite.
+- Production database import, restore, or overwrite.
+- Rollback execution.
+- phpMyAdmin automation.
+
+Future deployment runner phases are stubbed:
+
+1. Preflight
+2. Backup
+3. Package
+4. Upload
+5. Release
+6. Verify
+7. Rollback
+
+Every runner phase currently returns a structured no-op result. No network write, file overwrite, database operation, or deployment command is executed.
+
 ## Architecture
 
 Atlas separates manual intent from raw activity.
 
 - `src/domain/atlas.ts` defines workspace, section, group, project, manual state, repository links, and activity events.
+- `src/domain/dispatch.ts` defines Dispatch targets, statuses, records, readiness, health checks, and runner results.
+- `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
+- `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
+- `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
 - `server/githubApi.ts` normalizes GitHub REST responses and maps permission/rate-limit/not-found errors.
 - `src/components/Dashboard.tsx` renders the compact status board.
 - `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and AI writing prompts.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
+- `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
+- `src/services/dispatchHealthChecks.ts` contains a read-only health check probing stub.
+- `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
 - `src/services/aiWritingAssistant.ts` creates reviewable writing prompts only.
 
@@ -97,6 +155,21 @@ GitHub activity is advisory:
 - Permission errors do not block manual tracking.
 - AI output is draft text only.
 
+Dispatch activity is advisory:
+
+- Readiness does not change Atlas status.
+- Health checks do not mark a project stable.
+- Backup warnings do not change priority.
+- Deployment records do not decide what should ship.
+
+Dispatch safety rules:
+
+- Production database imports/restores require explicit typed confirmation.
+- Production file overwrites require a verified backup first.
+- phpMyAdmin should not be automated directly.
+- Future cPanel/GoDaddy support should prefer SSH/SFTP, `mysqldump`/`mysql`, and cPanel API where appropriate.
+- No destructive operation exists in the current implementation.
+
 ## Statuses
 
 - Inbox
@@ -116,3 +189,4 @@ GitHub activity is advisory:
 3. Add a real AI writing provider behind the current prompt boundary.
 4. Add client update and release note templates.
 5. Add verification cadence views by section and status.
+6. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.

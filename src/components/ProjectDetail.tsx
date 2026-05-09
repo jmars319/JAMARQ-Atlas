@@ -4,6 +4,7 @@ import {
   GitBranch,
   NotebookPen,
   RefreshCcw,
+  Rocket,
   ShieldAlert,
   SquareArrowOutUpRight,
 } from 'lucide-react'
@@ -15,14 +16,23 @@ import {
   type ManualOperationalState,
   type ProjectRecord,
 } from '../domain/atlas'
+import type { DeploymentTarget, DispatchReadiness, DispatchState } from '../domain/dispatch'
 import { ActivityFeed } from './ActivityFeed'
+import { DispatchPanel } from './DispatchPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
 import { StatusBadge } from './StatusBadge'
 
 interface ProjectDetailProps {
   record: ProjectRecord
   aiDraft: string
+  dispatch: DispatchState
   onManualChange: (manual: Partial<ManualOperationalState>) => void
+  onDispatchTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
+  onDispatchReadinessChange: (
+    targetId: string,
+    projectId: string,
+    update: Partial<DispatchReadiness>,
+  ) => void
   onDraftRequest: (action: AiWritingAction) => void
   onResetWorkspace: () => void
 }
@@ -60,7 +70,10 @@ function TextAreaField({ label, value, onChange }: TextAreaFieldProps) {
 export function ProjectDetail({
   record,
   aiDraft,
+  dispatch,
   onManualChange,
+  onDispatchTargetChange,
+  onDispatchReadinessChange,
   onDraftRequest,
   onResetWorkspace,
 }: ProjectDetailProps) {
@@ -180,6 +193,19 @@ export function ProjectDetail({
             onChange={(decisions) => onManualChange({ decisions })}
           />
         </div>
+      </section>
+
+      <section className="detail-panel">
+        <div className="panel-heading">
+          <Rocket size={17} />
+          <h3>Dispatch</h3>
+        </div>
+        <DispatchPanel
+          record={record}
+          dispatch={dispatch}
+          onTargetChange={onDispatchTargetChange}
+          onReadinessChange={onDispatchReadinessChange}
+        />
       </section>
 
       <section className="detail-panel">
