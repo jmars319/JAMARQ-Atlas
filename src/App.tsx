@@ -58,9 +58,7 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true">
-            A
-          </div>
+          <img src="/jamarq-logo.png" alt="" className="brand-mark" />
           <div>
             <strong>Atlas</strong>
             <span>JAMARQ operator dashboard</span>
@@ -115,12 +113,12 @@ function App() {
 
       <footer className="integration-footer">
         <div>
-          <strong>GitHub ingestion boundary</strong>
+          <strong>GitHub local API boundary</strong>
           <span>{githubIngestionContract.command}</span>
         </div>
         <p>
-          Raw GitHub data is cached separately from manual operational intent at{' '}
-          <code>{githubIngestionContract.cacheFile}</code>.
+          Read-only GitHub data is fetched through <code>/api/github</code>; manual Atlas status
+          remains the source of truth.
         </p>
       </footer>
     </main>

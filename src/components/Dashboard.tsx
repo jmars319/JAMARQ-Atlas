@@ -4,12 +4,14 @@ import {
   CircleDot,
   Clock3,
   Filter,
+  GitBranch,
   Search,
   ShieldAlert,
 } from 'lucide-react'
 import {
   WORK_STATUSES,
   formatDateLabel,
+  statusToneClass,
   type ProjectRecord,
   type WorkStatus,
   type Workspace,
@@ -56,6 +58,23 @@ function countByStatus(projectRecords: ProjectRecord[], status: WorkStatus): num
   return projectRecords.filter((record) => record.project.manual.status === status).length
 }
 
+function visibleRecords({
+  projectRecords,
+  sectionFilter,
+  statusFilter,
+  query,
+}: {
+  projectRecords: ProjectRecord[]
+  sectionFilter: SectionFilter
+  statusFilter: StatusFilter
+  query: string
+}) {
+  return projectRecords
+    .filter((record) => sectionFilter === 'All' || record.section.id === sectionFilter)
+    .filter((record) => statusFilter === 'All' || record.project.manual.status === statusFilter)
+    .filter((record) => includesQuery(record, query))
+}
+
 export function Dashboard({
   workspace,
   projectRecords,
@@ -73,14 +92,7 @@ export function Dashboard({
   const verificationCount = countByStatus(projectRecords, 'Verification')
   const stableCount = countByStatus(projectRecords, 'Stable')
   const archivedCount = countByStatus(projectRecords, 'Archived')
-
-  const visibleProjectIds = new Set(
-    projectRecords
-      .filter((record) => sectionFilter === 'All' || record.section.id === sectionFilter)
-      .filter((record) => statusFilter === 'All' || record.project.manual.status === statusFilter)
-      .filter((record) => includesQuery(record, query))
-      .map((record) => record.project.id),
-  )
+  const records = visibleRecords({ projectRecords, sectionFilter, statusFilter, query })
 
   return (
     <section className="dashboard" aria-labelledby="dashboard-title">
@@ -127,7 +139,7 @@ export function Dashboard({
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search sections, projects, risks, actions"
+            placeholder="Search projects, risks, actions"
           />
         </label>
 
@@ -178,85 +190,68 @@ export function Dashboard({
         ))}
       </div>
 
-      <div className="section-stack">
-        {workspace.sections.map((section) => {
-          const sectionHidden = sectionFilter !== 'All' && sectionFilter !== section.id
-          const visibleCount = section.groups.reduce(
-            (count, group) =>
-              count +
-              group.projects.filter((candidate) => visibleProjectIds.has(candidate.id)).length,
-            0,
-          )
+      <div className="board-summary">
+        <span>{records.length} project records shown</span>
+        <span>Manual status drives the board. GitHub activity is advisory.</span>
+      </div>
 
-          if (sectionHidden) {
+      <div className="kanban-board" aria-label="Atlas status board">
+        {WORK_STATUSES.map((status) => {
+          const laneRecords = records.filter((record) => record.project.manual.status === status.id)
+          const laneId = `${status.id.toLowerCase().replaceAll(' ', '-')}-lane`
+
+          if (statusFilter !== 'All' && statusFilter !== status.id) {
             return null
           }
 
           return (
-            <section className="portfolio-section" key={section.id}>
-              <div className="portfolio-heading">
+            <section className="kanban-lane" key={status.id} aria-labelledby={laneId}>
+              <div className="lane-heading">
                 <div>
-                  <p className="section-label">Section</p>
-                  <h2>{section.name}</h2>
-                  <p>{section.summary}</p>
+                  <span className={`lane-dot ${statusToneClass(status.id)}`} />
+                  <h2 id={laneId}>{status.label}</h2>
                 </div>
-                <span>{visibleCount} shown</span>
+                <strong>{laneRecords.length}</strong>
               </div>
 
-              {visibleCount === 0 ? (
-                <p className="empty-state">No matching projects in this section.</p>
-              ) : null}
+              <div className="lane-cards">
+                {laneRecords.length === 0 ? (
+                  <p className="empty-state">No matching work in this lane.</p>
+                ) : null}
 
-              {section.groups.map((group) => {
-                const visibleProjects = group.projects.filter((candidate) =>
-                  visibleProjectIds.has(candidate.id),
-                )
-
-                if (visibleProjects.length === 0) {
-                  return null
-                }
-
-                return (
-                  <div className="project-group" key={group.id}>
-                    <div className="group-heading">
-                      <div>
-                        <h3>{group.name}</h3>
-                        <p>{group.summary}</p>
-                      </div>
-                      <span>{visibleProjects.length}</span>
+                {laneRecords.map((record) => (
+                  <button
+                    type="button"
+                    className={`project-card project-row ${
+                      selectedProjectId === record.project.id ? 'is-selected' : ''
+                    }`}
+                    key={record.project.id}
+                    onClick={() => onSelectProject(record.project.id)}
+                  >
+                    <div className="card-topline">
+                      <StatusBadge status={record.project.manual.status} />
+                      {record.project.repositories.length > 0 ? (
+                        <span className="repo-count">
+                          <GitBranch size={13} />
+                          {record.project.repositories.length}
+                        </span>
+                      ) : null}
                     </div>
-
-                    <div className="project-list">
-                      {visibleProjects.map((candidate) => (
-                        <button
-                          type="button"
-                          className={`project-row ${
-                            selectedProjectId === candidate.id ? 'is-selected' : ''
-                          }`}
-                          key={candidate.id}
-                          onClick={() => onSelectProject(candidate.id)}
-                        >
-                          <div className="project-main">
-                            <StatusBadge status={candidate.manual.status} />
-                            <div>
-                              <strong>{candidate.name}</strong>
-                              <span>{candidate.summary}</span>
-                            </div>
-                          </div>
-                          <div className="project-meta">
-                            <span>{candidate.kind}</span>
-                            <span>{formatDateLabel(candidate.manual.lastVerified)}</span>
-                          </div>
-                          <div className="project-next">
-                            <span>Next</span>
-                            <strong>{candidate.manual.nextAction}</strong>
-                          </div>
-                        </button>
-                      ))}
+                    <strong>{record.project.name}</strong>
+                    <span className="card-context">
+                      {record.section.name} / {record.group.name}
+                    </span>
+                    <p>{record.project.manual.nextAction}</p>
+                    <div className="card-footer">
+                      <span>{record.project.kind}</span>
+                      <span>{formatDateLabel(record.project.manual.lastVerified)}</span>
                     </div>
-                  </div>
-                )
-              })}
+                    {record.project.manual.currentRisk ? (
+                      <span className="risk-line">{record.project.manual.currentRisk}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
             </section>
           )
         })}

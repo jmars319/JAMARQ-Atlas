@@ -16,6 +16,7 @@ import {
   type ProjectRecord,
 } from '../domain/atlas'
 import { ActivityFeed } from './ActivityFeed'
+import { RepoActivityPanel } from './RepoActivityPanel'
 import { StatusBadge } from './StatusBadge'
 
 interface ProjectDetailProps {
@@ -184,7 +185,15 @@ export function ProjectDetail({
       <section className="detail-panel">
         <div className="panel-heading">
           <GitBranch size={17} />
-          <h3>Raw Activity</h3>
+          <h3>GitHub Activity</h3>
+        </div>
+        <RepoActivityPanel project={project} />
+      </section>
+
+      <section className="detail-panel">
+        <div className="panel-heading">
+          <GitBranch size={17} />
+          <h3>Manual / Mock Activity</h3>
         </div>
         <ActivityFeed events={project.activity} />
       </section>

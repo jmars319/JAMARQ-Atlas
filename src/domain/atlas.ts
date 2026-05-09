@@ -201,7 +201,7 @@ export function formatDateLabel(value: string): string {
     return 'Not set'
   }
 
-  const parsed = new Date(`${value}T12:00:00`)
+  const parsed = value.includes('T') ? new Date(value) : new Date(`${value}T12:00:00`)
   if (Number.isNaN(parsed.getTime())) {
     return value
   }
@@ -210,5 +210,25 @@ export function formatDateLabel(value: string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  }).format(parsed)
+}
+
+export function formatDateTimeLabel(value: string | null): string {
+  if (!value) {
+    return 'Not set'
+  }
+
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   }).format(parsed)
 }

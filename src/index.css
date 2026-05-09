@@ -1,13 +1,31 @@
 :root {
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #e8ece8;
-  background: #101211;
+  --jamarq-black: #0d0d0f;
+  --accent-cyan: #09a6d6;
+  --steel: #4a4d52;
+  --slate: #6e7176;
+  --mist: #d1d3d6;
+  --paper-white: #fafafa;
+  --canvas: #0d0d0f;
+  --surface: #131416;
+  --surface-2: #191b1e;
+  --surface-3: #202327;
+  --line: rgba(209, 211, 214, 0.14);
+  --line-strong: rgba(9, 166, 214, 0.38);
+  --text: #fafafa;
+  --text-soft: #d1d3d6;
+  --text-muted: #8f9399;
+  --focus: #09a6d6;
+  --danger: #f97373;
+  --warning: #f4c76b;
+  --success: #80d58a;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: dark light;
+  color-scheme: dark;
 }
 
 * {
@@ -16,7 +34,7 @@
 
 html {
   min-width: 320px;
-  background: #101211;
+  background: var(--canvas);
 }
 
 body {
@@ -24,8 +42,8 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(42, 48, 45, 0.45), rgba(16, 18, 17, 0) 320px),
-    #101211;
+    linear-gradient(180deg, rgba(9, 166, 214, 0.08), rgba(13, 13, 15, 0) 280px),
+    var(--canvas);
 }
 
 button,
@@ -39,12 +57,17 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-  outline: 2px solid #7dd3c7;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
