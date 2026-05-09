@@ -14,7 +14,8 @@ The dashboard currently supports:
 
 - Board-level review of sections, project groups, and projects.
 - Project detail pages for status, next action, blockers, deferred work, not-doing items, notes, decisions, and last verification.
-- Optional read-only GitHub panels for repository activity.
+- GitHub Intake for discovering repositories, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
+- Optional read-only GitHub panels for bound repository activity.
 - Atlas Dispatch for deployment target posture, readiness notes, health check signals, rollback posture, and deployment history.
 - AI writing-assistance boundaries that generate draft prompts only. AI does not decide status, priority, risk, roadmap, or deployment readiness.
 
@@ -26,6 +27,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Local seed data for the initial Atlas sections and Dispatch targets.
 - Separate local storage hooks for workspace state and Dispatch state.
 - Optional GitHub REST integration through `/api/github`.
+- Repository binding/import helpers that persist repo links only.
 - Dispatch domain models, readiness evaluation, health-check stubs, and safe no-op runner phases.
 - Unit and Playwright smoke tests for the main operator flows.
 
@@ -75,6 +77,7 @@ The UI fetches the latest 20 records by default and uses pagination for more his
 Supported GitHub resources:
 
 - Repository overview
+- Repository inventory from configured repos and viewer-accessible repos
 - Commits
 - Pull requests
 - Issues
@@ -85,6 +88,13 @@ Supported GitHub resources:
 - Check runs
 
 Each resource reports its own permission or availability problem. If a token can read commits but not Actions, the commits tab still works and the Actions tab reports the permission gap.
+
+GitHub Intake supports two read-only inventory sources:
+
+- Configured repos from `GITHUB_REPOS`.
+- Viewer repos from the authenticated token when `/user/repos` is available.
+
+Atlas stores only the resulting project repository bindings or explicitly created Inbox projects. It does not mirror full GitHub history into local storage.
 
 The older `npm run ingest:github` snapshot command remains available for raw cache experiments, but the app now uses `/api/github` for interactive read-only views.
 
@@ -159,8 +169,10 @@ Atlas separates manual intent from raw activity.
 - `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
 - `server/githubApi.ts` normalizes GitHub REST responses and maps permission/rate-limit/not-found errors.
 - `src/components/Dashboard.tsx` renders the compact status board.
+- `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
 - `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and AI writing prompts.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
+- `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
 - `src/services/dispatchHealthChecks.ts` contains a read-only health check probing stub.
 - `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
@@ -188,6 +200,8 @@ GitHub activity is advisory:
 - Failed workflows do not change risk.
 - Stale PRs do not change priority.
 - Permission errors do not block manual tracking.
+- Binding a repository does not change manual status.
+- Creating an Inbox project from a repo starts in Inbox for human triage.
 - AI output is draft text only.
 
 Dispatch activity is advisory:
@@ -219,9 +233,9 @@ Dispatch safety rules:
 
 ## Roadmap
 
-1. Add a repo binding/import screen so configured GitHub repos can be attached to Atlas projects from the UI.
+1. Add verification cadence views by section and status.
 2. Add hosted persistence only after the manual model is stable.
 3. Add a real AI writing provider behind the current prompt boundary.
 4. Add client update and release note templates.
-5. Add verification cadence views by section and status.
+5. Expand GitHub Intake with optional repo grouping suggestions for human review.
 6. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.

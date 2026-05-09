@@ -47,6 +47,8 @@ export interface GithubConnectionState {
   authMode: 'server-env'
 }
 
+export type GithubRepositorySource = 'configured' | 'viewer'
+
 export interface GithubRepositorySummary {
   id: number
   name: string

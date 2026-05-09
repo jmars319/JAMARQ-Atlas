@@ -31,6 +31,8 @@ The UI consumes normalized resources through `src/components/RepoActivityPanel.t
 
 Atlas can request:
 
+- Repository inventory from configured repos.
+- Repository inventory from viewer-accessible repos.
 - Repository overview
 - Commits
 - Pull requests
@@ -43,6 +45,26 @@ Atlas can request:
 
 The UI loads the most recent records first and supports pagination where available. Full commit history does not need to be permanently stored in local state.
 
+## GitHub Intake
+
+GitHub Intake is the repository discovery and binding surface.
+
+It reads from two sources:
+
+- `source=configured`: repositories listed in `GITHUB_REPOS`.
+- `source=viewer`: repositories available to the authenticated token through GitHub's viewer repository endpoint.
+
+Intake actions are local Atlas actions only:
+
+- Bind a repo to an existing Atlas project.
+- Unbind a repo from a project.
+- Create an explicit Inbox project from an unbound repo.
+- Open the repository on GitHub.
+
+Created Inbox projects are placed under `Outliers / One-off tools` with `kind: "repo"` and `status: "Inbox"`. The imported repository description may seed the summary, but GitHub does not set status, priority, risk, roadmap, or Dispatch readiness.
+
+Atlas persists only repository bindings and explicitly created project records. Commits, pull requests, issues, workflows, releases, deployments, and checks remain live read-only views fetched on demand.
+
 ## Permission Behavior
 
 GitHub permissions are handled per resource.
@@ -50,6 +72,7 @@ GitHub permissions are handled per resource.
 Examples:
 
 - Missing token: the GitHub panel shows a missing-token state.
+- Viewer inventory unavailable: the GitHub Intake viewer source reports the issue while configured repo handling remains scoped to its own source.
 - Insufficient Actions permission: workflow tabs show a permission message.
 - Repository not found or unavailable: the affected repo panel reports the issue.
 - Rate limit: the affected resource reports the rate-limit state.
@@ -62,6 +85,8 @@ These states do not break Atlas, Dispatch, or manual project tracking.
 - Pull requests do not change priority.
 - Failed workflows do not change current risk.
 - Releases do not mark a project stable.
+- Repo binding does not change project status.
+- Repo import creates Inbox work only after an explicit human action.
 - Permission gaps do not block manual tracking.
 
 GitHub activity may inform a human review. It does not make operational decisions.

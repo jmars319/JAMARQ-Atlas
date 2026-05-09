@@ -46,6 +46,10 @@ function getConfiguredRepos() {
     .filter(Boolean)
 }
 
+function resolveConfiguredRepo(repo: string) {
+  return repo.includes('/') || !process.env.GITHUB_OWNER ? repo : `${process.env.GITHUB_OWNER}/${repo}`
+}
+
 function json(response: ServerResponse, status: number, body: unknown) {
   response.statusCode = status
   response.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -449,7 +453,7 @@ function normalize(resource: string, data: unknown) {
   return data
 }
 
-async function handleRepos(searchParams: URLSearchParams) {
+async function handleConfiguredRepos(searchParams: URLSearchParams) {
   const repos = getConfiguredRepos()
 
   if (repos.length === 0) {
@@ -463,7 +467,7 @@ async function handleRepos(searchParams: URLSearchParams) {
 
   const results = await Promise.all(
     repos.map((repo) => {
-      const fullName = repo.includes('/') ? repo : `${process.env.GITHUB_OWNER}/${repo}`
+      const fullName = resolveConfiguredRepo(repo)
       return githubRequest(`/repos/${fullName}`, 'repo', searchParams)
     }),
   )
@@ -473,7 +477,56 @@ async function handleRepos(searchParams: URLSearchParams) {
     data: results.flatMap((result) => (result.data ? [normalize('repo', result.data)] : [])),
     pageInfo: parsePageInfo(searchParams, null),
     error: firstError,
-    permission: firstError ? 'unknown' : 'available',
+    permission:
+      firstError?.type === 'missing-token'
+        ? 'missing-token'
+        : firstError?.type === 'insufficient-permission'
+          ? 'insufficient'
+          : firstError
+            ? 'unknown'
+            : 'available',
+  } satisfies GithubRequestResult
+}
+
+async function handleViewerRepos(searchParams: URLSearchParams) {
+  const path = withPagination(
+    '/user/repos',
+    searchParams,
+    new URLSearchParams({
+      affiliation: 'owner,collaborator,organization_member',
+      sort: 'pushed',
+      direction: 'desc',
+    }),
+  )
+  const result = await githubRequest(path, 'repos', searchParams)
+
+  return {
+    ...result,
+    data: result.error ? null : normalize('repos', result.data),
+  } satisfies GithubRequestResult
+}
+
+async function handleRepos(searchParams: URLSearchParams) {
+  const source = searchParams.get('source') || 'configured'
+
+  if (source === 'configured') {
+    return handleConfiguredRepos(searchParams)
+  }
+
+  if (source === 'viewer') {
+    return handleViewerRepos(searchParams)
+  }
+
+  return {
+    data: null,
+    pageInfo: parsePageInfo(searchParams, null),
+    error: {
+      type: 'unknown',
+      status: 400,
+      resource: 'repos',
+      message: `Unsupported repository source: ${source}.`,
+    },
+    permission: 'unknown',
   } satisfies GithubRequestResult
 }
 

@@ -3,11 +3,13 @@ import { DatabaseZap, GitBranch, PanelRightOpen, Rocket } from 'lucide-react'
 import './App.css'
 import { Dashboard } from './components/Dashboard'
 import { DispatchDashboard } from './components/DispatchDashboard'
+import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
 import { ProjectDetail } from './components/ProjectDetail'
 import {
   findProjectRecord,
   flattenProjects,
   updateProject,
+  type GithubRepositoryLink,
   type ManualOperationalState,
   type WorkStatus,
 } from './domain/atlas'
@@ -15,11 +17,17 @@ import type { DeploymentTarget, DispatchReadiness } from './domain/dispatch'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalWorkspace } from './hooks/useLocalWorkspace'
 import { createWritingAssistDraft, type AiWritingAction } from './services/aiWritingAssistant'
-import { githubIngestionContract } from './services/githubIntegration'
+import { githubIngestionContract, type GithubRepositorySummary } from './services/githubIntegration'
+import {
+  bindRepositoryToProject,
+  createInboxProjectFromRepository,
+  repositorySummaryToLink,
+  unbindRepositoryFromProject,
+} from './services/repoBinding'
 
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
-type AppView = 'board' | 'dispatch'
+type AppView = 'board' | 'github' | 'dispatch'
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
@@ -72,6 +80,27 @@ function App() {
     updateReadiness(targetId, projectId, update)
   }
 
+  function handleBindRepository(projectId: string, repository: GithubRepositorySummary) {
+    const link = repositorySummaryToLink(repository)
+    setWorkspace((currentWorkspace) => bindRepositoryToProject(currentWorkspace, projectId, link))
+    setSelectedProjectId(projectId)
+    setAiDraft('')
+  }
+
+  function handleCreateInboxProject(repository: GithubRepositorySummary) {
+    const result = createInboxProjectFromRepository(workspace, repository)
+    setWorkspace(result.workspace)
+    setSelectedProjectId(result.projectId)
+    setAiDraft('')
+  }
+
+  function handleUnbindRepository(projectId: string, repository: GithubRepositoryLink) {
+    setWorkspace((currentWorkspace) =>
+      unbindRepositoryFromProject(currentWorkspace, projectId, repository),
+    )
+    setAiDraft('')
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -112,6 +141,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={appView === 'github' ? 'is-selected' : ''}
+          onClick={() => setAppView('github')}
+        >
+          GitHub
+        </button>
+        <button
+          type="button"
           className={appView === 'dispatch' ? 'is-selected' : ''}
           onClick={() => setAppView('dispatch')}
         >
@@ -136,6 +172,17 @@ function App() {
             onStatusFilterChange={setStatusFilter}
             onSectionFilterChange={setSectionFilter}
           />
+        ) : appView === 'github' ? (
+          <GitHubIntakeDashboard
+            projectRecords={projectRecords}
+            selectedProjectId={selectedRecord?.project.id ?? ''}
+            onSelectProject={(projectId) => {
+              setSelectedProjectId(projectId)
+              setAiDraft('')
+            }}
+            onBindRepository={handleBindRepository}
+            onCreateInboxProject={handleCreateInboxProject}
+          />
         ) : (
           <DispatchDashboard
             dispatch={dispatch}
@@ -156,6 +203,7 @@ function App() {
             onManualChange={updateManualState}
             onDispatchTargetChange={handleDispatchTargetChange}
             onDispatchReadinessChange={handleDispatchReadinessChange}
+            onRepositoryUnbind={handleUnbindRepository}
             onDraftRequest={handleDraftRequest}
             onResetWorkspace={() => {
               resetWorkspace()

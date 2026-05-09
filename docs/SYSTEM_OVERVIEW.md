@@ -9,6 +9,7 @@ Atlas is a working MVP. It is intentionally simple: React, Vite, TypeScript, loc
 The app has two main surfaces:
 
 - Board: human-authored operational status across sections, groups, and projects.
+- GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
 - Dispatch: deployment posture across configured targets.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. AI can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, or what should ship.
@@ -65,6 +66,8 @@ GitHub integration is optional and read-only. Browser code calls the local `/api
 
 GitHub resources are shown as operational signals:
 
+- Repository inventory from configured repos
+- Repository inventory from viewer-accessible repos
 - Repository overview
 - Commits
 - Pull requests
@@ -76,6 +79,8 @@ GitHub resources are shown as operational signals:
 - Check runs
 
 Permission gaps are resource-local. If a token can read commits but cannot read Actions, the commits panel still works and the Actions panel reports the permission gap.
+
+GitHub Intake persists only Atlas decisions: repository bindings and explicitly created Inbox projects. It does not store full commit, PR, workflow, issue, release, deployment, or check history.
 
 ## AI Boundary
 

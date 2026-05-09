@@ -7,12 +7,14 @@ import {
   Rocket,
   ShieldAlert,
   SquareArrowOutUpRight,
+  Unlink,
 } from 'lucide-react'
 import type { AiWritingAction } from '../services/aiWritingAssistant'
 import { aiWritingActions } from '../services/aiWritingAssistant'
 import {
   WORK_STATUSES,
   formatDateLabel,
+  type GithubRepositoryLink,
   type ManualOperationalState,
   type ProjectRecord,
 } from '../domain/atlas'
@@ -33,6 +35,7 @@ interface ProjectDetailProps {
     projectId: string,
     update: Partial<DispatchReadiness>,
   ) => void
+  onRepositoryUnbind: (projectId: string, repository: GithubRepositoryLink) => void
   onDraftRequest: (action: AiWritingAction) => void
   onResetWorkspace: () => void
 }
@@ -74,6 +77,7 @@ export function ProjectDetail({
   onManualChange,
   onDispatchTargetChange,
   onDispatchReadinessChange,
+  onRepositoryUnbind,
   onDraftRequest,
   onResetWorkspace,
 }: ProjectDetailProps) {
@@ -247,11 +251,21 @@ export function ProjectDetail({
                 <span>
                   {repo.owner}/{repo.name}
                 </span>
-                {repo.url ? (
-                  <a href={repo.url} target="_blank" rel="noreferrer" aria-label="Open repo">
-                    <SquareArrowOutUpRight size={15} />
-                  </a>
-                ) : null}
+                <div className="repo-list-actions">
+                  {repo.url ? (
+                    <a href={repo.url} target="_blank" rel="noreferrer" aria-label="Open repo">
+                      <SquareArrowOutUpRight size={15} />
+                    </a>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label={`Unbind ${repo.owner}/${repo.name}`}
+                    onClick={() => onRepositoryUnbind(project.id, repo)}
+                  >
+                    <Unlink size={15} />
+                    Unbind
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
