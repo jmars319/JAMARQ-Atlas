@@ -1,73 +1,142 @@
-# React + TypeScript + Vite
+# JAMARQ Atlas
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+JAMARQ Atlas is a local-first operator dashboard for organizing open work across client websites, software suites, experiments, business infrastructure, and outlier repositories.
 
-Currently, two official plugins are available:
+The first version is intentionally simple: a React/Vite app with a typed seed workspace, editable manual operational fields persisted in local storage, mock activity, and clear service boundaries for future GitHub and AI writing assistance.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- React + TypeScript for a modular app shell.
+- Vite for a small local development loop.
+- Local storage for the MVP persistence layer.
+- A Node GitHub ingestion script for optional read-only activity snapshots.
+- No backend, database, auth, or hosted AI dependency in the first pass.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This fits the MVP because Atlas needs a durable data shape and useful operator surface before it needs shared accounts or automation.
 
-## Expanding the ESLint configuration
+## Run Locally
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Build and lint:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm run build
+npm run lint
 ```
+
+Optional GitHub ingestion:
+
+```sh
+GITHUB_TOKEN=ghp_your_token GITHUB_OWNER=jmars319 npm run ingest:github
+```
+
+To restrict ingestion to explicit repositories:
+
+```sh
+GITHUB_TOKEN=ghp_your_token GITHUB_REPOS=jmars319/JAMARQ-Atlas,jmars319/another-repo npm run ingest:github
+```
+
+The script writes a raw snapshot to `src/data/github/github-snapshot.json`. The app does not require this file to contain live data.
+
+## Architecture
+
+Atlas separates operational interpretation from raw activity.
+
+- `src/domain/atlas.ts` defines the core model: workspace, section, project group, project, status, manual operational state, repository links, and activity events.
+- `src/data/seedWorkspace.ts` contains the local seed workspace with Client Systems, VaexCore, Tenra, JAMARQ, and Outliers.
+- `src/hooks/useLocalWorkspace.ts` persists edited manual state to local storage.
+- `src/components/Dashboard.tsx` renders the portfolio dashboard, filters, section groups, and project rows.
+- `src/components/ProjectDetail.tsx` renders the project detail view and editable operational header.
+- `src/components/ActivityFeed.tsx` renders raw activity without interpreting it as priority or status.
+- `src/services/githubIntegration.ts` documents the GitHub ingestion contract used by `scripts/ingest-github.mjs`.
+- `src/services/aiWritingAssistant.ts` creates reviewable writing prompts only.
+
+## Operational Model
+
+Manual fields are the source of truth:
+
+- Status
+- Next action
+- Last meaningful change
+- Last verified
+- Current risk
+- Blockers
+- Deferred items
+- Explicitly not doing
+- Notes
+- Decisions
+
+Raw activity is separate:
+
+- Commits
+- Pull requests
+- Issues
+- Releases
+- Workflow runs
+- Deployments
+- Manual notes and decisions
+
+GitHub and deployment tools can explain what happened. Atlas records what that means operationally only when a human writes or edits that interpretation.
+
+## Statuses
+
+Atlas currently supports:
+
+- Inbox
+- Planned
+- Active
+- Waiting
+- Verification
+- Stable
+- Deferred
+- Not Doing
+- Archived
+
+## AI Guardrails
+
+AI is limited to writing assistance. The current MVP only generates prompt drafts for future AI use.
+
+Allowed AI-supported actions:
+
+- Summarize recent repo activity.
+- Draft release notes.
+- Draft client update notes.
+- Summarize what changed recently.
+- Rewrite rough notes into clean operational language.
+- Generate a Codex handoff summary.
+
+Not allowed:
+
+- Deciding status.
+- Deciding priority.
+- Deciding risk.
+- Deciding roadmap.
+- Deciding what should be done.
+- Automatically changing manual operational fields.
+
+## GitHub Integration Boundary
+
+`scripts/ingest-github.mjs` can fetch:
+
+- Repositories
+- Recent commits
+- Pull requests
+- Issues
+- Releases
+- Workflow runs
+
+The ingestion output is raw cached data. It should later be mapped into project activity through a deliberate import layer, not used to overwrite manual status.
+
+## Next Steps
+
+1. Map GitHub snapshot entries into project activity by repository binding.
+2. Add a controlled import review screen before activity becomes visible in a project.
+3. Add export/import for the local workspace JSON.
+4. Add hosted persistence only after the manual model is stable.
+5. Add a real AI writing provider behind the existing prompt boundary.
+6. Add client update and release note templates.
+7. Add verification cadence views by section and status.
