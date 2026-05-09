@@ -37,8 +37,17 @@ type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing'
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
   const { dispatch, updateTarget, updateReadiness } = useLocalDispatch()
-  const { writing, addDraft, updateDraftText, updateDraftNotes, markReviewed, archiveDraft } =
-    useLocalWriting()
+  const {
+    writing,
+    addDraft,
+    updateDraftText,
+    updateDraftNotes,
+    markReviewed,
+    approveDraft,
+    recordCopied,
+    markExported,
+    archiveDraft,
+  } = useLocalWriting()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -264,6 +273,9 @@ function App() {
             onUpdateDraftText={updateDraftText}
             onUpdateDraftNotes={updateDraftNotes}
             onMarkReviewed={markReviewed}
+            onApproveDraft={approveDraft}
+            onRecordCopied={recordCopied}
+            onMarkExported={markExported}
             onArchiveDraft={archiveDraft}
           />
         ) : (

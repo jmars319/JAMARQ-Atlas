@@ -2,25 +2,17 @@ import { useEffect, useState } from 'react'
 import type { WritingDraft, WritingWorkbenchState } from '../domain/writing'
 import { emptyWritingState } from '../domain/writing'
 import {
+  approveWritingDraft,
   archiveWritingDraft,
   markWritingDraftReviewed,
+  markWritingDraftExported,
+  normalizeWritingState,
+  recordWritingDraftCopied,
   updateWritingDraftNotes,
   updateWritingDraftText,
 } from '../services/aiWritingAssistant'
 
 const STORAGE_KEY = 'jamarq-atlas.writing.v1'
-
-function normalizeWritingState(value: unknown): WritingWorkbenchState {
-  const candidate = typeof value === 'object' && value !== null ? value as WritingWorkbenchState : null
-
-  if (!candidate || !Array.isArray(candidate.drafts)) {
-    return { ...emptyWritingState }
-  }
-
-  return {
-    drafts: candidate.drafts.filter((draft) => draft && typeof draft.id === 'string'),
-  }
-}
 
 function readWriting(): WritingWorkbenchState {
   try {
@@ -71,6 +63,27 @@ export function useLocalWriting() {
     }))
   }
 
+  function approveDraft(draftId: string) {
+    setWriting((current) => ({
+      ...current,
+      drafts: approveWritingDraft(current.drafts, draftId),
+    }))
+  }
+
+  function recordCopied(draftId: string, type: 'copied' | 'prompt-copied') {
+    setWriting((current) => ({
+      ...current,
+      drafts: recordWritingDraftCopied(current.drafts, draftId, type),
+    }))
+  }
+
+  function markExported(draftId: string) {
+    setWriting((current) => ({
+      ...current,
+      drafts: markWritingDraftExported(current.drafts, draftId),
+    }))
+  }
+
   function archiveDraft(draftId: string) {
     setWriting((current) => ({
       ...current,
@@ -90,6 +103,9 @@ export function useLocalWriting() {
     updateDraftText,
     updateDraftNotes,
     markReviewed,
+    approveDraft,
+    recordCopied,
+    markExported,
     archiveDraft,
     resetWriting,
   }

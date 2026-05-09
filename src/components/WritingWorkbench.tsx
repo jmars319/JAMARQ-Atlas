@@ -1,8 +1,11 @@
 import {
   Archive,
+  BadgeCheck,
   Bot,
   CheckCircle2,
   Clock3,
+  Copy,
+  Download,
   FileText,
   GitCommitHorizontal,
   NotebookPen,
@@ -21,7 +24,11 @@ import {
   type WritingWorkbenchState,
 } from '../domain/writing'
 import { useWritingGithubContext } from '../hooks/useWritingGithubContext'
-import { createWritingDraft } from '../services/aiWritingAssistant'
+import {
+  buildWritingMarkdownPacket,
+  copyTextToClipboard,
+  createWritingDraft,
+} from '../services/aiWritingAssistant'
 import { evaluateVerification } from '../services/verification'
 
 type DraftFilter = WritingDraftStatus | 'active' | 'all'
@@ -40,6 +47,9 @@ interface WritingWorkbenchProps {
   onUpdateDraftText: (draftId: string, draftText: string) => void
   onUpdateDraftNotes: (draftId: string, notes: string) => void
   onMarkReviewed: (draftId: string) => void
+  onApproveDraft: (draftId: string) => void
+  onRecordCopied: (draftId: string, type: 'copied' | 'prompt-copied') => void
+  onMarkExported: (draftId: string) => void
   onArchiveDraft: (draftId: string) => void
 }
 
@@ -95,10 +105,14 @@ export function WritingWorkbench({
   onUpdateDraftText,
   onUpdateDraftNotes,
   onMarkReviewed,
+  onApproveDraft,
+  onRecordCopied,
+  onMarkExported,
   onArchiveDraft,
 }: WritingWorkbenchProps) {
   const [draftFilter, setDraftFilter] = useState<DraftFilter>('active')
   const [query, setQuery] = useState('')
+  const [actionMessage, setActionMessage] = useState('')
   const selectedRecord =
     projectRecords.find((record) => record.project.id === selectedProjectId) ?? projectRecords[0]
   const selectedProjectDrafts = writing.drafts.filter(
@@ -114,6 +128,8 @@ export function WritingWorkbench({
   )
   const activeDraftCount = writing.drafts.filter((draft) => draft.status === 'draft').length
   const reviewedDraftCount = writing.drafts.filter((draft) => draft.status === 'reviewed').length
+  const approvedDraftCount = writing.drafts.filter((draft) => draft.status === 'approved').length
+  const exportedDraftCount = writing.drafts.filter((draft) => draft.status === 'exported').length
   const archivedDraftCount = writing.drafts.filter((draft) => draft.status === 'archived').length
   const selectedTemplate = getWritingTemplate(selectedTemplateId)
   const selectedRepository = selectedRecord?.project.repositories[0]
@@ -136,6 +152,38 @@ export function WritingWorkbench({
         github: githubContext.context,
       }),
     )
+  }
+
+  async function handleCopyDraft(draft: WritingDraft) {
+    const result = await copyTextToClipboard(draft.draftText)
+    setActionMessage(result.message)
+
+    if (result.ok) {
+      onRecordCopied(draft.id, 'copied')
+    }
+  }
+
+  async function handleCopyPrompt(draft: WritingDraft) {
+    const result = await copyTextToClipboard(draft.promptPacket)
+    setActionMessage(result.message)
+
+    if (result.ok) {
+      onRecordCopied(draft.id, 'prompt-copied')
+    }
+  }
+
+  function handleMarkdownExport(draft: WritingDraft) {
+    const packet = buildWritingMarkdownPacket(draft)
+    const blob = new Blob([packet.markdown], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+
+    anchor.href = url
+    anchor.download = packet.filename
+    anchor.click()
+    URL.revokeObjectURL(url)
+    onMarkExported(draft.id)
+    setActionMessage(`Markdown packet exported locally as ${packet.filename}.`)
   }
 
   return (
@@ -169,6 +217,16 @@ export function WritingWorkbench({
             <Archive size={17} />
             <strong>{archivedDraftCount}</strong>
             <span>Archived</span>
+          </div>
+          <div>
+            <BadgeCheck size={17} />
+            <strong>{approvedDraftCount}</strong>
+            <span>Approved</span>
+          </div>
+          <div>
+            <Download size={17} />
+            <strong>{exportedDraftCount}</strong>
+            <span>Exported</span>
           </div>
         </div>
       </div>
@@ -252,11 +310,35 @@ export function WritingWorkbench({
               <div className="writing-editor-actions">
                 <button
                   type="button"
-                  disabled={selectedDraft.status === 'reviewed'}
+                  disabled={selectedDraft.status !== 'draft'}
                   onClick={() => onMarkReviewed(selectedDraft.id)}
                 >
                   <CheckCircle2 size={15} />
                   Mark reviewed
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedDraft.status !== 'reviewed'}
+                  onClick={() => onApproveDraft(selectedDraft.id)}
+                >
+                  <BadgeCheck size={15} />
+                  Approve
+                </button>
+                <button type="button" onClick={() => handleCopyDraft(selectedDraft)}>
+                  <Copy size={15} />
+                  Copy draft
+                </button>
+                <button type="button" onClick={() => handleCopyPrompt(selectedDraft)}>
+                  <Copy size={15} />
+                  Copy prompt
+                </button>
+                <button
+                  type="button"
+                  disabled={!['approved', 'exported'].includes(selectedDraft.status)}
+                  onClick={() => handleMarkdownExport(selectedDraft)}
+                >
+                  <Download size={15} />
+                  Export Markdown
                 </button>
                 <button
                   type="button"
@@ -301,6 +383,12 @@ export function WritingWorkbench({
                 </div>
               ) : null}
 
+              {actionMessage ? (
+                <p className="writing-action-message" aria-live="polite">
+                  {actionMessage}
+                </p>
+              ) : null}
+
               <label className="field field-full">
                 <span>Draft text</span>
                 <textarea
@@ -324,6 +412,26 @@ export function WritingWorkbench({
                 <span>Prompt packet</span>
                 <textarea readOnly rows={11} value={selectedDraft.promptPacket} />
               </label>
+
+              <div className="writing-audit" aria-label="Writing review audit">
+                <strong>Review Audit</strong>
+                {selectedDraft.reviewEvents.length > 0 ? (
+                  <ol>
+                    {selectedDraft.reviewEvents
+                      .slice()
+                      .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+                      .map((event) => (
+                        <li key={event.id}>
+                          <span>{formatDateTimeLabel(event.occurredAt)}</span>
+                          <strong>{event.type}</strong>
+                          <p>{event.detail}</p>
+                        </li>
+                      ))}
+                  </ol>
+                ) : (
+                  <p className="empty-state">No review events recorded.</p>
+                )}
+              </div>
             </>
           ) : (
             <p className="empty-state">
@@ -356,6 +464,8 @@ export function WritingWorkbench({
               ['active', 'Active'],
               ['draft', 'Draft'],
               ['reviewed', 'Reviewed'],
+              ['approved', 'Approved'],
+              ['exported', 'Exported'],
               ['archived', 'Archived'],
               ['all', 'All'],
             ].map(([id, label]) => (

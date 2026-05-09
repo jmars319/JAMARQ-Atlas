@@ -4,11 +4,17 @@ import { seedWorkspace } from '../src/data/seedWorkspace'
 import { flattenProjects } from '../src/domain/atlas'
 import type { WritingContextGithub } from '../src/domain/writing'
 import {
+  approveWritingDraft,
   archiveWritingDraft,
   buildWritingContextSnapshot,
+  buildWritingMarkdownPacket,
+  copyTextToClipboard,
   createWritingDraft,
   createWritingPromptPacket,
+  markWritingDraftExported,
   markWritingDraftReviewed,
+  normalizeWritingState,
+  recordWritingDraftCopied,
   updateWritingDraftText,
   writingGuardrails,
 } from '../src/services/aiWritingAssistant'
@@ -116,12 +122,74 @@ describe('AI writing assistant', () => {
 
     const updated = updateWritingDraftText(drafts, draft.id, 'Human-edited client update.', now)
     const reviewed = markWritingDraftReviewed(updated, draft.id, now)
-    const archived = archiveWritingDraft(reviewed, draft.id, now)
+    const approved = approveWritingDraft(reviewed, draft.id, now)
+    const copied = recordWritingDraftCopied(approved, draft.id, 'copied', now)
+    const exported = markWritingDraftExported(copied, draft.id, now)
+    const archived = archiveWritingDraft(exported, draft.id, now)
 
     expect(drafts[0].draftText).not.toBe('Human-edited client update.')
     expect(updated[0].draftText).toBe('Human-edited client update.')
     expect(reviewed[0].status).toBe('reviewed')
+    expect(approved[0].status).toBe('approved')
+    expect(exported[0].status).toBe('exported')
     expect(archived[0].status).toBe('archived')
+    expect(archived[0].reviewEvents.map((event) => event.type)).toEqual([
+      'created',
+      'reviewed',
+      'approved',
+      'copied',
+      'markdown-exported',
+      'archived',
+    ])
     expect(record.project.manual.status).toBe('Active')
+  })
+
+  it('normalizes old writing drafts into the new review lifecycle shape', () => {
+    const draft = createWritingDraft({
+      templateId: 'client-update',
+      record,
+      dispatch: seedDispatchState,
+      github: githubContext,
+      now,
+    })
+    const legacyDraft = {
+      ...draft,
+      reviewEvents: undefined,
+      status: 'reviewed',
+    }
+
+    const normalized = normalizeWritingState({ drafts: [legacyDraft] })
+
+    expect(normalized.drafts).toHaveLength(1)
+    expect(normalized.drafts[0].status).toBe('reviewed')
+    expect(normalized.drafts[0].reviewEvents[0].type).toBe('created')
+  })
+
+  it('builds Markdown export packets with metadata, warnings, guardrails, and prompt appendix', () => {
+    const draft = createWritingDraft({
+      templateId: 'client-update',
+      record,
+      dispatch: seedDispatchState,
+      now,
+    })
+    const packet = buildWritingMarkdownPacket(draft, { now })
+
+    expect(packet.format).toBe('markdown')
+    expect(packet.filename).toMatch(/client-update/)
+    expect(packet.markdown).toContain('## Draft Text')
+    expect(packet.markdown).toContain('No repository context was included.')
+    expect(packet.markdown).toContain('Produce draft text only.')
+    expect(packet.markdown).toContain('## Prompt Packet Appendix')
+  })
+
+  it('reports clipboard success and unsupported states without throwing', async () => {
+    const success = await copyTextToClipboard('Draft text', {
+      writeText: async () => undefined,
+    })
+    const unsupported = await copyTextToClipboard('Draft text', undefined)
+
+    expect(success).toEqual({ ok: true, message: 'Copied locally.' })
+    expect(unsupported.ok).toBe(false)
+    expect(unsupported.message).toContain('Clipboard API')
   })
 })

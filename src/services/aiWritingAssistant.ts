@@ -13,7 +13,12 @@ import {
   type WritingContextGithub,
   type WritingContextSnapshot,
   type WritingDraft,
+  type WritingDraftStatus,
+  type WritingExportPacket,
+  type WritingReviewEvent,
+  type WritingReviewEventType,
   type WritingTemplateId,
+  type WritingWorkbenchState,
 } from '../domain/writing'
 import { evaluateDispatchReadiness } from './dispatchReadiness'
 import { evaluateVerification } from './verification'
@@ -31,6 +36,14 @@ export const writingGuardrails = [
   'Call out uncertain points as questions for human review.',
 ]
 
+const writingStatuses = new Set<WritingDraftStatus>([
+  'draft',
+  'reviewed',
+  'approved',
+  'exported',
+  'archived',
+])
+
 const emptyGithubContext: WritingContextGithub = {
   repository: null,
   overview: null,
@@ -42,8 +55,73 @@ function dateStamp(value: string) {
   return value.slice(0, 10)
 }
 
+function nowStamp(now = new Date()) {
+  return now.toISOString()
+}
+
+function eventId(draftId: string, type: WritingReviewEventType, occurredAt: string) {
+  return `${draftId}-${type}-${occurredAt.replace(/[^0-9a-z]/gi, '')}`
+}
+
+function createWritingReviewEvent({
+  draftId,
+  type,
+  detail,
+  now = new Date(),
+}: {
+  draftId: string
+  type: WritingReviewEventType
+  detail: string
+  now?: Date
+}): WritingReviewEvent {
+  const occurredAt = nowStamp(now)
+
+  return {
+    id: eventId(draftId, type, occurredAt),
+    type,
+    occurredAt,
+    detail,
+  }
+}
+
 function listOrFallback(items: string[], fallback: string) {
   return items.length > 0 ? items.map((item) => `- ${item}`).join('\n') : `- ${fallback}`
+}
+
+function normalizeString(value: unknown, fallback = '') {
+  return typeof value === 'string' ? value : fallback
+}
+
+function isWritingTemplateId(value: unknown): value is WritingTemplateId {
+  return WRITING_TEMPLATES.some((template) => template.id === value)
+}
+
+function normalizeReviewEvents(draft: Partial<WritingDraft>, now = new Date()) {
+  const events = Array.isArray(draft.reviewEvents)
+    ? draft.reviewEvents
+        .filter((event): event is WritingReviewEvent =>
+          Boolean(
+            event &&
+              typeof event.id === 'string' &&
+              typeof event.type === 'string' &&
+              typeof event.occurredAt === 'string' &&
+              typeof event.detail === 'string',
+          ),
+        )
+    : []
+
+  if (events.length > 0) {
+    return events
+  }
+
+  return [
+    createWritingReviewEvent({
+      draftId: normalizeString(draft.id, 'writing-draft'),
+      type: 'created',
+      detail: 'Draft normalized into Writing Review storage.',
+      now: draft.createdAt ? new Date(draft.createdAt) : now,
+    }),
+  ]
 }
 
 function summarizeDispatch(record: ProjectRecord, dispatch: DispatchState) {
@@ -332,6 +410,14 @@ export function createWritingDraft({
     templateId,
     title: templateTitle(templateId, record.project.name, now),
     status: 'draft',
+    reviewEvents: [
+      createWritingReviewEvent({
+        draftId: `writing-${record.project.id}-${templateId}-${now.getTime()}`,
+        type: 'created',
+        detail: 'Draft packet created for human review.',
+        now,
+      }),
+    ],
     draftText: scaffoldForTemplate(templateId, contextSnapshot),
     promptPacket,
     contextSnapshot,
@@ -339,6 +425,58 @@ export function createWritingDraft({
     notes: '',
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
+  }
+}
+
+export function normalizeWritingDraft(value: unknown, now = new Date()): WritingDraft | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const draft = value as Partial<WritingDraft>
+  const id = normalizeString(draft.id)
+  const templateId = isWritingTemplateId(draft.templateId) ? draft.templateId : 'client-update'
+
+  if (!id || !draft.contextSnapshot) {
+    return null
+  }
+
+  const createdAt = normalizeString(draft.createdAt, nowStamp(now))
+  const updatedAt = normalizeString(draft.updatedAt, createdAt)
+  const status = draft.status && writingStatuses.has(draft.status) ? draft.status : 'draft'
+
+  return {
+    id,
+    projectId: normalizeString(draft.projectId, draft.contextSnapshot.projectId),
+    templateId,
+    title: normalizeString(draft.title, templateTitle(templateId, draft.contextSnapshot.projectName, now)),
+    status,
+    reviewEvents: normalizeReviewEvents(draft, now),
+    draftText: normalizeString(draft.draftText),
+    promptPacket: normalizeString(draft.promptPacket),
+    contextSnapshot: draft.contextSnapshot,
+    providerResult: draft.providerResult ?? getStubWritingProviderResult(),
+    notes: normalizeString(draft.notes),
+    createdAt,
+    updatedAt,
+  }
+}
+
+export function normalizeWritingState(value: unknown): WritingWorkbenchState {
+  const candidate =
+    typeof value === 'object' && value !== null ? (value as Partial<WritingWorkbenchState>) : null
+
+  if (!candidate || !Array.isArray(candidate.drafts)) {
+    return {
+      drafts: [],
+    }
+  }
+
+  return {
+    drafts: candidate.drafts.flatMap((draft) => {
+      const normalized = normalizeWritingDraft(draft)
+      return normalized ? [normalized] : []
+    }),
   }
 }
 
@@ -370,7 +508,47 @@ export function markWritingDraftReviewed(
   now = new Date(),
 ) {
   return drafts.map((draft) =>
-    draft.id === draftId ? { ...draft, status: 'reviewed' as const, updatedAt: now.toISOString() } : draft,
+    draft.id === draftId
+      ? {
+          ...draft,
+          status: 'reviewed' as const,
+          updatedAt: nowStamp(now),
+          reviewEvents: [
+            ...draft.reviewEvents,
+            createWritingReviewEvent({
+              draftId,
+              type: 'reviewed',
+              detail: 'Draft marked reviewed by a human operator.',
+              now,
+            }),
+          ],
+        }
+      : draft,
+  )
+}
+
+export function approveWritingDraft(
+  drafts: WritingDraft[],
+  draftId: string,
+  now = new Date(),
+) {
+  return drafts.map((draft) =>
+    draft.id === draftId
+      ? {
+          ...draft,
+          status: 'approved' as const,
+          updatedAt: nowStamp(now),
+          reviewEvents: [
+            ...draft.reviewEvents,
+            createWritingReviewEvent({
+              draftId,
+              type: 'approved',
+              detail: 'Draft approved for local export or manual use.',
+              now,
+            }),
+          ],
+        }
+      : draft,
   )
 }
 
@@ -380,8 +558,193 @@ export function archiveWritingDraft(
   now = new Date(),
 ) {
   return drafts.map((draft) =>
-    draft.id === draftId ? { ...draft, status: 'archived' as const, updatedAt: now.toISOString() } : draft,
+    draft.id === draftId
+      ? {
+          ...draft,
+          status: 'archived' as const,
+          updatedAt: nowStamp(now),
+          reviewEvents: [
+            ...draft.reviewEvents,
+            createWritingReviewEvent({
+              draftId,
+              type: 'archived',
+              detail: 'Draft archived locally.',
+              now,
+            }),
+          ],
+        }
+      : draft,
   )
+}
+
+export function recordWritingDraftCopied(
+  drafts: WritingDraft[],
+  draftId: string,
+  type: Extract<WritingReviewEventType, 'copied' | 'prompt-copied'>,
+  now = new Date(),
+) {
+  return drafts.map((draft) =>
+    draft.id === draftId
+      ? {
+          ...draft,
+          updatedAt: nowStamp(now),
+          reviewEvents: [
+            ...draft.reviewEvents,
+            createWritingReviewEvent({
+              draftId,
+              type,
+              detail: type === 'copied' ? 'Draft text copied locally.' : 'Prompt packet copied locally.',
+              now,
+            }),
+          ],
+        }
+      : draft,
+  )
+}
+
+export function markWritingDraftExported(
+  drafts: WritingDraft[],
+  draftId: string,
+  now = new Date(),
+) {
+  return drafts.map((draft) =>
+    draft.id === draftId
+      ? {
+          ...draft,
+          status: 'exported' as const,
+          updatedAt: nowStamp(now),
+          reviewEvents: [
+            ...draft.reviewEvents,
+            createWritingReviewEvent({
+              draftId,
+              type: 'markdown-exported',
+              detail: 'Markdown packet exported locally.',
+              now,
+            }),
+          ],
+        }
+      : draft,
+  )
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 96)
+}
+
+function markdownList(items: string[], fallback: string) {
+  return listOrFallback(items, fallback)
+}
+
+export function buildWritingMarkdownPacket(
+  draft: WritingDraft,
+  { includePrompt = true, now = new Date() }: { includePrompt?: boolean; now?: Date } = {},
+): WritingExportPacket {
+  const template = getWritingTemplate(draft.templateId)
+  const context = draft.contextSnapshot
+  const createdAt = nowStamp(now)
+  const filename = `${slugify(draft.title || `${template.label}-${context.projectName}`)}.md`
+  const markdown = [
+    `# ${draft.title}`,
+    '',
+    `- Project: ${context.projectName}`,
+    `- Section: ${context.sectionName}`,
+    `- Group: ${context.groupName}`,
+    `- Template: ${template.label}`,
+    `- Draft status: ${draft.status}`,
+    `- Created: ${draft.createdAt}`,
+    `- Updated: ${draft.updatedAt}`,
+    `- Exported: ${createdAt}`,
+    '',
+    '## Draft Text',
+    '',
+    draft.draftText || '_No draft text provided._',
+    '',
+    '## Review Notes',
+    '',
+    draft.notes || '_No review notes recorded._',
+    '',
+    '## Context Warnings',
+    '',
+    markdownList(context.warnings, 'No context warnings.'),
+    '',
+    '## Source Context Summary',
+    '',
+    `- Manual status: ${context.manual.status}`,
+    `- Next action: ${context.manual.nextAction || 'Not recorded.'}`,
+    `- Last meaningful change: ${context.manual.lastMeaningfulChange || 'Not recorded.'}`,
+    `- Last verified: ${context.manual.lastVerified || 'Not recorded.'}`,
+    `- Current risk: ${context.manual.currentRisk || 'No current risk recorded.'}`,
+    `- Verification due state: ${context.verification.dueState}`,
+    `- Dispatch targets: ${context.dispatch.length}`,
+    `- GitHub repository: ${context.github.repository ?? 'No repository context included.'}`,
+    '',
+    '## Guardrails',
+    '',
+    ...writingGuardrails.map((guardrail) => `- ${guardrail}`),
+    '',
+    '## Review Audit',
+    '',
+    markdownList(
+      draft.reviewEvents.map((event) => `${event.occurredAt}: ${event.type} - ${event.detail}`),
+      'No review events recorded.',
+    ),
+    ...(includePrompt
+      ? [
+          '',
+          '## Prompt Packet Appendix',
+          '',
+          '```text',
+          draft.promptPacket,
+          '```',
+        ]
+      : []),
+    '',
+  ].join('\n')
+
+  return {
+    format: 'markdown',
+    filename,
+    markdown,
+    createdAt,
+  }
+}
+
+export interface ClipboardWriteResult {
+  ok: boolean
+  message: string
+}
+
+interface ClipboardLike {
+  writeText: (text: string) => Promise<void>
+}
+
+export async function copyTextToClipboard(
+  text: string,
+  clipboard: ClipboardLike | undefined = globalThis.navigator?.clipboard,
+): Promise<ClipboardWriteResult> {
+  if (!clipboard?.writeText) {
+    return {
+      ok: false,
+      message: 'Clipboard API is not available in this environment.',
+    }
+  }
+
+  try {
+    await clipboard.writeText(text)
+    return {
+      ok: true,
+      message: 'Copied locally.',
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Copy failed.',
+    }
+  }
 }
 
 export function createWritingAssistDraft(

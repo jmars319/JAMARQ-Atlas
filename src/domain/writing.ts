@@ -26,7 +26,25 @@ export const WRITING_TEMPLATES = [
 
 export type WritingTemplateId = (typeof WRITING_TEMPLATES)[number]['id']
 
-export type WritingDraftStatus = 'draft' | 'reviewed' | 'archived'
+export type WritingDraftStatus = 'draft' | 'reviewed' | 'approved' | 'exported' | 'archived'
+
+export type WritingReviewEventType =
+  | 'created'
+  | 'reviewed'
+  | 'approved'
+  | 'copied'
+  | 'prompt-copied'
+  | 'markdown-exported'
+  | 'archived'
+
+export type WritingExportFormat = 'markdown'
+
+export interface WritingReviewEvent {
+  id: string
+  type: WritingReviewEventType
+  occurredAt: string
+  detail: string
+}
 
 export interface WritingContextActivityItem {
   id: string
@@ -112,6 +130,7 @@ export interface WritingDraft {
   templateId: WritingTemplateId
   title: string
   status: WritingDraftStatus
+  reviewEvents: WritingReviewEvent[]
   draftText: string
   promptPacket: string
   contextSnapshot: WritingContextSnapshot
@@ -119,6 +138,13 @@ export interface WritingDraft {
   notes: string
   createdAt: string
   updatedAt: string
+}
+
+export interface WritingExportPacket {
+  format: WritingExportFormat
+  filename: string
+  markdown: string
+  createdAt: string
 }
 
 export interface WritingWorkbenchState {

@@ -100,10 +100,19 @@ export function ProjectDetail({
   const [verificationDraft, setVerificationDraft] = useState({ projectId: '', note: '' })
   const verificationNote =
     verificationDraft.projectId === project.id ? verificationDraft.note : ''
+  const approvedWritingDrafts = writingDrafts
+    .filter(
+      (draft) =>
+        draft.projectId === project.id && ['approved', 'exported'].includes(draft.status),
+    )
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, 3)
   const recentWritingDrafts = writingDrafts
     .filter((draft) => draft.projectId === project.id && draft.status !== 'archived')
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, 3)
+  const visibleWritingDrafts =
+    approvedWritingDrafts.length > 0 ? approvedWritingDrafts : recentWritingDrafts
 
   return (
     <aside className="project-detail" aria-labelledby="project-detail-title">
@@ -362,11 +371,16 @@ export function ProjectDetail({
             </button>
           ))}
         </div>
-        {recentWritingDrafts.length > 0 ? (
-          <div className="writing-mini-list" aria-label="Recent writing drafts">
-            {recentWritingDrafts.map((draft) => (
+        {visibleWritingDrafts.length > 0 ? (
+          <div
+            className="writing-mini-list"
+            aria-label={approvedWritingDrafts.length > 0 ? 'Approved writing drafts' : 'Recent writing drafts'}
+          >
+            {visibleWritingDrafts.map((draft) => (
               <button type="button" key={draft.id} onClick={() => onOpenWritingDraft(draft.id)}>
-                <span>{getWritingTemplate(draft.templateId).label}</span>
+                <span>
+                  {getWritingTemplate(draft.templateId).label} / {draft.status}
+                </span>
                 <strong>{draft.title}</strong>
                 <small>{formatDateTimeLabel(draft.updatedAt)}</small>
               </button>

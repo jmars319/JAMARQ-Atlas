@@ -192,11 +192,29 @@ Each draft stores:
 - Editable draft text.
 - The prompt packet that could be sent to a future provider.
 - A short context snapshot from Atlas manual fields, activity, verification, Dispatch posture, and optional GitHub snippets.
-- Review status, review notes, and timestamps.
+- Review status, review notes, Writing-only audit events, and timestamps.
 
 Writing state is stored separately under `jamarq-atlas.writing.v1`. Drafts reference projects by `projectId` and do not mutate workspace state.
 
 The provider boundary is intentionally a no-op stub. It returns structured not-configured/stub results so a real provider can be added later without changing the human-review workflow.
+
+Writing review lifecycle:
+
+- Draft
+- Reviewed
+- Approved
+- Exported
+- Archived
+
+Review and export actions append audit events inside Writing storage only. They do not add Atlas project activity events.
+
+Local export actions:
+
+- Copy draft text.
+- Copy prompt packet.
+- Download a Markdown packet.
+
+Markdown packets include draft text, project/template metadata, review/export status, context warnings, source context summary, guardrails, review audit, and an optional prompt-packet appendix. Exporting Markdown is local/browser-only and does not prove that a client update was sent, a release was published, work was shipped, or verification was completed.
 
 ## Documentation
 
@@ -266,6 +284,8 @@ Writing activity is advisory:
 - Drafts do not change Atlas status.
 - Drafts do not change risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings.
 - Prompt packets and template drafts are local review artifacts.
+- Approved/exported states are Writing review states only.
+- Markdown export is local/browser-only and does not send, publish, deploy, or verify anything.
 - Optional GitHub snippets are included as context only and are not mirrored as full history.
 - The provider boundary is stubbed; no external AI request is made in this implementation.
 
@@ -307,6 +327,5 @@ Dispatch safety rules:
 
 1. Add hosted persistence only after the manual model is stable.
 2. Add a real AI writing provider behind the current stub boundary.
-3. Add export/copy workflows for approved writing drafts.
-4. Expand GitHub Intake with optional repo grouping suggestions for human review.
-5. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.
+3. Expand GitHub Intake with optional repo grouping suggestions for human review.
+4. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.

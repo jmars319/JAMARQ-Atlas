@@ -1262,7 +1262,7 @@ h3 {
 }
 
 .writing-workbench .dashboard-stats {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .writing-controls {
@@ -1371,6 +1371,54 @@ h3 {
   line-height: 1.4;
 }
 
+.writing-action-message {
+  border: 1px solid rgba(128, 213, 138, 0.26);
+  background: rgba(128, 213, 138, 0.08);
+  color: var(--success);
+  padding: 9px 10px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.writing-audit {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.writing-audit > strong {
+  color: var(--paper-white);
+  font-size: 0.86rem;
+}
+
+.writing-audit ol {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.writing-audit li {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 9px 10px;
+}
+
+.writing-audit span,
+.writing-audit p {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.writing-audit strong {
+  display: block;
+  margin: 3px 0;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
 .writing-draft-list,
 .writing-mini-list {
   display: grid;
@@ -1421,6 +1469,11 @@ h3 {
 
 .writing-status-reviewed {
   color: var(--success);
+}
+
+.writing-status-approved,
+.writing-status-exported {
+  color: var(--accent-cyan);
 }
 
 .writing-status-archived {

@@ -1,6 +1,17 @@
 import { expect, test } from '@playwright/test'
 
 test('operator can edit manual state and manage writing drafts', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          window.localStorage.setItem('atlas-e2e-clipboard', text)
+        },
+      },
+    })
+  })
+
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'JAMARQ Atlas' })).toBeVisible()
@@ -94,16 +105,28 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     /Do not decide or change status/,
   )
   await draftTextField.fill('Human-edited client update from E2E.')
+  await page.getByRole('button', { name: 'Mark reviewed' }).click()
+  await page.getByRole('button', { name: 'Approve', exact: true }).click()
+  await page.getByRole('button', { name: 'Copy draft' }).click()
+  await expect(page.locator('.writing-action-message')).toContainText('Copied locally')
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export Markdown' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toMatch(/client-update/)
+  await expect(page.getByLabel('Writing review audit')).toContainText('markdown-exported')
 
   await page.reload()
   await page.getByRole('button', { name: 'Writing' }).click()
   await page.getByLabel('Search writing drafts').fill('Human-edited')
   await page.getByRole('button', { name: /Client update - VaexCore Studio/ }).click()
   await expect(draftTextField).toHaveValue('Human-edited client update from E2E.')
+  await expect(page.getByLabel('Writing review audit')).toContainText('approved')
+  await expect(page.getByLabel('Writing review audit')).toContainText('markdown-exported')
 
   await page.getByRole('button', { name: 'Board', exact: true }).click()
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(nextActionField).toHaveValue('Interaction check persisted next action')
+  await expect(detail.getByLabel('Approved writing drafts')).toContainText('exported')
 
   await page.getByRole('button', { name: 'Reset seed' }).click()
   await page.reload()

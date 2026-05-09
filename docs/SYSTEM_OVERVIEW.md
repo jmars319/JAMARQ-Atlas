@@ -142,6 +142,7 @@ Primary concepts:
 - Writing context snapshot
 - Writing provider result
 - Draft review status
+- Writing review event
 
 Supported templates:
 
@@ -152,7 +153,19 @@ Supported templates:
 
 Creating a draft captures a short context snapshot from human-authored project fields, Atlas activity, verification state, Dispatch posture, and optional GitHub snippets. The snapshot is stored with the draft for review. Full GitHub history is not mirrored into writing storage.
 
+Draft lifecycle:
+
+- Draft
+- Reviewed
+- Approved
+- Exported
+- Archived
+
+Review, approval, copy, export, and archive actions append Writing-only audit events under the Writing storage key. They do not append Atlas project activity events.
+
 The provider boundary is stubbed. Current drafts are local template scaffolds plus prompt packets. No external AI request is made, and drafts do not mutate project status, risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings.
+
+Markdown export is local/browser-only. Export packets include draft text, metadata, review status, context warnings, source context summary, guardrails, review audit, and an optional prompt-packet appendix. Export does not imply that anything was sent, published, deployed, shipped, or verified.
 
 ## Validation
 

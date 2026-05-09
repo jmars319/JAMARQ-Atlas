@@ -18,6 +18,7 @@ Each draft includes:
 - Context snapshot.
 - Draft review status.
 - Draft notes.
+- Writing-only review audit events.
 - Created and updated timestamps.
 
 The generated draft text is a local template scaffold. It is clearly marked as not AI generated.
@@ -31,6 +32,30 @@ Writing state is separate from Atlas workspace and Dispatch state.
 - Writing storage key: `jamarq-atlas.writing.v1`
 
 Drafts reference Atlas projects by `projectId`. Creating, editing, reviewing, or archiving a draft does not mutate project manual state.
+
+## Review Lifecycle
+
+Draft statuses:
+
+- Draft
+- Reviewed
+- Approved
+- Exported
+- Archived
+
+Review events are stored on the draft in Writing storage only.
+
+Supported audit event types:
+
+- Created
+- Reviewed
+- Approved
+- Copied
+- Prompt copied
+- Markdown exported
+- Archived
+
+These events do not append Atlas project activity and do not imply that anything was sent, published, deployed, shipped, or verified.
 
 ## Context Rules
 
@@ -46,6 +71,27 @@ GitHub context is optional. Missing tokens, insufficient permissions, private re
 
 Writing storage does not mirror full GitHub history. Only the selected draft's short context snapshot is stored.
 
+## Copy and Export
+
+Writing supports local export actions:
+
+- Copy draft text.
+- Copy prompt packet.
+- Download Markdown packet.
+
+Markdown packets include:
+
+- Editable draft text.
+- Project and template metadata.
+- Review/export status.
+- Context warnings.
+- Captured source context summary.
+- Guardrails.
+- Review audit.
+- Optional prompt packet appendix.
+
+Markdown download is local/browser-only. Atlas does not send email, publish documents, post to external services, deploy code, or mark verification complete.
+
 ## Provider Boundary
 
 `src/services/writingProvider.ts` is a no-op future provider boundary.
@@ -56,6 +102,7 @@ Current behavior:
 - No external AI request is made.
 - Provider results return structured `stub` or `not-configured` states.
 - Prompt packets are prepared for a future provider but remain local review artifacts.
+- Copy/export workflows use existing local draft text only.
 
 Future provider implementations must return suggestions for human review only.
 
