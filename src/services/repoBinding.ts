@@ -152,6 +152,7 @@ function createInboxProject(workspace: Workspace, repository: GithubRepositorySu
       `GitHub repository ${repository.fullName} imported for manual triage.`,
     manual: {
       status: 'Inbox',
+      verificationCadence: 'monthly',
       nextAction: 'Review this repository and decide where it belongs in Atlas.',
       lastMeaningfulChange: repository.pushedAt
         ? `GitHub reports latest push at ${repository.pushedAt}. Atlas has not interpreted it.`

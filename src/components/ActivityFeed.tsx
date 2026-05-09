@@ -20,6 +20,7 @@ const iconByType: Record<ActivityEvent['type'], typeof NotebookText> = {
   deployment: Rocket,
   note: NotebookText,
   decision: ShieldCheck,
+  verification: ShieldCheck,
 }
 
 interface ActivityFeedProps {

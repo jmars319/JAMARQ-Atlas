@@ -12,6 +12,7 @@ const project: AtlasProject = {
   activity: [],
   manual: {
     status: 'Active',
+    verificationCadence: 'monthly',
     nextAction: 'Keep building',
     lastMeaningfulChange: '2026-05-09: created',
     lastVerified: '2026-05-01',

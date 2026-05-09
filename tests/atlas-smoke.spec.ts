@@ -12,6 +12,44 @@ test('operator can edit manual state and generate a writing prompt', async ({ pa
   await expect(page.locator('.github-error')).toContainText(/Set GITHUB_TOKEN|GH_TOKEN/)
   await page.getByRole('button', { name: 'Board', exact: true }).click()
 
+  await page.getByRole('button', { name: 'Verification', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Verification Queue' })).toBeVisible()
+  await expect(page.getByLabel('Project verification queue')).toBeVisible()
+  await page.getByLabel('Filter by cadence').selectOption('monthly')
+  await expect(page.getByLabel('Project verification queue')).toContainText('Monthly')
+
+  const verificationCadenceField = page
+    .locator('label.field')
+    .filter({ hasText: 'Verification cadence' })
+    .locator('select')
+  const verificationNoteField = page
+    .locator('label.field')
+    .filter({ hasText: 'Verification note' })
+    .locator('textarea')
+  const lastVerifiedField = page
+    .locator('label.field')
+    .filter({ hasText: 'Last verified' })
+    .locator('input')
+  const statusBeforeVerification = await page
+    .locator('label.field')
+    .filter({ hasText: 'Status' })
+    .locator('select')
+    .inputValue()
+  const today = new Date().toISOString().slice(0, 10)
+
+  await verificationCadenceField.selectOption('weekly')
+  await page.reload()
+  await expect(verificationCadenceField).toHaveValue('weekly')
+  await verificationNoteField.fill('E2E verification note')
+  await page.getByRole('button', { name: 'Mark verified today' }).click()
+  await expect(lastVerifiedField).toHaveValue(today)
+  await expect(page.locator('label.field').filter({ hasText: 'Status' }).locator('select')).toHaveValue(
+    statusBeforeVerification,
+  )
+  await expect(page.locator('.project-detail')).toContainText('E2E verification note')
+
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+
   await page.getByRole('button', { name: 'Dispatch' }).click()
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
   await expect(page.locator('button.dispatch-card').filter({ hasText: 'Midway Music Hall production' })).toBeVisible()

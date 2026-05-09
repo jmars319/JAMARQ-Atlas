@@ -10,6 +10,7 @@ The app has two main surfaces:
 
 - Board: human-authored operational status across sections, groups, and projects.
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
+- Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture across configured targets.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. AI can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, or what should ship.
@@ -31,6 +32,7 @@ Primary concepts:
 Manual state includes:
 
 - Status
+- Verification cadence
 - Next action
 - Last meaningful change
 - Last verified date
@@ -42,6 +44,31 @@ Manual state includes:
 - Decisions
 
 Workspace state persists through `src/hooks/useLocalWorkspace.ts`.
+
+Existing workspace records are normalized on read so older local storage receives a default monthly verification cadence without losing user-authored fields.
+
+## Verification Model
+
+Verification Center is derived from manual project state.
+
+Project cadences:
+
+- Weekly
+- Biweekly
+- Monthly
+- Quarterly
+- Ad hoc
+
+Derived due states:
+
+- Overdue
+- Due
+- Upcoming
+- Recent
+- Ad hoc
+- Unverified
+
+Marking a project verified updates `lastVerified` and adds a manual verification activity event. It does not change status, risk, priority, roadmap, GitHub bindings, or Dispatch readiness.
 
 ## Dispatch Model
 

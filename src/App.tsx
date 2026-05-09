@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
-import { DatabaseZap, GitBranch, PanelRightOpen, Rocket } from 'lucide-react'
+import { CalendarCheck, DatabaseZap, GitBranch, PanelRightOpen, Rocket } from 'lucide-react'
 import './App.css'
 import { Dashboard } from './components/Dashboard'
 import { DispatchDashboard } from './components/DispatchDashboard'
 import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
 import { ProjectDetail } from './components/ProjectDetail'
+import { VerificationCenter } from './components/VerificationCenter'
 import {
   findProjectRecord,
   flattenProjects,
   updateProject,
   type GithubRepositoryLink,
   type ManualOperationalState,
+  type VerificationCadence,
   type WorkStatus,
 } from './domain/atlas'
 import type { DeploymentTarget, DispatchReadiness } from './domain/dispatch'
@@ -24,10 +26,11 @@ import {
   repositorySummaryToLink,
   unbindRepositoryFromProject,
 } from './services/repoBinding'
+import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
 
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
-type AppView = 'board' | 'github' | 'dispatch'
+type AppView = 'board' | 'github' | 'verification' | 'dispatch'
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
@@ -101,6 +104,22 @@ function App() {
     setAiDraft('')
   }
 
+  function handleVerificationCadenceChange(
+    projectId: string,
+    verificationCadence: VerificationCadence,
+  ) {
+    setWorkspace((currentWorkspace) =>
+      updateProjectVerificationCadence(currentWorkspace, projectId, verificationCadence),
+    )
+    setAiDraft('')
+  }
+
+  function handleMarkVerified(projectId: string, note: string) {
+    setWorkspace((currentWorkspace) => markProjectVerified(currentWorkspace, projectId, note))
+    setSelectedProjectId(projectId)
+    setAiDraft('')
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -123,6 +142,10 @@ function App() {
           <span>
             <Rocket size={15} />
             Dispatch-ready
+          </span>
+          <span>
+            <CalendarCheck size={15} />
+            Verification-aware
           </span>
           <span>
             <PanelRightOpen size={15} />
@@ -152,6 +175,13 @@ function App() {
           onClick={() => setAppView('dispatch')}
         >
           Dispatch
+        </button>
+        <button
+          type="button"
+          className={appView === 'verification' ? 'is-selected' : ''}
+          onClick={() => setAppView('verification')}
+        >
+          Verification
         </button>
       </nav>
 
@@ -183,6 +213,15 @@ function App() {
             onBindRepository={handleBindRepository}
             onCreateInboxProject={handleCreateInboxProject}
           />
+        ) : appView === 'verification' ? (
+          <VerificationCenter
+            projectRecords={projectRecords}
+            selectedProjectId={selectedRecord?.project.id ?? ''}
+            onSelectProject={(projectId) => {
+              setSelectedProjectId(projectId)
+              setAiDraft('')
+            }}
+          />
         ) : (
           <DispatchDashboard
             dispatch={dispatch}
@@ -204,6 +243,8 @@ function App() {
             onDispatchTargetChange={handleDispatchTargetChange}
             onDispatchReadinessChange={handleDispatchReadinessChange}
             onRepositoryUnbind={handleUnbindRepository}
+            onVerificationCadenceChange={handleVerificationCadenceChange}
+            onMarkVerified={handleMarkVerified}
             onDraftRequest={handleDraftRequest}
             onResetWorkspace={() => {
               resetWorkspace()

@@ -1,8 +1,10 @@
-import type { ActivityEvent, AtlasProject, Workspace } from '../domain/atlas'
+import type { ActivityEvent, AtlasProject, ManualOperationalState, Workspace } from '../domain/atlas'
 
-type ProjectSeed = Omit<AtlasProject, 'activity' | 'links' | 'repositories'> & {
+type ProjectSeed = Omit<AtlasProject, 'activity' | 'links' | 'repositories' | 'manual'> & {
   activity?: ActivityEvent[]
   links?: AtlasProject['links']
+  manual: Omit<ManualOperationalState, 'verificationCadence'> &
+    Partial<Pick<ManualOperationalState, 'verificationCadence'>>
   repositories?: AtlasProject['repositories']
 }
 
@@ -30,6 +32,10 @@ function project(seed: ProjectSeed): AtlasProject {
     repositories: [],
     activity: [],
     ...seed,
+    manual: {
+      ...seed.manual,
+      verificationCadence: seed.manual.verificationCadence ?? 'monthly',
+    },
   }
 }
 

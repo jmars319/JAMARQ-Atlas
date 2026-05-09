@@ -698,6 +698,122 @@ h3 {
   margin-top: 12px;
 }
 
+.verification-center {
+  min-width: 0;
+}
+
+.verification-controls {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) repeat(3, minmax(160px, 220px));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.verification-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.verification-table {
+  display: grid;
+  gap: 9px;
+}
+
+.verification-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(390px, 0.85fr);
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: inherit;
+  padding: 12px;
+  text-align: left;
+}
+
+.verification-row:hover,
+.verification-row.is-selected {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.verification-row strong {
+  display: block;
+  color: var(--paper-white);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.verification-row p {
+  margin-top: 5px;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.verification-row-meta {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  align-items: stretch;
+}
+
+.verification-row-meta > span,
+.verification-row-meta > strong {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 6px;
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  text-align: center;
+}
+
+.verification-row-meta > strong {
+  color: var(--paper-white);
+}
+
+.verification-overdue {
+  border-color: rgba(249, 115, 115, 0.38);
+}
+
+.verification-due,
+.verification-unverified {
+  border-color: rgba(244, 199, 107, 0.38);
+}
+
+.verification-recent {
+  border-color: rgba(128, 213, 138, 0.3);
+}
+
+.verification-actions {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0;
+}
+
+.verification-actions button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+  padding: 7px 10px;
+}
+
+.verification-actions span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
 .activity-feed,
 .resource-list,
 .signal-list {
@@ -1232,6 +1348,10 @@ code {
     flex-direction: column;
   }
 
+  .verification-summary {
+    flex-direction: column;
+  }
+
   .kanban-board {
     grid-template-columns: repeat(9, minmax(278px, 86vw));
   }
@@ -1243,6 +1363,9 @@ code {
   .github-source-grid,
   .github-intake-controls,
   .github-repo-facts,
+  .verification-controls,
+  .verification-row,
+  .verification-row-meta,
   .dispatch-mini-grid,
   .dispatch-summary-grid,
   .dispatch-signal-grid {

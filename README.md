@@ -16,6 +16,7 @@ The dashboard currently supports:
 - Project detail pages for status, next action, blockers, deferred work, not-doing items, notes, decisions, and last verification.
 - GitHub Intake for discovering repositories, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
+- Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, health check signals, rollback posture, and deployment history.
 - AI writing-assistance boundaries that generate draft prompts only. AI does not decide status, priority, risk, roadmap, or deployment readiness.
 
@@ -28,6 +29,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Separate local storage hooks for workspace state and Dispatch state.
 - Optional GitHub REST integration through `/api/github`.
 - Repository binding/import helpers that persist repo links only.
+- Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, health-check stubs, and safe no-op runner phases.
 - Unit and Playwright smoke tests for the main operator flows.
 
@@ -147,6 +149,32 @@ Future deployment runner phases are stubbed:
 
 Every runner phase currently returns a structured no-op result. No network write, file overwrite, database operation, or deployment command is executed.
 
+## Verification Center
+
+Verification Center turns each project's human-authored `lastVerified` date into a review queue. It is meant to answer what needs a manual look, not what should be prioritized.
+
+Project cadences:
+
+- Weekly
+- Biweekly
+- Monthly
+- Quarterly
+- Ad hoc
+
+Existing and seed projects default to monthly. Ad hoc projects remain visible but are never considered overdue.
+
+Manual verification can:
+
+- Update `lastVerified` to today.
+- Add a manual verification activity event.
+- Store an optional verification note in the project activity trail.
+
+Manual verification cannot:
+
+- Change project status.
+- Mark a project stable.
+- Change current risk, priority, roadmap, GitHub bindings, or Dispatch readiness.
+
 ## Documentation
 
 Start here:
@@ -170,9 +198,11 @@ Atlas separates manual intent from raw activity.
 - `server/githubApi.ts` normalizes GitHub REST responses and maps permission/rate-limit/not-found errors.
 - `src/components/Dashboard.tsx` renders the compact status board.
 - `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
+- `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
 - `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and AI writing prompts.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
+- `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
 - `src/services/dispatchHealthChecks.ts` contains a read-only health check probing stub.
 - `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
@@ -204,6 +234,13 @@ GitHub activity is advisory:
 - Creating an Inbox project from a repo starts in Inbox for human triage.
 - AI output is draft text only.
 
+Verification activity is advisory/manual:
+
+- Cadence queues do not change status.
+- Overdue verification does not change risk.
+- Marking verified does not mark a project stable.
+- GitHub and Dispatch signals do not verify a project automatically.
+
 Dispatch activity is advisory:
 
 - Readiness does not change Atlas status.
@@ -233,9 +270,8 @@ Dispatch safety rules:
 
 ## Roadmap
 
-1. Add verification cadence views by section and status.
-2. Add hosted persistence only after the manual model is stable.
-3. Add a real AI writing provider behind the current prompt boundary.
-4. Add client update and release note templates.
-5. Expand GitHub Intake with optional repo grouping suggestions for human review.
-6. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.
+1. Add hosted persistence only after the manual model is stable.
+2. Add a real AI writing provider behind the current prompt boundary.
+3. Add client update and release note templates.
+4. Expand GitHub Intake with optional repo grouping suggestions for human review.
+5. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.

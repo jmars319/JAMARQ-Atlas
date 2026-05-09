@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { seedWorkspace } from '../data/seedWorkspace'
 import type { Workspace } from '../domain/atlas'
+import { normalizeWorkspaceVerificationCadence } from '../services/verification'
 
 const STORAGE_KEY = 'jamarq-atlas.workspace.v1'
 
 function cloneSeedWorkspace(): Workspace {
-  return JSON.parse(JSON.stringify(seedWorkspace)) as Workspace
+  return normalizeWorkspaceVerificationCadence(
+    JSON.parse(JSON.stringify(seedWorkspace)) as Workspace,
+  )
 }
 
 function readWorkspace(): Workspace {
@@ -16,7 +19,7 @@ function readWorkspace(): Workspace {
       return cloneSeedWorkspace()
     }
 
-    return JSON.parse(stored) as Workspace
+    return normalizeWorkspaceVerificationCadence(JSON.parse(stored) as Workspace)
   } catch {
     return cloneSeedWorkspace()
   }

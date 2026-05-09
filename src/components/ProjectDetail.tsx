@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Bot,
   CalendarCheck,
@@ -13,10 +14,12 @@ import type { AiWritingAction } from '../services/aiWritingAssistant'
 import { aiWritingActions } from '../services/aiWritingAssistant'
 import {
   WORK_STATUSES,
+  VERIFICATION_CADENCES,
   formatDateLabel,
   type GithubRepositoryLink,
   type ManualOperationalState,
   type ProjectRecord,
+  type VerificationCadence,
 } from '../domain/atlas'
 import type { DeploymentTarget, DispatchReadiness, DispatchState } from '../domain/dispatch'
 import { ActivityFeed } from './ActivityFeed'
@@ -36,6 +39,8 @@ interface ProjectDetailProps {
     update: Partial<DispatchReadiness>,
   ) => void
   onRepositoryUnbind: (projectId: string, repository: GithubRepositoryLink) => void
+  onVerificationCadenceChange: (projectId: string, cadence: VerificationCadence) => void
+  onMarkVerified: (projectId: string, note: string) => void
   onDraftRequest: (action: AiWritingAction) => void
   onResetWorkspace: () => void
 }
@@ -78,11 +83,16 @@ export function ProjectDetail({
   onDispatchTargetChange,
   onDispatchReadinessChange,
   onRepositoryUnbind,
+  onVerificationCadenceChange,
+  onMarkVerified,
   onDraftRequest,
   onResetWorkspace,
 }: ProjectDetailProps) {
   const { project, group, section } = record
   const { manual } = project
+  const [verificationDraft, setVerificationDraft] = useState({ projectId: '', note: '' })
+  const verificationNote =
+    verificationDraft.projectId === project.id ? verificationDraft.note : ''
 
   return (
     <aside className="project-detail" aria-labelledby="project-detail-title">
@@ -242,6 +252,56 @@ export function ProjectDetail({
             <span>Repositories</span>
             <strong>{project.repositories.length}</strong>
           </div>
+          <div>
+            <span>Cadence</span>
+            <strong>
+              {VERIFICATION_CADENCES.find((cadence) => cadence.id === manual.verificationCadence)
+                ?.label ?? 'Monthly'}
+            </strong>
+          </div>
+        </div>
+
+        <div className="field-grid">
+          <label className="field">
+            <span>Verification cadence</span>
+            <select
+              value={manual.verificationCadence}
+              onChange={(event) =>
+                onVerificationCadenceChange(project.id, event.target.value as VerificationCadence)
+              }
+            >
+              {VERIFICATION_CADENCES.map((cadence) => (
+                <option key={cadence.id} value={cadence.id}>
+                  {cadence.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field field-full">
+            <span>Verification note</span>
+            <textarea
+              rows={2}
+              value={verificationNote}
+              onChange={(event) =>
+                setVerificationDraft({ projectId: project.id, note: event.target.value })
+              }
+              placeholder="Optional note for the verification audit trail"
+            />
+          </label>
+        </div>
+
+        <div className="verification-actions">
+          <button
+            type="button"
+            onClick={() => {
+              onMarkVerified(project.id, verificationNote)
+              setVerificationDraft({ projectId: project.id, note: '' })
+            }}
+          >
+            <CalendarCheck size={15} />
+            Mark verified today
+          </button>
+          <span>Manual verification updates the date and activity only.</span>
         </div>
 
         {project.repositories.length > 0 ? (

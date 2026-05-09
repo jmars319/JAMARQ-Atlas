@@ -57,6 +57,36 @@ export const WORK_STATUSES = [
 
 export type WorkStatus = (typeof WORK_STATUSES)[number]['id']
 
+export const VERIFICATION_CADENCES = [
+  {
+    id: 'weekly',
+    label: 'Weekly',
+    days: 7,
+  },
+  {
+    id: 'biweekly',
+    label: 'Biweekly',
+    days: 14,
+  },
+  {
+    id: 'monthly',
+    label: 'Monthly',
+    days: 30,
+  },
+  {
+    id: 'quarterly',
+    label: 'Quarterly',
+    days: 90,
+  },
+  {
+    id: 'ad-hoc',
+    label: 'Ad hoc',
+    days: null,
+  },
+] as const
+
+export type VerificationCadence = (typeof VERIFICATION_CADENCES)[number]['id']
+
 export type ProjectKind =
   | 'workspace'
   | 'suite'
@@ -78,6 +108,7 @@ export type ActivityType =
   | 'deployment'
   | 'note'
   | 'decision'
+  | 'verification'
 
 export interface ExternalLink {
   label: string
@@ -105,6 +136,7 @@ export interface ActivityEvent {
 
 export interface ManualOperationalState {
   status: WorkStatus
+  verificationCadence: VerificationCadence
   nextAction: string
   lastMeaningfulChange: string
   lastVerified: string
