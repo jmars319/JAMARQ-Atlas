@@ -120,7 +120,8 @@ export function ProjectDetail({
 
           <label className="field field-full">
             <span>Next action</span>
-            <input
+            <textarea
+              rows={2}
               value={manual.nextAction}
               onChange={(event) => onManualChange({ nextAction: event.target.value })}
             />
@@ -128,7 +129,8 @@ export function ProjectDetail({
 
           <label className="field field-full">
             <span>Last meaningful change</span>
-            <input
+            <textarea
+              rows={2}
               value={manual.lastMeaningfulChange}
               onChange={(event) => onManualChange({ lastMeaningfulChange: event.target.value })}
             />
@@ -136,7 +138,8 @@ export function ProjectDetail({
 
           <label className="field field-full">
             <span>Current risk</span>
-            <input
+            <textarea
+              rows={2}
               value={manual.currentRisk}
               onChange={(event) => onManualChange({ currentRisk: event.target.value })}
             />

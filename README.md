@@ -26,6 +26,7 @@ Build and lint:
 ```sh
 npm run build
 npm run lint
+npm run test:e2e
 ```
 
 Optional GitHub ingestion:

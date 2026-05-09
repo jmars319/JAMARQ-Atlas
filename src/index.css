@@ -51,17 +51,3 @@ a:focus-visible {
 a {
   color: inherit;
 }
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #1e2623;
-    background: #f4f5f1;
-  }
-
-  html,
-  body {
-    background:
-      linear-gradient(180deg, rgba(207, 215, 205, 0.55), rgba(244, 245, 241, 0) 320px),
-      #f4f5f1;
-  }
-}
