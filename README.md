@@ -18,7 +18,7 @@ The dashboard currently supports:
 - Optional read-only GitHub panels for bound repository activity.
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, health check signals, rollback posture, and deployment history.
-- AI writing-assistance boundaries that generate draft prompts only. AI does not decide status, priority, risk, roadmap, or deployment readiness.
+- AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 
 No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
 
@@ -31,6 +31,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Repository binding/import helpers that persist repo links only.
 - Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, health-check stubs, and safe no-op runner phases.
+- Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Unit and Playwright smoke tests for the main operator flows.
 
 ## Tech Stack
@@ -175,6 +176,28 @@ Manual verification cannot:
 - Mark a project stable.
 - Change current risk, priority, roadmap, GitHub bindings, or Dispatch readiness.
 
+## AI Writing Workbench
+
+Writing turns Atlas project context into reviewable local draft packets. It is currently stub-first: no OpenAI key, provider call, or external AI request is required.
+
+First-class templates:
+
+- Client update
+- Release notes
+- Weekly change summary
+- Codex handoff
+
+Each draft stores:
+
+- Editable draft text.
+- The prompt packet that could be sent to a future provider.
+- A short context snapshot from Atlas manual fields, activity, verification, Dispatch posture, and optional GitHub snippets.
+- Review status, review notes, and timestamps.
+
+Writing state is stored separately under `jamarq-atlas.writing.v1`. Drafts reference projects by `projectId` and do not mutate workspace state.
+
+The provider boundary is intentionally a no-op stub. It returns structured not-configured/stub results so a real provider can be added later without changing the human-review workflow.
+
 ## Documentation
 
 Start here:
@@ -185,6 +208,7 @@ Focused references:
 
 - `docs/GITHUB_INTEGRATION.md`
 - `docs/DISPATCH.md`
+- `docs/AI_WRITING.md`
 
 ## Architecture
 
@@ -192,14 +216,17 @@ Atlas separates manual intent from raw activity.
 
 - `src/domain/atlas.ts` defines workspace, section, group, project, manual state, repository links, and activity events.
 - `src/domain/dispatch.ts` defines Dispatch targets, statuses, records, readiness, health checks, and runner results.
+- `src/domain/writing.ts` defines Writing templates, drafts, context snapshots, provider results, and local workbench state.
 - `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
+- `src/hooks/useLocalWriting.ts` persists Writing state separately under `jamarq-atlas.writing.v1`.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
 - `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
 - `server/githubApi.ts` normalizes GitHub REST responses and maps permission/rate-limit/not-found errors.
 - `src/components/Dashboard.tsx` renders the compact status board.
 - `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
-- `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and AI writing prompts.
+- `src/components/WritingWorkbench.tsx` renders local writing draft creation, editing, review state, and draft history.
+- `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and Writing launchers.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
@@ -207,7 +234,8 @@ Atlas separates manual intent from raw activity.
 - `src/services/dispatchHealthChecks.ts` contains a read-only health check probing stub.
 - `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
-- `src/services/aiWritingAssistant.ts` creates reviewable writing prompts only.
+- `src/services/aiWritingAssistant.ts` creates Writing context snapshots, prompt packets, and local template drafts.
+- `src/services/writingProvider.ts` contains the no-op future AI provider boundary.
 
 ## Guardrails
 
@@ -232,7 +260,14 @@ GitHub activity is advisory:
 - Permission errors do not block manual tracking.
 - Binding a repository does not change manual status.
 - Creating an Inbox project from a repo starts in Inbox for human triage.
-- AI output is draft text only.
+
+Writing activity is advisory:
+
+- Drafts do not change Atlas status.
+- Drafts do not change risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings.
+- Prompt packets and template drafts are local review artifacts.
+- Optional GitHub snippets are included as context only and are not mirrored as full history.
+- The provider boundary is stubbed; no external AI request is made in this implementation.
 
 Verification activity is advisory/manual:
 
@@ -271,7 +306,7 @@ Dispatch safety rules:
 ## Roadmap
 
 1. Add hosted persistence only after the manual model is stable.
-2. Add a real AI writing provider behind the current prompt boundary.
-3. Add client update and release note templates.
+2. Add a real AI writing provider behind the current stub boundary.
+3. Add export/copy workflows for approved writing drafts.
 4. Expand GitHub Intake with optional repo grouping suggestions for human review.
 5. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.

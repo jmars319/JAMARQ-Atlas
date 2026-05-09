@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  Bot,
   CalendarCheck,
+  FileText,
   GitBranch,
   NotebookPen,
   RefreshCcw,
@@ -10,18 +10,23 @@ import {
   SquareArrowOutUpRight,
   Unlink,
 } from 'lucide-react'
-import type { AiWritingAction } from '../services/aiWritingAssistant'
-import { aiWritingActions } from '../services/aiWritingAssistant'
 import {
   WORK_STATUSES,
   VERIFICATION_CADENCES,
   formatDateLabel,
+  formatDateTimeLabel,
   type GithubRepositoryLink,
   type ManualOperationalState,
   type ProjectRecord,
   type VerificationCadence,
 } from '../domain/atlas'
 import type { DeploymentTarget, DispatchReadiness, DispatchState } from '../domain/dispatch'
+import {
+  getWritingTemplate,
+  WRITING_TEMPLATES,
+  type WritingDraft,
+  type WritingTemplateId,
+} from '../domain/writing'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
@@ -29,8 +34,8 @@ import { StatusBadge } from './StatusBadge'
 
 interface ProjectDetailProps {
   record: ProjectRecord
-  aiDraft: string
   dispatch: DispatchState
+  writingDrafts: WritingDraft[]
   onManualChange: (manual: Partial<ManualOperationalState>) => void
   onDispatchTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
   onDispatchReadinessChange: (
@@ -41,7 +46,8 @@ interface ProjectDetailProps {
   onRepositoryUnbind: (projectId: string, repository: GithubRepositoryLink) => void
   onVerificationCadenceChange: (projectId: string, cadence: VerificationCadence) => void
   onMarkVerified: (projectId: string, note: string) => void
-  onDraftRequest: (action: AiWritingAction) => void
+  onWritingRequest: (projectId: string, templateId: WritingTemplateId) => void
+  onOpenWritingDraft: (draftId: string) => void
   onResetWorkspace: () => void
 }
 
@@ -77,15 +83,16 @@ function TextAreaField({ label, value, onChange }: TextAreaFieldProps) {
 
 export function ProjectDetail({
   record,
-  aiDraft,
   dispatch,
+  writingDrafts,
   onManualChange,
   onDispatchTargetChange,
   onDispatchReadinessChange,
   onRepositoryUnbind,
   onVerificationCadenceChange,
   onMarkVerified,
-  onDraftRequest,
+  onWritingRequest,
+  onOpenWritingDraft,
   onResetWorkspace,
 }: ProjectDetailProps) {
   const { project, group, section } = record
@@ -93,6 +100,10 @@ export function ProjectDetail({
   const [verificationDraft, setVerificationDraft] = useState({ projectId: '', note: '' })
   const verificationNote =
     verificationDraft.projectId === project.id ? verificationDraft.note : ''
+  const recentWritingDrafts = writingDrafts
+    .filter((draft) => draft.projectId === project.id && draft.status !== 'archived')
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, 3)
 
   return (
     <aside className="project-detail" aria-labelledby="project-detail-title">
@@ -336,18 +347,34 @@ export function ProjectDetail({
 
       <section className="detail-panel">
         <div className="panel-heading">
-          <Bot size={17} />
-          <h3>AI Writing Boundary</h3>
+          <FileText size={17} />
+          <h3>Writing</h3>
         </div>
         <div className="ai-action-grid">
-          {aiWritingActions.map((action) => (
-            <button type="button" key={action.id} onClick={() => onDraftRequest(action.id)}>
-              <Bot size={15} />
+          {WRITING_TEMPLATES.map((action) => (
+            <button
+              type="button"
+              key={action.id}
+              onClick={() => onWritingRequest(project.id, action.id)}
+            >
+              <FileText size={15} />
               {action.label}
             </button>
           ))}
         </div>
-        <textarea className="draft-output" readOnly value={aiDraft} rows={10} />
+        {recentWritingDrafts.length > 0 ? (
+          <div className="writing-mini-list" aria-label="Recent writing drafts">
+            {recentWritingDrafts.map((draft) => (
+              <button type="button" key={draft.id} onClick={() => onOpenWritingDraft(draft.id)}>
+                <span>{getWritingTemplate(draft.templateId).label}</span>
+                <strong>{draft.title}</strong>
+                <small>{formatDateTimeLabel(draft.updatedAt)}</small>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">No writing drafts for this project yet.</p>
+        )}
       </section>
     </aside>
   )

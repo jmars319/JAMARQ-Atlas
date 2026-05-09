@@ -6,14 +6,15 @@ Atlas is a local-first operator dashboard for understanding open work across JAM
 
 Atlas is a working MVP. It is intentionally simple: React, Vite, TypeScript, local storage, optional read-only GitHub data, and a clear service boundary for future AI writing assistance and deployment automation.
 
-The app has two main surfaces:
+The app has these main surfaces:
 
 - Board: human-authored operational status across sections, groups, and projects.
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
 - Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture across configured targets.
+- Writing Workbench: local draft packets and reviewable operational writing.
 
-The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. AI can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, or what should ship.
+The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
 
 ## Workspace Model
 
@@ -129,6 +130,29 @@ AI must not automatically decide:
 - Roadmap
 - Deployment readiness
 - What should ship
+
+## Writing Model
+
+Writing Workbench is local-first and stored separately from workspace and Dispatch state under `jamarq-atlas.writing.v1`.
+
+Primary concepts:
+
+- Writing template
+- Writing draft
+- Writing context snapshot
+- Writing provider result
+- Draft review status
+
+Supported templates:
+
+- Client update
+- Release notes
+- Weekly change summary
+- Codex handoff
+
+Creating a draft captures a short context snapshot from human-authored project fields, Atlas activity, verification state, Dispatch posture, and optional GitHub snippets. The snapshot is stored with the draft for review. Full GitHub history is not mirrored into writing storage.
+
+The provider boundary is stubbed. Current drafts are local template scaffolds plus prompt packets. No external AI request is made, and drafts do not mutate project status, risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings.
 
 ## Validation
 

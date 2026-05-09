@@ -50,13 +50,16 @@
 .repo-selector,
 .repo-count,
 .github-card-actions,
-.repo-list-actions {
+.repo-list-actions,
+.writing-editor-actions,
+.writing-warning {
   display: flex;
   align-items: center;
 }
 
 .app-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -303,6 +306,8 @@ h3 {
 .ai-action-grid button,
 .resource-panel-header button,
 .load-more,
+.primary-action,
+.writing-editor-actions button,
 .github-card-actions button,
 .github-card-actions a,
 .repo-list-actions button {
@@ -1252,6 +1257,176 @@ h3 {
   line-height: 1.45;
 }
 
+.writing-workbench {
+  min-width: 0;
+}
+
+.writing-workbench .dashboard-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.writing-controls {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(220px, 0.6fr) minmax(180px, auto);
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.primary-action {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.14);
+  color: var(--paper-white);
+}
+
+.writing-context-grid,
+.writing-meta-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.writing-context-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.writing-meta-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.writing-context-grid div,
+.writing-meta-grid div {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 10px;
+}
+
+.writing-context-grid span,
+.writing-context-grid strong,
+.writing-context-grid p,
+.writing-meta-grid span,
+.writing-meta-grid strong {
+  display: block;
+}
+
+.writing-context-grid span,
+.writing-meta-grid span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.writing-context-grid strong,
+.writing-meta-grid strong {
+  margin-top: 4px;
+  color: var(--paper-white);
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.writing-context-grid p {
+  margin-top: 5px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.writing-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.42fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.writing-editor,
+.writing-history {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 12px;
+}
+
+.writing-editor-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.writing-warning {
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid rgba(244, 199, 107, 0.28);
+  background: rgba(244, 199, 107, 0.08);
+  color: var(--warning);
+  padding: 10px;
+}
+
+.writing-warning strong,
+.writing-warning span {
+  display: block;
+}
+
+.writing-warning span {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.writing-draft-list,
+.writing-mini-list {
+  display: grid;
+  gap: 8px;
+}
+
+.writing-draft-card,
+.writing-mini-list button {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: inherit;
+  padding: 10px;
+  text-align: left;
+}
+
+.writing-draft-card:hover,
+.writing-draft-card.is-selected,
+.writing-mini-list button:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.writing-draft-card strong,
+.writing-mini-list strong {
+  color: var(--paper-white);
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.writing-draft-card p {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.writing-mini-list {
+  margin-top: 10px;
+}
+
+.writing-mini-list span,
+.writing-mini-list small {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.writing-status-reviewed {
+  color: var(--success);
+}
+
+.writing-status-archived {
+  color: var(--text-muted);
+}
+
 .check-field {
   display: flex;
   align-items: center;
@@ -1340,6 +1515,10 @@ code {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .writing-workbench .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .control-bar {
     grid-template-columns: 1fr;
   }
@@ -1368,7 +1547,11 @@ code {
   .verification-row-meta,
   .dispatch-mini-grid,
   .dispatch-summary-grid,
-  .dispatch-signal-grid {
+  .dispatch-signal-grid,
+  .writing-controls,
+  .writing-context-grid,
+  .writing-meta-grid,
+  .writing-layout {
     grid-template-columns: 1fr;
   }
 

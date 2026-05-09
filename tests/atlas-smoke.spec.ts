@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('operator can edit manual state and generate a writing prompt', async ({ page }) => {
+test('operator can edit manual state and manage writing drafts', async ({ page }) => {
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'JAMARQ Atlas' })).toBeVisible()
@@ -10,6 +10,8 @@ test('operator can edit manual state and generate a writing prompt', async ({ pa
   await page.getByRole('button', { name: 'GitHub' }).click()
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
   await expect(page.locator('.github-error')).toContainText(/Set GITHUB_TOKEN|GH_TOKEN/)
+  await page.getByRole('button', { name: 'Writing' }).click()
+  await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
   await page.getByRole('button', { name: 'Board', exact: true }).click()
 
   await page.getByRole('button', { name: 'Verification', exact: true }).click()
@@ -81,11 +83,25 @@ test('operator can edit manual state and generate a writing prompt', async ({ pa
 
   await statusField.selectOption('Waiting')
   await nextActionField.fill('Interaction check persisted next action')
-  await page.getByRole('button', { name: 'Summarize activity' }).click()
 
-  await expect(page.locator('.draft-output')).toHaveValue(/Do not decide or change status/)
+  await detail.getByRole('button', { name: 'Client update' }).click()
+  await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
+  await expect(page.getByLabel('Writing project')).toHaveValue('vaexcore-studio')
+  await page.getByRole('button', { name: 'Create draft packet' }).click()
+  const draftTextField = page.getByRole('textbox', { name: 'Draft text' })
+  await expect(draftTextField).toHaveValue(/Template draft - not AI generated/)
+  await expect(page.getByRole('textbox', { name: 'Prompt packet' })).toHaveValue(
+    /Do not decide or change status/,
+  )
+  await draftTextField.fill('Human-edited client update from E2E.')
 
   await page.reload()
+  await page.getByRole('button', { name: 'Writing' }).click()
+  await page.getByLabel('Search writing drafts').fill('Human-edited')
+  await page.getByRole('button', { name: /Client update - VaexCore Studio/ }).click()
+  await expect(draftTextField).toHaveValue('Human-edited client update from E2E.')
+
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(nextActionField).toHaveValue('Interaction check persisted next action')
 

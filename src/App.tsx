@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { CalendarCheck, DatabaseZap, GitBranch, PanelRightOpen, Rocket } from 'lucide-react'
+import { CalendarCheck, DatabaseZap, FileText, GitBranch, PanelRightOpen, Rocket } from 'lucide-react'
 import './App.css'
 import { Dashboard } from './components/Dashboard'
 import { DispatchDashboard } from './components/DispatchDashboard'
 import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
 import { ProjectDetail } from './components/ProjectDetail'
 import { VerificationCenter } from './components/VerificationCenter'
+import { WritingWorkbench } from './components/WritingWorkbench'
 import {
   findProjectRecord,
   flattenProjects,
@@ -16,9 +17,10 @@ import {
   type WorkStatus,
 } from './domain/atlas'
 import type { DeploymentTarget, DispatchReadiness } from './domain/dispatch'
+import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
+import { useLocalWriting } from './hooks/useLocalWriting'
 import { useLocalWorkspace } from './hooks/useLocalWorkspace'
-import { createWritingAssistDraft, type AiWritingAction } from './services/aiWritingAssistant'
 import { githubIngestionContract, type GithubRepositorySummary } from './services/githubIntegration'
 import {
   bindRepositoryToProject,
@@ -30,11 +32,13 @@ import { markProjectVerified, updateProjectVerificationCadence } from './service
 
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
-type AppView = 'board' | 'github' | 'verification' | 'dispatch'
+type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing'
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
   const { dispatch, updateTarget, updateReadiness } = useLocalDispatch()
+  const { writing, addDraft, updateDraftText, updateDraftNotes, markReviewed, archiveDraft } =
+    useLocalWriting()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -43,9 +47,16 @@ function App() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>('All')
   const [appView, setAppView] = useState<AppView>('board')
+  const [selectedWritingTemplate, setSelectedWritingTemplate] =
+    useState<WritingTemplateId>('client-update')
+  const [selectedWritingDraftId, setSelectedWritingDraftId] = useState('')
   const selectedRecord =
     findProjectRecord(workspace, selectedProjectId) ?? projectRecords[0]
-  const [aiDraft, setAiDraft] = useState('')
+
+  function selectProject(projectId: string) {
+    setSelectedProjectId(projectId)
+    setSelectedWritingDraftId('')
+  }
 
   function updateManualState(update: Partial<ManualOperationalState>) {
     if (!selectedRecord) {
@@ -63,14 +74,6 @@ function App() {
     )
   }
 
-  function handleDraftRequest(action: AiWritingAction) {
-    if (!selectedRecord) {
-      return
-    }
-
-    setAiDraft(createWritingAssistDraft(action, selectedRecord.project))
-  }
-
   function handleDispatchTargetChange(targetId: string, update: Partial<DeploymentTarget>) {
     updateTarget(targetId, update)
   }
@@ -86,22 +89,19 @@ function App() {
   function handleBindRepository(projectId: string, repository: GithubRepositorySummary) {
     const link = repositorySummaryToLink(repository)
     setWorkspace((currentWorkspace) => bindRepositoryToProject(currentWorkspace, projectId, link))
-    setSelectedProjectId(projectId)
-    setAiDraft('')
+    selectProject(projectId)
   }
 
   function handleCreateInboxProject(repository: GithubRepositorySummary) {
     const result = createInboxProjectFromRepository(workspace, repository)
     setWorkspace(result.workspace)
-    setSelectedProjectId(result.projectId)
-    setAiDraft('')
+    selectProject(result.projectId)
   }
 
   function handleUnbindRepository(projectId: string, repository: GithubRepositoryLink) {
     setWorkspace((currentWorkspace) =>
       unbindRepositoryFromProject(currentWorkspace, projectId, repository),
     )
-    setAiDraft('')
   }
 
   function handleVerificationCadenceChange(
@@ -111,13 +111,38 @@ function App() {
     setWorkspace((currentWorkspace) =>
       updateProjectVerificationCadence(currentWorkspace, projectId, verificationCadence),
     )
-    setAiDraft('')
   }
 
   function handleMarkVerified(projectId: string, note: string) {
     setWorkspace((currentWorkspace) => markProjectVerified(currentWorkspace, projectId, note))
+    selectProject(projectId)
+  }
+
+  function handleWritingRequest(projectId: string, templateId: WritingTemplateId) {
     setSelectedProjectId(projectId)
-    setAiDraft('')
+    setSelectedWritingTemplate(templateId)
+    setSelectedWritingDraftId('')
+    setAppView('writing')
+  }
+
+  function handleCreateWritingDraft(draft: WritingDraft) {
+    addDraft(draft)
+    setSelectedProjectId(draft.projectId)
+    setSelectedWritingTemplate(draft.templateId)
+    setSelectedWritingDraftId(draft.id)
+  }
+
+  function handleSelectWritingDraft(draftId: string) {
+    const draft = writing.drafts.find((candidate) => candidate.id === draftId)
+
+    if (!draft) {
+      return
+    }
+
+    setSelectedProjectId(draft.projectId)
+    setSelectedWritingTemplate(draft.templateId)
+    setSelectedWritingDraftId(draft.id)
+    setAppView('writing')
   }
 
   return (
@@ -146,6 +171,10 @@ function App() {
           <span>
             <CalendarCheck size={15} />
             Verification-aware
+          </span>
+          <span>
+            <FileText size={15} />
+            Writing-ready
           </span>
           <span>
             <PanelRightOpen size={15} />
@@ -183,6 +212,13 @@ function App() {
         >
           Verification
         </button>
+        <button
+          type="button"
+          className={appView === 'writing' ? 'is-selected' : ''}
+          onClick={() => setAppView('writing')}
+        >
+          Writing
+        </button>
       </nav>
 
       <div className="app-layout">
@@ -194,10 +230,7 @@ function App() {
             query={query}
             statusFilter={statusFilter}
             sectionFilter={sectionFilter}
-            onSelectProject={(projectId) => {
-              setSelectedProjectId(projectId)
-              setAiDraft('')
-            }}
+            onSelectProject={selectProject}
             onQueryChange={setQuery}
             onStatusFilterChange={setStatusFilter}
             onSectionFilterChange={setSectionFilter}
@@ -206,10 +239,7 @@ function App() {
           <GitHubIntakeDashboard
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={(projectId) => {
-              setSelectedProjectId(projectId)
-              setAiDraft('')
-            }}
+            onSelectProject={selectProject}
             onBindRepository={handleBindRepository}
             onCreateInboxProject={handleCreateInboxProject}
           />
@@ -217,38 +247,49 @@ function App() {
           <VerificationCenter
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={(projectId) => {
-              setSelectedProjectId(projectId)
-              setAiDraft('')
-            }}
+            onSelectProject={selectProject}
+          />
+        ) : appView === 'writing' ? (
+          <WritingWorkbench
+            projectRecords={projectRecords}
+            dispatch={dispatch}
+            writing={writing}
+            selectedProjectId={selectedRecord?.project.id ?? ''}
+            selectedTemplateId={selectedWritingTemplate}
+            selectedDraftId={selectedWritingDraftId}
+            onSelectProject={selectProject}
+            onSelectTemplate={setSelectedWritingTemplate}
+            onCreateDraft={handleCreateWritingDraft}
+            onSelectDraft={handleSelectWritingDraft}
+            onUpdateDraftText={updateDraftText}
+            onUpdateDraftNotes={updateDraftNotes}
+            onMarkReviewed={markReviewed}
+            onArchiveDraft={archiveDraft}
           />
         ) : (
           <DispatchDashboard
             dispatch={dispatch}
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={(projectId) => {
-              setSelectedProjectId(projectId)
-              setAiDraft('')
-            }}
+            onSelectProject={selectProject}
           />
         )}
 
         {selectedRecord ? (
           <ProjectDetail
             record={selectedRecord}
-            aiDraft={aiDraft}
             dispatch={dispatch}
+            writingDrafts={writing.drafts}
             onManualChange={updateManualState}
             onDispatchTargetChange={handleDispatchTargetChange}
             onDispatchReadinessChange={handleDispatchReadinessChange}
             onRepositoryUnbind={handleUnbindRepository}
             onVerificationCadenceChange={handleVerificationCadenceChange}
             onMarkVerified={handleMarkVerified}
-            onDraftRequest={handleDraftRequest}
+            onWritingRequest={handleWritingRequest}
+            onOpenWritingDraft={handleSelectWritingDraft}
             onResetWorkspace={() => {
               resetWorkspace()
-              setAiDraft('')
             }}
           />
         ) : null}
