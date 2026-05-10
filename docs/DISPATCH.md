@@ -12,6 +12,7 @@ Dispatch currently supports:
 - Deployment records
 - Environment and host metadata
 - Public URLs and health check URLs
+- Read-only preflight evidence history
 - Last deployed and last verified dates
 - Readiness blockers and warnings
 - Rollback references
@@ -38,14 +39,40 @@ Dispatch state is separate from Atlas workspace state.
 
 Dispatch records reference Atlas projects by `projectId`. Dispatch readiness must not mutate Atlas project status.
 
+Preflight runs are stored in the same Dispatch storage document as short evidence snapshots. They contain target IDs, timestamps, check results, scoped GitHub snippets, warnings, and errors. They do not store deployment artifacts or full GitHub history.
+
 ## Service Boundary
 
 Dispatch services live under `src/services`.
 
 - `dispatchStorage.ts`: target, record, and readiness access helpers.
 - `dispatchReadiness.ts`: advisory readiness evaluation.
-- `dispatchHealthChecks.ts`: read-only health check probing stub.
+- `dispatchPreflight.ts`: read-only preflight run assembly.
+- `dispatchHealthChecks.ts`: read-only local health probe client.
 - `dispatchRunner.ts`: no-op future deployment runner boundary.
+
+## Preflight Evidence
+
+Dispatch Preflight is a read-only review aid. A preflight run can check:
+
+- Public URL presence.
+- Placeholder host, user, and path values.
+- Health check URL response through `/api/dispatch/health`.
+- Backup-required targets that are not manually marked backup-ready.
+- Rollback reference availability from the latest deployment record.
+- Latest bound GitHub commit, workflow run, release, deployment, and check-run snippets when permissions allow.
+
+Health probing is local-server-side to avoid browser CORS limits. It supports only `http` and `https`, sends no credentials or request body, uses a timeout-bound `HEAD` request with safe `GET` fallback, and converts network failures into check results instead of app errors.
+
+GitHub permission gaps are scoped to the affected check. Missing tokens, private repos, rate limits, and insufficient permissions produce warnings without breaking Dispatch, Atlas status editing, Verification, Writing, or GitHub Intake.
+
+Preflight must not:
+
+- Update Atlas project status.
+- Update Dispatch target status or readiness.
+- Create deployment records.
+- Mark a project verified.
+- Decide whether a project should ship.
 
 ## Runner Phases
 

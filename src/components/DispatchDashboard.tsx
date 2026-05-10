@@ -4,8 +4,10 @@ import { formatDateLabel, formatDateTimeLabel } from '../domain/atlas'
 import {
   findReadiness,
   formatDeploymentStatus,
+  formatPreflightStatus,
   getHealthCheckSummary,
   getLatestDeploymentRecord,
+  getLatestPreflightRun,
   type DispatchState,
 } from '../domain/dispatch'
 import { evaluateDispatchReadiness } from '../services/dispatchReadiness'
@@ -69,6 +71,7 @@ export function DispatchDashboard({
         {dispatch.targets.map((target) => {
           const readiness = findReadiness(dispatch, target.projectId, target.id)
           const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
+          const latestPreflight = getLatestPreflightRun(dispatch, target.id)
           const health = getHealthCheckSummary(latestDeployment?.healthCheckResults)
           const evaluation = evaluateDispatchReadiness({
             target,
@@ -121,12 +124,24 @@ export function DispatchDashboard({
                     {target.backupRequired ? (readiness?.backupReady ? 'Ready' : 'Required') : 'No'}
                   </strong>
                 </div>
+                <div>
+                  <span>Preflight</span>
+                  <strong>
+                    {latestPreflight ? formatPreflightStatus(latestPreflight.status) : 'Not run'}
+                  </strong>
+                </div>
               </div>
               <p>{target.publicUrl || 'No public URL configured.'}</p>
               <div className="card-footer">
                 <span>{evaluation.ready ? 'Readiness clear' : 'Readiness review'}</span>
                 <span>{evaluation.blockers.length} blockers</span>
                 <span>{evaluation.warnings.length} warnings</span>
+              </div>
+              <div className="card-footer">
+                <span>
+                  Preflight:{' '}
+                  {latestPreflight ? formatDateTimeLabel(latestPreflight.completedAt) : 'not run'}
+                </span>
               </div>
               {target.publicUrl ? (
                 <span className="dispatch-url">

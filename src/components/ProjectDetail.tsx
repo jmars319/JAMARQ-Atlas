@@ -43,6 +43,8 @@ interface ProjectDetailProps {
     projectId: string,
     update: Partial<DispatchReadiness>,
   ) => void
+  onRunDispatchPreflight: (targetId: string) => Promise<void>
+  preflightRunningTargetId: string
   onRepositoryUnbind: (projectId: string, repository: GithubRepositoryLink) => void
   onVerificationCadenceChange: (projectId: string, cadence: VerificationCadence) => void
   onMarkVerified: (projectId: string, note: string) => void
@@ -88,6 +90,8 @@ export function ProjectDetail({
   onManualChange,
   onDispatchTargetChange,
   onDispatchReadinessChange,
+  onRunDispatchPreflight,
+  preflightRunningTargetId,
   onRepositoryUnbind,
   onVerificationCadenceChange,
   onMarkVerified,
@@ -239,6 +243,8 @@ export function ProjectDetail({
           dispatch={dispatch}
           onTargetChange={onDispatchTargetChange}
           onReadinessChange={onDispatchReadinessChange}
+          onRunPreflight={onRunDispatchPreflight}
+          preflightRunningTargetId={preflightRunningTargetId}
         />
       </section>
 

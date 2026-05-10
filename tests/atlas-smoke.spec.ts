@@ -11,6 +11,23 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
       },
     })
   })
+  await page.route('**/api/dispatch/health?**', async (route) => {
+    const url = new URL(route.request().url()).searchParams.get('url') ?? 'https://example.com'
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        result: {
+          id: 'health-e2e',
+          url,
+          status: 'passing',
+          checkedAt: '2026-05-10T12:00:00Z',
+          statusCode: 200,
+          message: 'Health URL responded successfully.',
+        },
+      }),
+    })
+  })
 
   await page.goto('/')
 
@@ -65,11 +82,30 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await page.getByRole('button', { name: 'Dispatch' }).click()
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
+  await expect(
+    page.locator('button.dispatch-card').filter({ hasText: 'Midway Music Hall production' }),
+  ).toContainText('Preflight: not run')
   await expect(page.locator('button.dispatch-card').filter({ hasText: 'Midway Music Hall production' })).toBeVisible()
   await page.locator('button.dispatch-card').filter({ hasText: 'Midway Music Hall production' }).click()
 
   const detail = page.locator('.project-detail')
   await expect(detail.getByRole('heading', { name: 'Midway Music Hall production' })).toBeVisible()
+  const statusBeforePreflight = await detail
+    .locator('label.field')
+    .filter({ hasText: 'Status' })
+    .locator('select')
+    .inputValue()
+  await detail.getByRole('button', { name: 'Run read-only preflight' }).click()
+  await expect(detail.getByLabel('Midway Music Hall production preflight')).toContainText(
+    'Health URL responded successfully',
+  )
+  await expect(detail.getByLabel('Midway Music Hall production preflight')).toContainText(
+    'Preflight history',
+  )
+  await expect(
+    detail.locator('label.field').filter({ hasText: 'Status' }).locator('select'),
+  ).toHaveValue(statusBeforePreflight)
+
   const deploymentNotesField = detail
     .locator('label.field')
     .filter({ hasText: 'Deployment notes' })
@@ -78,6 +114,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await deploymentNotesField.fill('E2E dispatch note')
   await page.reload()
   await expect(deploymentNotesField).toHaveValue('E2E dispatch note')
+  await expect(detail.getByLabel('Midway Music Hall production preflight')).toContainText(
+    'Preflight history',
+  )
 
   await page.getByRole('button', { name: 'Board', exact: true }).click()
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()

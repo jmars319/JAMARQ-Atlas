@@ -354,4 +354,5 @@ export const seedDispatchState: DispatchState = {
       lastCheckedAt: '2026-05-01T14:00:00Z',
     }),
   ],
+  preflightRuns: [],
 }

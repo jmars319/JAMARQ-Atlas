@@ -11,7 +11,7 @@ The app has these main surfaces:
 - Board: human-authored operational status across sections, groups, and projects.
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
 - Verification Center: cadence-based manual review queues and verification audit events.
-- Dispatch: deployment posture across configured targets.
+- Dispatch: deployment posture and read-only preflight evidence across configured targets.
 - Writing Workbench: local draft packets and reviewable operational writing.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
@@ -83,10 +83,16 @@ Primary concepts:
 - Deployment record
 - Dispatch readiness
 - Health check result
+- Dispatch preflight run
+- Dispatch preflight check
 - Deployment runner phase
 - Deployment runner result
 
 Dispatch references Atlas projects by `projectId`. It does not mutate Atlas project status.
+
+Dispatch Preflight stores short local evidence snapshots under the Dispatch storage key. It checks target configuration, health URLs, backup and rollback posture, and optional GitHub snippets when repo bindings and token permissions allow. Preflight does not create deployment records, update Atlas status, update Dispatch readiness, stamp verification, or decide what should ship.
+
+The local `/api/dispatch/health` boundary performs timeout-bound read-only `http`/`https` probes without credentials or request bodies. Browser code receives normalized health results, so CORS and network failures are displayed as scoped evidence instead of breaking the app.
 
 ## GitHub Boundary
 

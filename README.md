@@ -17,7 +17,7 @@ The dashboard currently supports:
 - GitHub Intake for discovering repositories, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
 - Verification Center for cadence-based manual review queues and verification audit notes.
-- Atlas Dispatch for deployment target posture, readiness notes, health check signals, rollback posture, and deployment history.
+- Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 
 No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
@@ -30,7 +30,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Optional GitHub REST integration through `/api/github`.
 - Repository binding/import helpers that persist repo links only.
 - Verification cadence helpers and manual verification audit events.
-- Dispatch domain models, readiness evaluation, health-check stubs, and safe no-op runner phases.
+- Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Unit and Playwright smoke tests for the main operator flows.
 
@@ -110,12 +110,23 @@ Current Dispatch data:
 - Deployment targets and environments.
 - Host type and placeholder host/path configuration.
 - Public URL and health check URLs.
+- Read-only preflight runs and check evidence.
 - Deployment notes, blockers, and target notes.
 - Last deployed and last verified dates.
 - Deployment records and health check results.
 - Rollback reference and database backup reference.
 - Backup-required and destructive-confirmation-required flags.
 - Advisory readiness blockers and warnings.
+
+Dispatch Preflight collects short local evidence snapshots for human review:
+
+- Target configuration checks.
+- Read-only health URL probes through `/api/dispatch/health`.
+- Backup and rollback posture checks.
+- Optional GitHub commit, workflow, release, deployment, and check-run snippets when a repo is bound and token permissions allow.
+- Scoped warnings for missing tokens, private repos, permission gaps, rate limits, or unavailable resources.
+
+Preflight runs are stored under Dispatch state as evidence history only. They do not create deployment records, update Atlas project status, update Dispatch target status, mark readiness, stamp verification, or decide what should ship.
 
 Seed targets exist for:
 
@@ -240,6 +251,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
 - `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
 - `server/githubApi.ts` normalizes GitHub REST responses and maps permission/rate-limit/not-found errors.
+- `server/dispatchApi.ts` provides read-only Dispatch health probing for preflight checks.
 - `src/components/Dashboard.tsx` renders the compact status board.
 - `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
@@ -249,7 +261,8 @@ Atlas separates manual intent from raw activity.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
-- `src/services/dispatchHealthChecks.ts` contains a read-only health check probing stub.
+- `src/services/dispatchPreflight.ts` assembles read-only preflight evidence without mutating status or readiness.
+- `src/services/dispatchHealthChecks.ts` calls the local read-only Dispatch health API.
 - `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
 - `src/services/aiWritingAssistant.ts` creates Writing context snapshots, prompt packets, and local template drafts.
@@ -299,6 +312,7 @@ Verification activity is advisory/manual:
 Dispatch activity is advisory:
 
 - Readiness does not change Atlas status.
+- Preflight evidence does not change Atlas or Dispatch status.
 - Health checks do not mark a project stable.
 - Backup warnings do not change priority.
 - Deployment records do not decide what should ship.
@@ -328,4 +342,4 @@ Dispatch safety rules:
 1. Add hosted persistence only after the manual model is stable.
 2. Add a real AI writing provider behind the current stub boundary.
 3. Expand GitHub Intake with optional repo grouping suggestions for human review.
-4. Replace Dispatch runner stubs with safe preflight-only checks before any write-capable deployment work.
+4. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.

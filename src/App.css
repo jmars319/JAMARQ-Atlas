@@ -52,7 +52,8 @@
 .github-card-actions,
 .repo-list-actions,
 .writing-editor-actions,
-.writing-warning {
+.writing-warning,
+.dispatch-preflight-actions {
   display: flex;
   align-items: center;
 }
@@ -1061,11 +1062,13 @@ h3 {
 .state-completed,
 .state-open,
 .state-active,
-.state-available {
+.state-available,
+.state-passing {
   color: var(--success);
 }
 
 .state-failure,
+.state-failed,
 .state-cancelled,
 .state-closed {
   color: var(--danger);
@@ -1074,8 +1077,13 @@ h3 {
 .state-in_progress,
 .state-queued,
 .state-requested,
-.state-waiting {
+.state-waiting,
+.state-warning {
   color: var(--warning);
+}
+
+.state-skipped {
+  color: var(--text-muted);
 }
 
 .dispatch-dashboard {
@@ -1092,6 +1100,7 @@ h3 {
 .dispatch-card,
 .dispatch-summary-card,
 .dispatch-readiness,
+.dispatch-preflight,
 .dispatch-target-detail {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1176,6 +1185,7 @@ h3 {
 .dispatch-mini-grid div,
 .dispatch-summary-grid div,
 .dispatch-signal-grid div {
+  min-width: 0;
   border: 1px solid var(--line);
   background: rgba(250, 250, 250, 0.02);
   padding: 9px;
@@ -1197,6 +1207,7 @@ h3 {
   margin-top: 4px;
   color: var(--paper-white);
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .dispatch-url {
@@ -1217,10 +1228,70 @@ h3 {
 }
 
 .dispatch-summary-card,
-.dispatch-readiness {
+.dispatch-readiness,
+.dispatch-preflight {
   display: grid;
   gap: 10px;
   padding: 12px;
+}
+
+.dispatch-preflight-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dispatch-preflight-actions button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+  padding: 7px 10px;
+}
+
+.dispatch-preflight-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.dispatch-preflight-actions span,
+.dispatch-preflight-history {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.preflight-check-list {
+  margin-top: 2px;
+}
+
+.dispatch-preflight-history {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.dispatch-preflight-history strong {
+  color: var(--paper-white);
+}
+
+.dispatch-preflight-history ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dispatch-preflight-history li {
+  display: grid;
+  grid-template-columns: auto minmax(120px, auto) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
 }
 
 .dispatch-list {
@@ -1230,6 +1301,7 @@ h3 {
   padding-left: 18px;
   color: var(--text-soft);
   font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }
 
 .dispatch-warning-list {
@@ -1614,5 +1686,9 @@ code {
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .dispatch-preflight-history li {
+    grid-template-columns: 1fr;
   }
 }

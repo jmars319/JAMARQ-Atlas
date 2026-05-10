@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
 import { seedDispatchState } from '../data/seedDispatch'
-import type { DeploymentTarget, DispatchReadiness, DispatchState } from '../domain/dispatch'
+import type {
+  DeploymentTarget,
+  DispatchPreflightRun,
+  DispatchReadiness,
+  DispatchState,
+} from '../domain/dispatch'
+import { addDispatchPreflightRun, normalizeDispatchState } from '../services/dispatchStorage'
 
 const STORAGE_KEY = 'jamarq-atlas.dispatch.v1'
 
 function cloneSeedDispatch(): DispatchState {
-  return JSON.parse(JSON.stringify(seedDispatchState)) as DispatchState
+  return normalizeDispatchState(JSON.parse(JSON.stringify(seedDispatchState)))
 }
 
 function readDispatch(): DispatchState {
@@ -16,7 +22,7 @@ function readDispatch(): DispatchState {
       return cloneSeedDispatch()
     }
 
-    return JSON.parse(stored) as DispatchState
+    return normalizeDispatchState(JSON.parse(stored))
   } catch {
     return cloneSeedDispatch()
   }
@@ -42,6 +48,10 @@ export function useLocalDispatch() {
         target.id === targetId ? { ...target, ...update } : target,
       ),
     }))
+  }
+
+  function addPreflightRun(run: DispatchPreflightRun) {
+    setDispatch((current) => addDispatchPreflightRun(current, run))
   }
 
   function updateReadiness(
@@ -89,5 +99,6 @@ export function useLocalDispatch() {
     resetDispatch,
     updateTarget,
     updateReadiness,
+    addPreflightRun,
   }
 }

@@ -95,10 +95,49 @@ export interface DispatchReadiness {
   lastCheckedAt: string
 }
 
+export type DispatchPreflightStatus = 'passing' | 'warning' | 'failed' | 'skipped'
+
+export type DispatchPreflightCheckType =
+  | 'target-config'
+  | 'health'
+  | 'backup'
+  | 'rollback'
+  | 'github-commit'
+  | 'github-workflow'
+  | 'github-release'
+  | 'github-deployment'
+  | 'github-permission'
+
+export type DispatchPreflightSource = 'atlas' | 'dispatch' | 'health-check' | 'github'
+
+export interface DispatchPreflightCheck {
+  id: string
+  type: DispatchPreflightCheckType
+  source: DispatchPreflightSource
+  label: string
+  status: DispatchPreflightStatus
+  message: string
+  checkedAt: string
+  url?: string
+  details?: string[]
+}
+
+export interface DispatchPreflightRun {
+  id: string
+  projectId: string
+  targetId: string
+  startedAt: string
+  completedAt: string
+  status: DispatchPreflightStatus
+  summary: string
+  checks: DispatchPreflightCheck[]
+}
+
 export interface DispatchState {
   targets: DeploymentTarget[]
   records: DeploymentRecord[]
   readiness: DispatchReadiness[]
+  preflightRuns: DispatchPreflightRun[]
 }
 
 export type DeploymentRunnerPhase =
@@ -139,6 +178,36 @@ export function getTargetRecords(state: DispatchState, targetId: string) {
 
 export function getLatestDeploymentRecord(state: DispatchState, targetId: string) {
   return getTargetRecords(state, targetId)[0]
+}
+
+export function getTargetPreflightRuns(state: DispatchState, targetId: string) {
+  return state.preflightRuns
+    .filter((run) => run.targetId === targetId)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+}
+
+export function getLatestPreflightRun(state: DispatchState, targetId: string) {
+  return getTargetPreflightRuns(state, targetId)[0]
+}
+
+export function summarizePreflightStatus(checks: DispatchPreflightCheck[]): DispatchPreflightStatus {
+  if (checks.some((check) => check.status === 'failed')) {
+    return 'failed'
+  }
+
+  if (checks.some((check) => check.status === 'warning')) {
+    return 'warning'
+  }
+
+  if (checks.length > 0 && checks.every((check) => check.status === 'skipped')) {
+    return 'skipped'
+  }
+
+  return 'passing'
+}
+
+export function formatPreflightStatus(status: DispatchPreflightStatus) {
+  return status.slice(0, 1).toUpperCase() + status.slice(1)
 }
 
 export function getHealthCheckSummary(results: HealthCheckResult[] | undefined) {

@@ -1,10 +1,22 @@
-import { AlertTriangle, CheckCircle2, ClipboardCheck, History, Rocket, Shield } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardCheck,
+  History,
+  ListChecks,
+  RefreshCw,
+  Rocket,
+  Shield,
+} from 'lucide-react'
 import type { ProjectRecord } from '../domain/atlas'
 import { formatDateLabel, formatDateTimeLabel } from '../domain/atlas'
 import {
   formatDeploymentStatus,
+  formatPreflightStatus,
   getHealthCheckSummary,
   getLatestDeploymentRecord,
+  getLatestPreflightRun,
+  getTargetPreflightRuns,
   getTargetRecords,
   type DeploymentTarget,
   type DispatchReadiness,
@@ -21,6 +33,8 @@ interface DispatchPanelProps {
     projectId: string,
     update: Partial<DispatchReadiness>,
   ) => void
+  onRunPreflight: (targetId: string) => Promise<void>
+  preflightRunningTargetId: string
 }
 
 function linesToText(lines: string[]) {
@@ -47,6 +61,8 @@ export function DispatchPanel({
   dispatch,
   onTargetChange,
   onReadinessChange,
+  onRunPreflight,
+  preflightRunningTargetId,
 }: DispatchPanelProps) {
   const targets = dispatch.targets.filter((target) => target.projectId === record.project.id)
 
@@ -70,6 +86,9 @@ export function DispatchPanel({
         )
         const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
         const deploymentRecords = getTargetRecords(dispatch, target.id)
+        const latestPreflight = getLatestPreflightRun(dispatch, target.id)
+        const preflightRuns = getTargetPreflightRuns(dispatch, target.id)
+        const preflightRunning = preflightRunningTargetId === target.id
         const health = getHealthCheckSummary(latestDeployment?.healthCheckResults)
         const evaluation = evaluateDispatchReadiness({
           target,
@@ -123,7 +142,101 @@ export function DispatchPanel({
                   <span>Backup</span>
                   <strong>{backupLabel(target, readiness)}</strong>
                 </div>
+                <div>
+                  <span>Preflight</span>
+                  <strong>
+                    {latestPreflight ? formatPreflightStatus(latestPreflight.status) : 'Not run'}
+                  </strong>
+                </div>
               </div>
+            </div>
+
+            <div className="dispatch-preflight" aria-label={`${target.name} preflight`}>
+              <div className="panel-heading">
+                <ListChecks size={17} />
+                <h3>Preflight Evidence</h3>
+              </div>
+              <div className="dispatch-preflight-actions">
+                <button
+                  type="button"
+                  onClick={() => void onRunPreflight(target.id)}
+                  disabled={preflightRunning}
+                >
+                  <RefreshCw size={15} />
+                  {preflightRunning ? 'Running preflight' : 'Run read-only preflight'}
+                </button>
+                <span>Evidence only. Atlas and Dispatch statuses are unchanged.</span>
+              </div>
+
+              {latestPreflight ? (
+                <>
+                  <div className="dispatch-signal-grid">
+                    <div>
+                      <strong>{formatPreflightStatus(latestPreflight.status)}</strong>
+                      <span>{latestPreflight.summary}</span>
+                    </div>
+                    <div>
+                      <strong>{formatDateTimeLabel(latestPreflight.completedAt)}</strong>
+                      <span>{latestPreflight.checks.length} checks captured</span>
+                    </div>
+                  </div>
+
+                  <ol className="resource-list preflight-check-list">
+                    {latestPreflight.checks.map((preflightCheck) => (
+                      <li key={preflightCheck.id}>
+                        <div className="resource-icon" aria-hidden="true">
+                          {preflightCheck.status === 'passing' ? (
+                            <CheckCircle2 size={15} />
+                          ) : (
+                            <AlertTriangle size={15} />
+                          )}
+                        </div>
+                        <div>
+                          <div className="resource-line">
+                            <strong>{preflightCheck.label}</strong>
+                            <span className={`resource-pill state-${preflightCheck.status}`}>
+                              {formatPreflightStatus(preflightCheck.status)}
+                            </span>
+                          </div>
+                          <p>{preflightCheck.message}</p>
+                          <div className="resource-meta">
+                            <span>{preflightCheck.source}</span>
+                            <span>{preflightCheck.type}</span>
+                            <span>{formatDateTimeLabel(preflightCheck.checkedAt)}</span>
+                          </div>
+                          {preflightCheck.details?.length ? (
+                            <ul className="dispatch-list">
+                              {preflightCheck.details.map((detail) => (
+                                <li key={detail}>{detail}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+
+                  <div className="dispatch-preflight-history">
+                    <strong>Preflight history</strong>
+                    <ol>
+                      {preflightRuns.slice(0, 5).map((run) => (
+                        <li key={run.id}>
+                          <span className={`resource-pill state-${run.status}`}>
+                            {formatPreflightStatus(run.status)}
+                          </span>
+                          <span>{formatDateTimeLabel(run.completedAt)}</span>
+                          <span>{run.summary}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </>
+              ) : (
+                <p className="empty-state">
+                  No preflight evidence captured yet. Run a read-only preflight to collect target,
+                  health, backup, rollback, and optional GitHub signals.
+                </p>
+              )}
             </div>
 
             <div className="dispatch-readiness">

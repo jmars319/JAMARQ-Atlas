@@ -28,6 +28,7 @@ import {
   repositorySummaryToLink,
   unbindRepositoryFromProject,
 } from './services/repoBinding'
+import { runDispatchPreflight } from './services/dispatchPreflight'
 import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
 
 type StatusFilter = WorkStatus | 'All'
@@ -36,7 +37,7 @@ type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing'
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
-  const { dispatch, updateTarget, updateReadiness } = useLocalDispatch()
+  const { dispatch, updateTarget, updateReadiness, addPreflightRun } = useLocalDispatch()
   const {
     writing,
     addDraft,
@@ -59,6 +60,7 @@ function App() {
   const [selectedWritingTemplate, setSelectedWritingTemplate] =
     useState<WritingTemplateId>('client-update')
   const [selectedWritingDraftId, setSelectedWritingDraftId] = useState('')
+  const [preflightRunningTargetId, setPreflightRunningTargetId] = useState('')
   const selectedRecord =
     findProjectRecord(workspace, selectedProjectId) ?? projectRecords[0]
 
@@ -93,6 +95,29 @@ function App() {
     update: Partial<DispatchReadiness>,
   ) {
     updateReadiness(targetId, projectId, update)
+  }
+
+  async function handleRunDispatchPreflight(targetId: string) {
+    const target = dispatch.targets.find((candidate) => candidate.id === targetId)
+
+    if (!target) {
+      return
+    }
+
+    const record = findProjectRecord(workspace, target.projectId)
+
+    if (!record) {
+      return
+    }
+
+    setPreflightRunningTargetId(targetId)
+
+    try {
+      const run = await runDispatchPreflight({ record, dispatch, target })
+      addPreflightRun(run)
+    } finally {
+      setPreflightRunningTargetId('')
+    }
   }
 
   function handleBindRepository(projectId: string, repository: GithubRepositorySummary) {
@@ -295,6 +320,8 @@ function App() {
             onManualChange={updateManualState}
             onDispatchTargetChange={handleDispatchTargetChange}
             onDispatchReadinessChange={handleDispatchReadinessChange}
+            onRunDispatchPreflight={handleRunDispatchPreflight}
+            preflightRunningTargetId={preflightRunningTargetId}
             onRepositoryUnbind={handleUnbindRepository}
             onVerificationCadenceChange={handleVerificationCadenceChange}
             onMarkVerified={handleMarkVerified}
