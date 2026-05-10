@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react'
-import { CalendarCheck, DatabaseZap, FileText, GitBranch, PanelRightOpen, Rocket } from 'lucide-react'
+import {
+  ArchiveRestore,
+  CalendarCheck,
+  DatabaseZap,
+  FileText,
+  GitBranch,
+  PanelRightOpen,
+  Rocket,
+} from 'lucide-react'
 import './App.css'
+import { DataCenter } from './components/DataCenter'
 import { Dashboard } from './components/Dashboard'
 import { DispatchDashboard } from './components/DispatchDashboard'
 import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
@@ -17,6 +26,7 @@ import {
   type WorkStatus,
 } from './domain/atlas'
 import type { DeploymentTarget, DispatchReadiness } from './domain/dispatch'
+import type { AtlasBackupStores } from './domain/dataPortability'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalWriting } from './hooks/useLocalWriting'
@@ -33,13 +43,15 @@ import { markProjectVerified, updateProjectVerificationCadence } from './service
 
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
-type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing'
+type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing' | 'data'
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
-  const { dispatch, updateTarget, updateReadiness, addPreflightRun } = useLocalDispatch()
+  const { dispatch, setDispatch, updateTarget, updateReadiness, addPreflightRun } =
+    useLocalDispatch()
   const {
     writing,
+    setWriting,
     addDraft,
     updateDraftText,
     updateDraftNotes,
@@ -179,6 +191,14 @@ function App() {
     setAppView('writing')
   }
 
+  function handleRestoreStores(stores: AtlasBackupStores) {
+    setWorkspace(stores.workspace)
+    setDispatch(stores.dispatch)
+    setWriting(stores.writing)
+    setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
+    setSelectedWritingDraftId('')
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -209,6 +229,10 @@ function App() {
           <span>
             <FileText size={15} />
             Writing-ready
+          </span>
+          <span>
+            <ArchiveRestore size={15} />
+            Backup-ready
           </span>
           <span>
             <PanelRightOpen size={15} />
@@ -252,6 +276,13 @@ function App() {
           onClick={() => setAppView('writing')}
         >
           Writing
+        </button>
+        <button
+          type="button"
+          className={appView === 'data' ? 'is-selected' : ''}
+          onClick={() => setAppView('data')}
+        >
+          Data
         </button>
       </nav>
 
@@ -302,6 +333,13 @@ function App() {
             onRecordCopied={recordCopied}
             onMarkExported={markExported}
             onArchiveDraft={archiveDraft}
+          />
+        ) : appView === 'data' ? (
+          <DataCenter
+            workspace={workspace}
+            dispatch={dispatch}
+            writing={writing}
+            onRestoreStores={handleRestoreStores}
           />
         ) : (
           <DispatchDashboard

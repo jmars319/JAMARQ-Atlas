@@ -162,6 +162,61 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Writing review audit')).toContainText('approved')
   await expect(page.getByLabel('Writing review audit')).toContainText('markdown-exported')
 
+  await page.getByRole('button', { name: 'Data' }).click()
+  await expect(page.getByRole('heading', { name: 'Backups & Restore' })).toBeVisible()
+  const jsonDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download JSON backup' }).click()
+  expect((await jsonDownload).suggestedFilename()).toMatch(/jamarq-atlas-backup/)
+  const markdownDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download Markdown report' }).click()
+  expect((await markdownDownload).suggestedFilename()).toMatch(/backup-report/)
+
+  await page.getByLabel('Import Atlas backup JSON').setInputFiles({
+    name: 'invalid-atlas-backup.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{not json'),
+  })
+  await expect(page.getByText('Import validation failed')).toBeVisible()
+
+  const restoreBackup = await page.evaluate(() => {
+    const workspace = JSON.parse(window.localStorage.getItem('jamarq-atlas.workspace.v1') ?? '{}')
+    const dispatch = JSON.parse(window.localStorage.getItem('jamarq-atlas.dispatch.v1') ?? '{}')
+    const writing = JSON.parse(window.localStorage.getItem('jamarq-atlas.writing.v1') ?? '{}')
+    workspace.sections[0].groups[0].projects[0].manual.nextAction =
+      'Restored from Data Center backup.'
+
+    return JSON.stringify({
+      kind: 'jamarq-atlas-backup',
+      schemaVersion: 1,
+      exportedAt: '2026-05-10T12:00:00.000Z',
+      appName: 'JAMARQ Atlas',
+      stores: { workspace, dispatch, writing },
+    })
+  })
+
+  await page.getByLabel('Import Atlas backup JSON').setInputFiles({
+    name: 'valid-atlas-backup.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(restoreBackup),
+  })
+  await expect(page.getByLabel('Restore preview')).toContainText('Incoming Backup')
+  await page.getByLabel('Type RESTORE ATLAS to replace local stores').fill('RESTORE ATLAS')
+  await page.getByRole('button', { name: 'Restore backup' }).click()
+  await expect(page.getByText('Backup restored locally')).toBeVisible()
+
+  await page.reload()
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await page.locator('button.project-row').filter({ hasText: 'Midway Music Hall' }).click()
+  await expect(nextActionField).toHaveValue('Restored from Data Center backup.')
+  await page.getByRole('button', { name: 'Dispatch' }).click()
+  await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
+  await page.getByRole('button', { name: 'Verification', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Verification Queue' })).toBeVisible()
+  await page.getByRole('button', { name: 'GitHub' }).click()
+  await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
+  await page.getByRole('button', { name: 'Writing' }).click()
+  await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
+
   await page.getByRole('button', { name: 'Board', exact: true }).click()
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(nextActionField).toHaveValue('Interaction check persisted next action')

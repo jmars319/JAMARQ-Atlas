@@ -1,0 +1,131 @@
+import { describe, expect, it } from 'vitest'
+import { seedDispatchState } from '../src/data/seedDispatch'
+import { seedWorkspace } from '../src/data/seedWorkspace'
+import { flattenProjects } from '../src/domain/atlas'
+import {
+  approveWritingDraft,
+  createWritingDraft,
+  markWritingDraftExported,
+} from '../src/services/aiWritingAssistant'
+import {
+  canApplyAtlasRestore,
+  createAtlasBackupEnvelope,
+  createAtlasBackupMarkdownReport,
+  createBackupSummaryText,
+  createRestorePreview,
+  parseAtlasBackupJson,
+  validateAtlasBackupEnvelope,
+} from '../src/services/dataPortability'
+
+const record = flattenProjects(seedWorkspace).find(
+  (candidate) => candidate.project.id === 'midway-music-hall-site',
+)!
+const now = new Date('2026-05-10T12:00:00Z')
+const draft = createWritingDraft({
+  templateId: 'client-update',
+  record,
+  dispatch: seedDispatchState,
+  now,
+})
+const exportedDraft = markWritingDraftExported(approveWritingDraft([draft], draft.id, now), draft.id, now)[0]
+const stores = {
+  workspace: seedWorkspace,
+  dispatch: seedDispatchState,
+  writing: {
+    drafts: [exportedDraft],
+  },
+}
+
+describe('data portability', () => {
+  it('creates a JSON backup envelope with all Atlas stores', () => {
+    const envelope = createAtlasBackupEnvelope(stores, now)
+
+    expect(envelope.kind).toBe('jamarq-atlas-backup')
+    expect(envelope.schemaVersion).toBe(1)
+    expect(envelope.stores.workspace.id).toBe('jamarq-atlas')
+    expect(envelope.stores.dispatch.targets.length).toBeGreaterThan(0)
+    expect(envelope.stores.writing.drafts).toHaveLength(1)
+    expect(envelope.summary.workspace.projects).toBeGreaterThan(0)
+  })
+
+  it('does not include credentials, env vars, or unknown local storage keys', () => {
+    const serialized = JSON.stringify(createAtlasBackupEnvelope(stores, now))
+
+    expect(serialized).not.toContain('GITHUB_TOKEN')
+    expect(serialized).not.toContain('GH_TOKEN')
+    expect(serialized).not.toContain('localStorage')
+    expect(serialized).not.toContain('secret')
+  })
+
+  it('builds a Markdown inventory report with counts and guardrails', () => {
+    const report = createAtlasBackupMarkdownReport(createAtlasBackupEnvelope(stores, now))
+
+    expect(report).toContain('# JAMARQ Atlas Backup Report')
+    expect(report).toContain('Workspace:')
+    expect(report).toContain('Dispatch:')
+    expect(report).toContain('Writing:')
+    expect(report).toContain('Restore requires typed human confirmation.')
+    expect(report).toContain('GitHub tokens and environment variables')
+  })
+
+  it('validates and normalizes a compatible backup', () => {
+    const envelope = createAtlasBackupEnvelope(stores, now)
+    const result = validateAtlasBackupEnvelope({
+      ...envelope,
+      stores: {
+        ...envelope.stores,
+        dispatch: {
+          targets: envelope.stores.dispatch.targets,
+          records: envelope.stores.dispatch.records,
+          readiness: envelope.stores.dispatch.readiness,
+        },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.envelope?.stores.dispatch.preflightRuns).toEqual([])
+    expect(result.warnings.map((warning) => warning.type)).toContain('legacy-normalized')
+  })
+
+  it('returns safe validation errors for malformed JSON and unsupported schemas', () => {
+    expect(parseAtlasBackupJson('{not json').errors).toContain('Backup file is not valid JSON.')
+
+    const unsupported = validateAtlasBackupEnvelope({
+      ...createAtlasBackupEnvelope(stores, now),
+      schemaVersion: 99,
+    })
+
+    expect(unsupported.ok).toBe(false)
+    expect(unsupported.errors[0]).toContain('Unsupported backup schema version')
+  })
+
+  it('builds restore previews without mutating current stores', () => {
+    const currentBefore = JSON.stringify(stores)
+    const incoming = createAtlasBackupEnvelope(
+      {
+        ...stores,
+        writing: { drafts: [] },
+      },
+      now,
+    )
+    const preview = createRestorePreview(stores, incoming)
+
+    expect(preview.currentSummary.writing.drafts).toBe(1)
+    expect(preview.incomingSummary.writing.drafts).toBe(0)
+    expect(JSON.stringify(stores)).toBe(currentBefore)
+  })
+
+  it('requires exact typed confirmation before restore can apply', () => {
+    expect(canApplyAtlasRestore('RESTORE ATLAS')).toBe(true)
+    expect(canApplyAtlasRestore('restore atlas')).toBe(false)
+    expect(canApplyAtlasRestore('RESTORE')).toBe(false)
+  })
+
+  it('creates a compact backup summary for clipboard use', () => {
+    const summary = createBackupSummaryText(createAtlasBackupEnvelope(stores, now))
+
+    expect(summary).toContain('JAMARQ Atlas backup')
+    expect(summary).toContain('projects')
+    expect(summary).toContain('writing drafts')
+  })
+})

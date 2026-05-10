@@ -13,6 +13,7 @@ The app has these main surfaces:
 - Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture and read-only preflight evidence across configured targets.
 - Writing Workbench: local draft packets and reviewable operational writing.
+- Data Center: local backup export, restore preview, and typed-confirmation restore.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
 
@@ -172,6 +173,25 @@ Review, approval, copy, export, and archive actions append Writing-only audit ev
 The provider boundary is stubbed. Current drafts are local template scaffolds plus prompt packets. No external AI request is made, and drafts do not mutate project status, risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings.
 
 Markdown export is local/browser-only. Export packets include draft text, metadata, review status, context warnings, source context summary, guardrails, review audit, and an optional prompt-packet appendix. Export does not imply that anything was sent, published, deployed, shipped, or verified.
+
+## Data Portability Model
+
+Data Center exports and restores Atlas local stores without adding hosted persistence.
+
+The backup envelope contains:
+
+- Workspace store
+- Dispatch store
+- Writing store
+- Schema version
+- Export timestamp
+- Inventory summary
+
+Backups intentionally exclude GitHub tokens, environment variables, credentials, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
+
+Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, and Writing normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
+
+Data Center does not merge records, write to GitHub, sync to hosted storage, send external data, or change Atlas source-of-truth rules.
 
 ## Validation
 

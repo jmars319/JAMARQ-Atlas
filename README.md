@@ -19,6 +19,7 @@ The dashboard currently supports:
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
+- Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
 
 No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
 
@@ -32,6 +33,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
+- Versioned local backup/export helpers for Workspace, Dispatch, and Writing data.
 - Unit and Playwright smoke tests for the main operator flows.
 
 ## Tech Stack
@@ -227,6 +229,30 @@ Local export actions:
 
 Markdown packets include draft text, project/template metadata, review/export status, context warnings, source context summary, guardrails, review audit, and an optional prompt-packet appendix. Exporting Markdown is local/browser-only and does not prove that a client update was sent, a release was published, work was shipped, or verification was completed.
 
+## Data Center
+
+Data Center protects local Atlas state before hosted persistence exists.
+
+It can export:
+
+- A machine-restorable JSON backup.
+- A human-readable Markdown inventory report.
+- A compact clipboard summary.
+
+The JSON backup is a versioned envelope:
+
+- `kind: "jamarq-atlas-backup"`
+- `schemaVersion: 1`
+- `exportedAt`
+- `appName`
+- `stores.workspace`
+- `stores.dispatch`
+- `stores.writing`
+
+Backups include Atlas Workspace, Dispatch, and Writing stores only. They exclude GitHub tokens, environment variables, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
+
+Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, and Writing state. Restore does not merge records and remains separate from Reset seed.
+
 ## Documentation
 
 Start here:
@@ -238,6 +264,7 @@ Focused references:
 - `docs/GITHUB_INTEGRATION.md`
 - `docs/DISPATCH.md`
 - `docs/AI_WRITING.md`
+- `docs/DATA_PORTABILITY.md`
 
 ## Architecture
 
@@ -246,6 +273,7 @@ Atlas separates manual intent from raw activity.
 - `src/domain/atlas.ts` defines workspace, section, group, project, manual state, repository links, and activity events.
 - `src/domain/dispatch.ts` defines Dispatch targets, statuses, records, readiness, health checks, and runner results.
 - `src/domain/writing.ts` defines Writing templates, drafts, context snapshots, provider results, and local workbench state.
+- `src/domain/dataPortability.ts` defines backup envelopes, validation results, summaries, and restore previews.
 - `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
 - `src/hooks/useLocalWriting.ts` persists Writing state separately under `jamarq-atlas.writing.v1`.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
@@ -256,6 +284,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
 - `src/components/WritingWorkbench.tsx` renders local writing draft creation, editing, review state, and draft history.
+- `src/components/DataCenter.tsx` renders local backup export, import validation, restore preview, and typed restore.
 - `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and Writing launchers.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
@@ -267,6 +296,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
 - `src/services/aiWritingAssistant.ts` creates Writing context snapshots, prompt packets, and local template drafts.
 - `src/services/writingProvider.ts` contains the no-op future AI provider boundary.
+- `src/services/dataPortability.ts` builds backup bundles, Markdown reports, restore previews, and backup validation.
 
 ## Guardrails
 
@@ -325,6 +355,12 @@ Dispatch safety rules:
 - Future cPanel/GoDaddy support should prefer SSH/SFTP, `mysqldump`/`mysql`, and cPanel API where appropriate.
 - No destructive operation exists in the current implementation.
 
+Data portability is local/manual:
+
+- Backups do not read or store credentials.
+- Restore replaces local Atlas stores only after preview and typed confirmation.
+- Restore does not merge records, write to GitHub, sync to hosted storage, or change source-of-truth rules.
+
 ## Statuses
 
 - Inbox
@@ -339,7 +375,7 @@ Dispatch safety rules:
 
 ## Roadmap
 
-1. Add hosted persistence only after the manual model is stable.
+1. Add hosted persistence only after the local backup/restore model is proven.
 2. Add a real AI writing provider behind the current stub boundary.
 3. Expand GitHub Intake with optional repo grouping suggestions for human review.
 4. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.
