@@ -7,6 +7,7 @@ import {
   GitBranch,
   PanelRightOpen,
   Rocket,
+  Settings2,
 } from 'lucide-react'
 import './App.css'
 import { DataCenter } from './components/DataCenter'
@@ -14,6 +15,7 @@ import { Dashboard } from './components/Dashboard'
 import { DispatchDashboard } from './components/DispatchDashboard'
 import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
 import { ProjectDetail } from './components/ProjectDetail'
+import { SettingsCenter } from './components/SettingsCenter'
 import { VerificationCenter } from './components/VerificationCenter'
 import { WritingWorkbench } from './components/WritingWorkbench'
 import {
@@ -29,6 +31,7 @@ import type { DeploymentTarget, DispatchReadiness } from './domain/dispatch'
 import type { AtlasBackupStores } from './domain/dataPortability'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
+import { useLocalSettings } from './hooks/useLocalSettings'
 import { useLocalWriting } from './hooks/useLocalWriting'
 import { useLocalWorkspace } from './hooks/useLocalWorkspace'
 import { githubIngestionContract, type GithubRepositorySummary } from './services/githubIntegration'
@@ -43,12 +46,13 @@ import { markProjectVerified, updateProjectVerificationCadence } from './service
 
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
-type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing' | 'data'
+type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing' | 'data' | 'settings'
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
   const { dispatch, setDispatch, updateTarget, updateReadiness, addPreflightRun } =
     useLocalDispatch()
+  const { settings, updateLocalSettings } = useLocalSettings()
   const {
     writing,
     setWriting,
@@ -235,6 +239,10 @@ function App() {
             Backup-ready
           </span>
           <span>
+            <Settings2 size={15} />
+            Settings-ready
+          </span>
+          <span>
             <PanelRightOpen size={15} />
             Human source of truth
           </span>
@@ -283,6 +291,13 @@ function App() {
           onClick={() => setAppView('data')}
         >
           Data
+        </button>
+        <button
+          type="button"
+          className={appView === 'settings' ? 'is-selected' : ''}
+          onClick={() => setAppView('settings')}
+        >
+          Settings
         </button>
       </nav>
 
@@ -341,6 +356,8 @@ function App() {
             writing={writing}
             onRestoreStores={handleRestoreStores}
           />
+        ) : appView === 'settings' ? (
+          <SettingsCenter settings={settings} onSettingsChange={updateLocalSettings} />
         ) : (
           <DispatchDashboard
             dispatch={dispatch}

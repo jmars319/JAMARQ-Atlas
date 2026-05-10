@@ -40,6 +40,24 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.locator('.github-error')).toContainText(/Set GITHUB_TOKEN|GH_TOKEN/)
   await page.getByRole('button', { name: 'Writing' }).click()
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Settings & Connections' })).toBeVisible()
+  await expect(page.locator('.settings-connection-card').filter({ hasText: 'GitHub Local API' })).toContainText(
+    'No GitHub token is configured',
+  )
+  await expect(page.locator('.settings-connection-card').filter({ hasText: 'Writing Provider' })).toContainText(
+    'Stubbed',
+  )
+  await page.locator('label.field').filter({ hasText: 'Device label' }).locator('input').fill('E2E Atlas device')
+  await page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input').fill('E2E operator')
+  await page.reload()
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.locator('label.field').filter({ hasText: 'Device label' }).locator('input')).toHaveValue(
+    'E2E Atlas device',
+  )
+  await expect(page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input')).toHaveValue(
+    'E2E operator',
+  )
   await page.getByRole('button', { name: 'Board', exact: true }).click()
 
   await page.getByRole('button', { name: 'Verification', exact: true }).click()
@@ -216,6 +234,8 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
   await page.getByRole('button', { name: 'Writing' }).click()
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Settings & Connections' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Board', exact: true }).click()
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()

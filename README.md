@@ -20,6 +20,7 @@ The dashboard currently supports:
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
+- Settings & Connections Center for local workspace labels and integration-readiness status without storing secrets.
 
 No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
 
@@ -34,6 +35,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Versioned local backup/export helpers for Workspace, Dispatch, and Writing data.
+- Local settings storage for device/operator labels and connection-readiness surfaces.
 - Unit and Playwright smoke tests for the main operator flows.
 
 ## Tech Stack
@@ -253,6 +255,18 @@ Backups include Atlas Workspace, Dispatch, and Writing stores only. They exclude
 
 Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, and Writing state. Restore does not merge records and remains separate from Reset seed.
 
+## Settings & Connections
+
+Settings stores local workspace identity only:
+
+- Device label
+- Operator label
+- Local-only notes
+- Settings schema version
+- Last updated timestamp
+
+Settings also shows connection-readiness cards for GitHub, Dispatch, Writing, Data Center, and future Sync. It does not store GitHub tokens, AI keys, deployment credentials, environment variables, or browser secrets. Connection cards are status/readiness surfaces only; they do not trigger automation.
+
 ## Documentation
 
 Start here:
@@ -265,6 +279,7 @@ Focused references:
 - `docs/DISPATCH.md`
 - `docs/AI_WRITING.md`
 - `docs/DATA_PORTABILITY.md`
+- `docs/SETTINGS.md`
 
 ## Architecture
 
@@ -274,6 +289,8 @@ Atlas separates manual intent from raw activity.
 - `src/domain/dispatch.ts` defines Dispatch targets, statuses, records, readiness, health checks, and runner results.
 - `src/domain/writing.ts` defines Writing templates, drafts, context snapshots, provider results, and local workbench state.
 - `src/domain/dataPortability.ts` defines backup envelopes, validation results, summaries, and restore previews.
+- `src/domain/settings.ts` defines local settings and connection-readiness cards.
+- `src/hooks/useLocalSettings.ts` persists local Settings state under `jamarq-atlas.settings.v1`.
 - `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
 - `src/hooks/useLocalWriting.ts` persists Writing state separately under `jamarq-atlas.writing.v1`.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
@@ -285,6 +302,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
 - `src/components/WritingWorkbench.tsx` renders local writing draft creation, editing, review state, and draft history.
 - `src/components/DataCenter.tsx` renders local backup export, import validation, restore preview, and typed restore.
+- `src/components/SettingsCenter.tsx` renders local workspace identity and integration-readiness status.
 - `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and Writing launchers.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
@@ -297,6 +315,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/aiWritingAssistant.ts` creates Writing context snapshots, prompt packets, and local template drafts.
 - `src/services/writingProvider.ts` contains the no-op future AI provider boundary.
 - `src/services/dataPortability.ts` builds backup bundles, Markdown reports, restore previews, and backup validation.
+- `src/services/settings.ts` normalizes local Settings state and static connection-readiness cards.
 
 ## Guardrails
 
@@ -360,6 +379,12 @@ Data portability is local/manual:
 - Backups do not read or store credentials.
 - Restore replaces local Atlas stores only after preview and typed confirmation.
 - Restore does not merge records, write to GitHub, sync to hosted storage, or change source-of-truth rules.
+
+Settings is local/manual:
+
+- Settings does not store tokens, keys, credentials, or env vars.
+- Connection status does not change Atlas project state.
+- Future provider configuration must keep secrets outside browser local storage.
 
 ## Statuses
 

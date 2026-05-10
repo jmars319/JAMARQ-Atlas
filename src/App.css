@@ -53,7 +53,11 @@
 .repo-list-actions,
 .writing-editor-actions,
 .writing-warning,
-.dispatch-preflight-actions {
+.dispatch-preflight-actions,
+.settings-card-heading,
+.settings-panel-heading-row,
+.settings-panel-heading-row div,
+.settings-meta {
   display: flex;
   align-items: center;
 }
@@ -1343,7 +1347,15 @@ h3 {
   min-width: 0;
 }
 
+.settings-center {
+  min-width: 0;
+}
+
 .data-center .dashboard-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-center .dashboard-stats {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -1353,12 +1365,112 @@ h3 {
   margin-top: 12px;
 }
 
-.data-panel {
+.settings-layout {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.data-panel,
+.settings-panel {
   display: grid;
   gap: 12px;
   border: 1px solid var(--line);
   background: var(--surface);
   padding: 12px;
+}
+
+.settings-form-grid,
+.settings-connection-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-connection-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-panel-heading-row {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-panel-heading-row div {
+  gap: 8px;
+}
+
+.settings-panel-heading-row button {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.1);
+  color: var(--paper-white);
+}
+
+.settings-connection-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 11px;
+}
+
+.settings-card-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: rgba(9, 166, 214, 0.08);
+  color: var(--accent-cyan);
+}
+
+.settings-card-heading {
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.settings-connection-card p {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.settings-connection-card span:not(.resource-pill),
+.settings-meta span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.settings-meta {
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.settings-guardrails {
+  border-color: rgba(9, 166, 214, 0.28);
+}
+
+.settings-status-available {
+  color: var(--success);
+}
+
+.settings-status-missing,
+.settings-status-unknown {
+  color: var(--warning);
+}
+
+.settings-status-stub,
+.settings-status-local-only {
+  color: var(--accent-cyan);
 }
 
 .data-summary-grid,
@@ -1792,6 +1904,10 @@ code {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .settings-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .control-bar {
     grid-template-columns: 1fr;
   }
@@ -1823,6 +1939,8 @@ code {
   .dispatch-signal-grid,
   .data-summary-grid,
   .data-preview-grid,
+  .settings-form-grid,
+  .settings-connection-grid,
   .writing-controls,
   .writing-context-grid,
   .writing-meta-grid,
