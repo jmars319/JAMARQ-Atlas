@@ -121,10 +121,14 @@ GitHub resources are shown as operational signals:
 - Releases
 - Deployments
 - Check runs
+- Branches
+- Tags
 
 Permission gaps are resource-local. If a token can read commits but cannot read Actions, the commits panel still works and the Actions panel reports the permission gap.
 
 GitHub Intake persists only Atlas decisions: repository bindings and explicitly created Inbox projects. It does not store full commit, PR, workflow, issue, release, deployment, or check history.
+
+The GitHub tab includes a selected-repo deep dive over these same live resources. Deep-dive data is fetched on demand and remains advisory.
 
 ## AI Boundary
 

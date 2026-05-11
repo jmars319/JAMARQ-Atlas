@@ -600,6 +600,47 @@ h3 {
   margin: 12px 0;
 }
 
+.github-deep-dive {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.github-deep-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.github-deep-summary div {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 10px;
+}
+
+.github-deep-summary svg {
+  color: var(--accent-cyan);
+}
+
+.github-deep-summary strong,
+.github-deep-summary span {
+  display: block;
+}
+
+.github-deep-summary strong {
+  margin: 7px 0 2px;
+  color: var(--paper-white);
+  font-size: 0.9rem;
+}
+
+.github-deep-summary span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
 .github-source-state {
   min-height: 38px;
   gap: 8px;
@@ -2108,6 +2149,7 @@ code {
   .github-source-grid,
   .github-intake-controls,
   .github-repo-facts,
+  .github-deep-summary,
   .verification-controls,
   .verification-row,
   .verification-row-meta,

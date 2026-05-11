@@ -13,6 +13,7 @@ import type { ProjectRecord } from '../domain/atlas'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import { findRepositoryBinding, repositorySummaryToLink } from '../services/repoBinding'
+import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
 
@@ -119,6 +120,7 @@ export function GitHubIntakeDashboard({
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<IntakeFilter>('all')
   const [targetProjectId, setTargetProjectId] = useState(selectedProjectId)
+  const [deepDiveRepo, setDeepDiveRepo] = useState('')
 
   const repositories = useMemo(
     () => mergeRepositories(configuredRepos.data, viewerRepos.data),
@@ -149,6 +151,11 @@ export function GitHubIntakeDashboard({
   const unboundCount = repositories.length - boundCount
   const targetProjectExists = projectRecords.some((record) => record.project.id === targetProjectId)
   const bindTarget = targetProjectExists ? targetProjectId : projectRecords[0]?.project.id ?? ''
+  const selectedDeepDive =
+    repositories.find(({ repository }) => repository.fullName === deepDiveRepo) ?? repositories[0]
+  const selectedDeepDiveBinding = selectedDeepDive
+    ? findRepositoryBinding(projectRecords, repositorySummaryToLink(selectedDeepDive.repository))
+    : null
 
   return (
     <section className="github-intake" aria-labelledby="github-intake-title">
@@ -240,6 +247,29 @@ export function GitHubIntakeDashboard({
           </select>
         </label>
       </div>
+
+      <div className="github-intake-controls">
+        <label className="repo-selector">
+          <GitBranch size={16} />
+          <span className="sr-only">Deep dive repository</span>
+          <select
+            aria-label="Deep dive repository"
+            value={selectedDeepDive?.repository.fullName ?? ''}
+            onChange={(event) => setDeepDiveRepo(event.target.value)}
+          >
+            {repositories.map(({ repository }) => (
+              <option key={repository.fullName} value={repository.fullName}>
+                {repository.fullName}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <GitHubRepoDeepDive
+        repository={selectedDeepDive?.repository ?? null}
+        boundProjectName={selectedDeepDiveBinding?.project.name ?? null}
+      />
 
       <div className="github-intake-grid">
         {visibleRepositories.map(({ repository, sources }) => {

@@ -494,10 +494,100 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
     })
   })
 
+  await page.route(/\/api\/github\/repos\/jmars319\/[^/?]+(?:\/([^?]+))?/, async (route) => {
+    const url = new URL(route.request().url())
+    const match = url.pathname.match(/\/api\/github\/repos\/jmars319\/([^/]+)(?:\/([^/]+))?/)
+    const name = match?.[1] ?? 'JAMARQ-Atlas'
+    const resource = match?.[2] ?? 'repo'
+    const page = Number(url.searchParams.get('page') ?? '1')
+    const pageInfo = {
+      currentPage: page,
+      hasNextPage: resource === 'commits' && page === 1,
+      nextPage: resource === 'commits' && page === 1 ? 2 : null,
+      perPage: 20,
+    }
+    const dataByResource: Record<string, unknown> = {
+      repo: repo(name, `${name} overview.`),
+      commits: [
+        {
+          sha: `commit-${page}`,
+          shortSha: `c${page}c${page}c${page}`,
+          message: `Commit page ${page}`,
+          author: 'Jason',
+          date: '2026-05-09T12:00:00Z',
+          htmlUrl: `https://github.com/jmars319/${name}/commit/${page}`,
+          verified: true,
+          verificationReason: 'valid',
+        },
+      ],
+      pulls: [],
+      issues: [],
+      workflows: [],
+      'workflow-runs': [],
+      releases: [],
+      deployments: [],
+      branches: [
+        {
+          name: 'main',
+          protected: true,
+          commitSha: 'abcdef1234567890',
+          commitUrl: 'https://api.github.com/repos/jmars319/JAMARQ-Atlas/commits/abcdef1',
+        },
+      ],
+      tags: [
+        {
+          name: 'v0.1.0',
+          commitSha: '123456abcdef',
+          zipballUrl: 'https://github.com/jmars319/JAMARQ-Atlas/archive/v0.1.0.zip',
+          tarballUrl: 'https://github.com/jmars319/JAMARQ-Atlas/archive/v0.1.0.tar.gz',
+        },
+      ],
+    }
+
+    if (resource === 'checks') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: null,
+          pageInfo,
+          error: {
+            type: 'insufficient-permission',
+            status: 403,
+            resource: 'checks',
+            message: 'The token does not have permission to read this GitHub resource.',
+          },
+          permission: 'insufficient',
+        }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: dataByResource[resource] ?? [],
+        pageInfo,
+        error: null,
+        permission: 'available',
+      }),
+    })
+  })
+
   await page.goto('/')
   await page.getByRole('button', { name: 'GitHub' }).click()
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
   await expect(page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })).toBeVisible()
+  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('jmars319/JAMARQ-Atlas')
+  await page.getByRole('tab', { name: 'Branches' }).click()
+  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('Protected branch')
+  await page.getByRole('tab', { name: 'Tags' }).click()
+  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('v0.1.0')
+  await page.getByRole('tab', { name: 'Checks' }).click()
+  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('insufficient-permission')
+  await page.getByRole('tab', { name: 'Commits' }).click()
+  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('Commit page 1')
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('Commit page 2')
 
   await page.getByLabel('Target project').selectOption('vaexcore-studio')
   const tenraCard = page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })

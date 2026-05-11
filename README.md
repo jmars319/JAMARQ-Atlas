@@ -113,6 +113,8 @@ Supported GitHub resources:
 - Releases
 - Deployments
 - Check runs
+- Branches
+- Tags
 
 Each resource reports its own permission or availability problem. If a token can read commits but not Actions, the commits tab still works and the Actions tab reports the permission gap.
 
@@ -122,6 +124,8 @@ GitHub Intake supports two read-only inventory sources:
 - Viewer repos from the authenticated token when `/user/repos` is available.
 
 Atlas stores only the resulting project repository bindings or explicitly created Inbox projects. It does not mirror full GitHub history into local storage.
+
+The GitHub tab also includes a selected-repo deep dive for overview, commits, PRs, issues, workflow runs, workflows, checks, releases, deployments, branches, and tags. Each resource is fetched live through the local API and reports permission gaps in place.
 
 The older `npm run ingest:github` snapshot command remains available for raw cache experiments, but the app now uses `/api/github` for interactive read-only views.
 

@@ -404,7 +404,31 @@ function compactCheckRun(checkRun: unknown) {
   }
 }
 
-function normalize(resource: string, data: unknown) {
+function compactBranch(branch: unknown) {
+  const record = asRecord(branch)
+  const commit = readRecord(branch, 'commit')
+
+  return {
+    name: readString(record.name) ?? '',
+    protected: readBoolean(record.protected) ?? false,
+    commitSha: readString(commit.sha) ?? '',
+    commitUrl: readString(commit.url) ?? '',
+  }
+}
+
+function compactTag(tag: unknown) {
+  const record = asRecord(tag)
+  const commit = readRecord(tag, 'commit')
+
+  return {
+    name: readString(record.name) ?? '',
+    commitSha: readString(commit.sha) ?? '',
+    zipballUrl: readString(record.zipball_url) ?? '',
+    tarballUrl: readString(record.tarball_url) ?? '',
+  }
+}
+
+export function normalizeGithubResource(resource: string, data: unknown) {
   if (resource === 'repos') {
     return Array.isArray(data) ? data.map(compactRepo) : []
   }
@@ -450,6 +474,14 @@ function normalize(resource: string, data: unknown) {
     return Array.isArray(checkRuns) ? checkRuns.map(compactCheckRun) : []
   }
 
+  if (resource === 'branches') {
+    return Array.isArray(data) ? data.map(compactBranch) : []
+  }
+
+  if (resource === 'tags') {
+    return Array.isArray(data) ? data.map(compactTag) : []
+  }
+
   return data
 }
 
@@ -474,7 +506,9 @@ async function handleConfiguredRepos(searchParams: URLSearchParams) {
   const firstError = results.find((result) => result.error)?.error ?? null
 
   return {
-    data: results.flatMap((result) => (result.data ? [normalize('repo', result.data)] : [])),
+    data: results.flatMap((result) =>
+      result.data ? [normalizeGithubResource('repo', result.data)] : [],
+    ),
     pageInfo: parsePageInfo(searchParams, null),
     error: firstError,
     permission:
@@ -502,7 +536,7 @@ async function handleViewerRepos(searchParams: URLSearchParams) {
 
   return {
     ...result,
-    data: result.error ? null : normalize('repos', result.data),
+    data: result.error ? null : normalizeGithubResource('repos', result.data),
   } satisfies GithubRequestResult
 }
 
@@ -576,6 +610,8 @@ async function routeGithubRequest(url: URL) {
       `${repoPath}/commits/${encodeURIComponent(searchParams.get('ref') || 'HEAD')}/check-runs`,
       searchParams,
     ),
+    branches: withPagination(`${repoPath}/branches`, searchParams),
+    tags: withPagination(`${repoPath}/tags`, searchParams),
   }
   const githubPath = paths[resource]
 
@@ -597,7 +633,7 @@ async function routeGithubRequest(url: URL) {
 
   return {
     ...result,
-    data: result.error ? null : normalize(resource, result.data),
+    data: result.error ? null : normalizeGithubResource(resource, result.data),
   } satisfies GithubRequestResult
 }
 

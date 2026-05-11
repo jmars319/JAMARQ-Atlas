@@ -27,6 +27,8 @@ Browser code does not receive GitHub tokens. Requests go through the local Vite 
 
 The UI consumes normalized resources through `src/components/RepoActivityPanel.tsx` and `src/hooks/useGithubResource.ts`.
 
+GitHub Intake also includes a repo deep-dive panel so an operator can inspect one selected repository without opening every project detail panel.
+
 ## Supported Resources
 
 Atlas can request:
@@ -42,6 +44,8 @@ Atlas can request:
 - Releases
 - Deployments
 - Check runs
+- Branches
+- Tags
 
 The UI loads the most recent records first and supports pagination where available. Full commit history does not need to be permanently stored in local state.
 
@@ -60,6 +64,8 @@ Intake actions are local Atlas actions only:
 - Unbind a repo from a project.
 - Create an explicit Inbox project from an unbound repo.
 - Open the repository on GitHub.
+
+The deep-dive panel can show overview, commits, PRs, issues, workflow runs, workflows, checks, releases, deployments, branches, and tags for the selected repository. Each resource reports its own missing-token, permission, private repo, rate-limit, or unavailable state.
 
 Created Inbox projects are placed under `Outliers / One-off tools` with `kind: "repo"` and `status: "Inbox"`. The imported repository description may seed the summary, but GitHub does not set status, priority, risk, roadmap, or Dispatch readiness.
 

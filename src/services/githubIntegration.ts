@@ -174,6 +174,20 @@ export interface GithubCheckRun {
   detailsUrl: string | null
 }
 
+export interface GithubBranch {
+  name: string
+  protected: boolean
+  commitSha: string
+  commitUrl: string
+}
+
+export interface GithubTag {
+  name: string
+  commitSha: string
+  zipballUrl: string
+  tarballUrl: string
+}
+
 export type GithubResourceName =
   | 'overview'
   | 'commits'
@@ -184,6 +198,8 @@ export type GithubResourceName =
   | 'releases'
   | 'deployments'
   | 'checks'
+  | 'branches'
+  | 'tags'
 
 export interface AutomationSignal {
   id: string

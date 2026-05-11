@@ -11,6 +11,8 @@ import type {
   GithubWorkflow,
   GithubWorkflowRun,
   GithubCheckRun,
+  GithubBranch,
+  GithubTag,
 } from '../services/githubIntegration'
 import { fetchGithubJson } from '../services/githubIntegration'
 
@@ -24,6 +26,8 @@ type GithubResourceData = {
   releases: GithubRelease[]
   deployments: GithubDeployment[]
   checks: GithubCheckRun[]
+  branches: GithubBranch[]
+  tags: GithubTag[]
 }
 
 interface UseGithubResourceOptions {
