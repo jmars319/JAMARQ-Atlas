@@ -15,6 +15,7 @@ The app has these main surfaces:
 - Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture and read-only preflight evidence across configured targets.
 - Writing Workbench: local draft packets and reviewable operational writing.
+- Reports: local Markdown packet assembly from approved Writing and operational context.
 - Data Center: local backup export, restore preview, and typed-confirmation restore.
 - Settings & Connections: local workspace identity and integration-readiness status.
 - Sync Snapshots: manual local snapshots and optional Supabase hosted snapshots.
@@ -218,6 +219,30 @@ The provider boundary is optional and server-side. Current drafts are local temp
 OpenAI requests do not mutate project status, risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings. Missing or failing provider credentials become scoped Writing/Settings messages and do not break local draft creation.
 
 Markdown export is local/browser-only. Export packets include draft text, metadata, review status, context warnings, source context summary, guardrails, review audit, and an optional prompt-packet appendix. Export does not imply that anything was sent, published, deployed, shipped, or verified.
+
+## Reports Model
+
+Reports is stored separately under `jamarq-atlas.reports.v1`.
+
+Primary concepts:
+
+- Report packet type
+- Report packet
+- Report source summary
+- Report-only audit event
+
+Supported packet types:
+
+- Client update packet
+- Internal weekly packet
+- Release packet
+- Project handoff packet
+
+Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
+
+Reports do not fetch full GitHub history and do not write externally. Copy and Markdown download are browser-local actions. Exporting a packet does not mean anything was sent, published, deployed, shipped, or verified.
+
+Reports do not mutate Workspace, Dispatch, Planning, Verification, Writing, GitHub bindings, Settings, or Sync state.
 
 ## Data Portability Model
 

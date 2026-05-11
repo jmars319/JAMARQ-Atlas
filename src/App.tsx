@@ -6,6 +6,7 @@ import {
   DatabaseZap,
   FileText,
   GitBranch,
+  Newspaper,
   ListTree,
   PanelRightOpen,
   Rocket,
@@ -19,6 +20,7 @@ import { DispatchDashboard } from './components/DispatchDashboard'
 import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
 import { PlanningCenter } from './components/PlanningCenter'
 import { ProjectDetail } from './components/ProjectDetail'
+import { ReportsCenter } from './components/ReportsCenter'
 import { SettingsCenter } from './components/SettingsCenter'
 import { TimelineDashboard } from './components/TimelineDashboard'
 import { VerificationCenter } from './components/VerificationCenter'
@@ -38,6 +40,7 @@ import type { AtlasSyncCoreStores } from './domain/sync'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalPlanning } from './hooks/useLocalPlanning'
+import { useLocalReports } from './hooks/useLocalReports'
 import { useLocalSettings } from './hooks/useLocalSettings'
 import { useLocalSync } from './hooks/useLocalSync'
 import { useLocalWriting } from './hooks/useLocalWriting'
@@ -61,6 +64,7 @@ type AppView =
   | 'timeline'
   | 'github'
   | 'planning'
+  | 'reports'
   | 'verification'
   | 'dispatch'
   | 'writing'
@@ -101,6 +105,14 @@ function App() {
     updateItem: updatePlanningItem,
     deleteItem: deletePlanningItem,
   } = useLocalPlanning()
+  const {
+    reports,
+    addPacket: addReportPacket,
+    updatePacketMarkdown: updateReportPacketMarkdown,
+    recordCopied: recordReportCopied,
+    markExported: markReportExported,
+    archivePacket: archiveReportPacket,
+  } = useLocalReports()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
   const timelineEvents = useMemo(
     () => deriveTimelineEvents({ projectRecords, dispatch, writing, sync }),
@@ -298,6 +310,10 @@ function App() {
             Planning-ready
           </span>
           <span>
+            <Newspaper size={15} />
+            Reports-ready
+          </span>
+          <span>
             <Rocket size={15} />
             Dispatch-ready
           </span>
@@ -356,6 +372,13 @@ function App() {
           onClick={() => setAppView('planning')}
         >
           Planning
+        </button>
+        <button
+          type="button"
+          className={appView === 'reports' ? 'is-selected' : ''}
+          onClick={() => setAppView('reports')}
+        >
+          Reports
         </button>
         <button
           type="button"
@@ -432,6 +455,21 @@ function App() {
             onCreateItem={createPlanningItem}
             onUpdateItem={updatePlanningItem}
             onDeleteItem={deletePlanningItem}
+          />
+        ) : appView === 'reports' ? (
+          <ReportsCenter
+            reports={reports}
+            projectRecords={projectRecords}
+            dispatch={dispatch}
+            planning={planning}
+            writing={writing}
+            selectedProjectId={selectedRecord?.project.id ?? ''}
+            onSelectProject={selectProject}
+            onCreatePacket={addReportPacket}
+            onUpdatePacketMarkdown={updateReportPacketMarkdown}
+            onRecordCopied={recordReportCopied}
+            onMarkExported={markReportExported}
+            onArchivePacket={archiveReportPacket}
           />
         ) : appView === 'verification' ? (
           <VerificationCenter

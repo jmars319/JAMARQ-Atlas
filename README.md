@@ -21,6 +21,7 @@ The dashboard currently supports:
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
+- Reports for assembling local Markdown update packets from approved Writing drafts and operational context.
 - Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
 - Settings & Connections Center for local workspace labels and integration-readiness status without storing secrets.
 - Manual local Sync snapshots and optional Supabase hosted snapshot push/pull.
@@ -38,6 +39,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
+- Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
 - Versioned local backup/export helpers for Workspace, Dispatch, Writing, Settings, and Sync data.
 - Local settings storage for device/operator labels and connection-readiness surfaces.
 - Local sync snapshot storage and optional Supabase hosted sync bridge.
@@ -293,6 +295,27 @@ Local export actions:
 
 Markdown packets include draft text, project/template metadata, review/export status, context warnings, source context summary, guardrails, review audit, and an optional prompt-packet appendix. Exporting Markdown is local/browser-only and does not prove that a client update was sent, a release was published, work was shipped, or verification was completed.
 
+## Reports
+
+Reports assembles local Markdown packets from approved/exported Writing drafts and Atlas context.
+
+Supported packet types:
+
+- Client update packet
+- Internal weekly packet
+- Release packet
+- Project handoff packet
+
+Report packets can include project manual status, verification state, Dispatch posture, Planning records, repository bindings, and GitHub warnings captured inside selected Writing drafts. Reports are stored separately under `jamarq-atlas.reports.v1`.
+
+Report actions are local-only:
+
+- Copy Markdown.
+- Download Markdown.
+- Archive a packet locally.
+
+Reports do not send email, publish to Docs/Notion/Slack, write to GitHub, deploy, verify, or change Workspace, Dispatch, Planning, Verification, Writing, Settings, or Sync state.
+
 ## Data Center
 
 Data Center protects local Atlas state before hosted persistence exists.
@@ -367,6 +390,7 @@ Focused references:
 - `docs/GITHUB_INTEGRATION.md`
 - `docs/TIMELINE.md`
 - `docs/PLANNING.md`
+- `docs/REPORTS.md`
 - `docs/DISPATCH.md`
 - `docs/AI_WRITING.md`
 - `docs/DATA_PORTABILITY.md`
@@ -383,12 +407,14 @@ Atlas separates manual intent from raw activity.
 - `src/domain/writing.ts` defines Writing templates, drafts, context snapshots, provider results, and local workbench state.
 - `src/domain/dataPortability.ts` defines backup envelopes, validation results, summaries, and restore previews.
 - `src/domain/planning.ts` defines manual Planning records and planning statuses.
+- `src/domain/reports.ts` defines report packet types, packet state, and report audit events.
 - `src/domain/settings.ts` defines local settings and connection-readiness cards.
 - `src/domain/sync.ts` defines local sync snapshots, provider status, and restore previews.
 - `src/hooks/useLocalSettings.ts` persists local Settings state under `jamarq-atlas.settings.v1`.
 - `src/hooks/useLocalSync.ts` persists local Sync state under `jamarq-atlas.sync.v1`.
 - `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
 - `src/hooks/useLocalPlanning.ts` persists Planning state separately under `jamarq-atlas.planning.v1`.
+- `src/hooks/useLocalReports.ts` persists Reports state separately under `jamarq-atlas.reports.v1`.
 - `src/hooks/useLocalWriting.ts` persists Writing state separately under `jamarq-atlas.writing.v1`.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
 - `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
@@ -399,6 +425,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
 - `src/components/PlanningCenter.tsx` renders manual planning creation, filters, and editable planning cards.
 - `src/components/PlanningPanel.tsx` renders compact project-level planning context.
+- `src/components/ReportsCenter.tsx` renders local report packet assembly, editing, copy, export, and audit history.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
 - `src/components/WritingWorkbench.tsx` renders local writing draft creation, editing, review state, and draft history.
 - `src/components/DataCenter.tsx` renders local backup export, import validation, restore preview, and typed restore.
@@ -407,6 +434,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
 - `src/services/planning.ts` normalizes Planning storage and applies manual planning record changes.
+- `src/services/reports.ts` builds report packet Markdown, normalizes Reports storage, and records report-only audit events.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
 - `src/services/dispatchPreflight.ts` assembles read-only preflight evidence without mutating status or readiness.
@@ -462,6 +490,13 @@ Planning activity is manual:
 - Planning status is separate from Atlas project status.
 - Planning does not update risk, blockers, next action, verification, Dispatch readiness, GitHub bindings, or Writing drafts.
 - External signals may provide context elsewhere, but they do not make planning decisions.
+
+Reports are local/manual:
+
+- Report packets are assembled only by explicit action.
+- Report export does not mean anything was sent, published, deployed, shipped, or verified.
+- Reports do not mutate Workspace, Dispatch, Planning, Verification, Writing, GitHub bindings, Settings, or Sync state.
+- External publishing integrations are not implemented.
 
 Verification activity is advisory/manual:
 
