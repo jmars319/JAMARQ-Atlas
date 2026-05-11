@@ -46,7 +46,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     'No GitHub token is configured',
   )
   await expect(page.locator('.settings-connection-card').filter({ hasText: 'Writing Provider' })).toContainText(
-    'Stubbed',
+    'Missing',
   )
   await expect(
     page.locator('.settings-connection-card').filter({ hasText: 'Supabase Hosted Sync' }),
@@ -277,6 +277,41 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await statusField.selectOption('Waiting')
   await nextActionField.fill('Interaction check persisted next action')
 
+  await page.route('**/api/writing/status', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        configured: true,
+        data: {
+          provider: 'openai',
+          configured: true,
+          model: 'gpt-5',
+          message: 'OpenAI draft-only Writing provider is configured.',
+        },
+        error: null,
+      }),
+    })
+  })
+
+  await page.route('**/api/writing/generate', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        configured: true,
+        data: {
+          provider: 'openai',
+          model: 'gpt-5',
+          generatedText: 'Provider suggestion from E2E.',
+          generatedAt: '2026-05-10T12:00:00.000Z',
+          message: 'OpenAI provider suggestion generated for human review. Draft text was not changed.',
+        },
+        error: null,
+      }),
+    })
+  })
+
   await detail.getByRole('button', { name: 'Client update' }).click()
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
   await expect(page.getByLabel('Writing project')).toHaveValue('vaexcore-studio')
@@ -286,6 +321,17 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByRole('textbox', { name: 'Prompt packet' })).toHaveValue(
     /Do not decide or change status/,
   )
+  const templateDraftText = await draftTextField.inputValue()
+  await page.getByRole('button', { name: 'Generate provider suggestion' }).click()
+  await expect(page.getByLabel('Provider suggestion')).toContainText('Provider suggestion from E2E.')
+  await expect(draftTextField).toHaveValue(templateDraftText)
+  await page
+    .getByLabel('Provider suggestion')
+    .getByRole('button', { name: 'Apply suggestion to draft' })
+    .click()
+  await expect(draftTextField).toHaveValue('Provider suggestion from E2E.')
+  await expect(page.getByLabel('Writing review audit')).toContainText('provider-suggestion')
+  await expect(page.getByLabel('Writing review audit')).toContainText('suggestion-applied')
   await draftTextField.fill('Human-edited client update from E2E.')
   await page.getByRole('button', { name: 'Mark reviewed' }).click()
   await page.getByRole('button', { name: 'Approve', exact: true }).click()

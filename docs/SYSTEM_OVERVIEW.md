@@ -137,7 +137,9 @@ AI must not automatically decide:
 - Priority
 - Risk
 - Roadmap
+- Verification
 - Deployment readiness
+- GitHub bindings
 - What should ship
 
 ## Writing Model
@@ -170,9 +172,11 @@ Draft lifecycle:
 - Exported
 - Archived
 
-Review, approval, copy, export, and archive actions append Writing-only audit events under the Writing storage key. They do not append Atlas project activity events.
+Review, approval, copy, provider suggestion, suggestion application, export, and archive actions append Writing-only audit events under the Writing storage key. They do not append Atlas project activity events.
 
-The provider boundary is stubbed. Current drafts are local template scaffolds plus prompt packets. No external AI request is made, and drafts do not mutate project status, risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings.
+The provider boundary is optional and server-side. Current drafts are local template scaffolds plus prompt packets. When `OPENAI_API_KEY` is configured, `/api/writing/generate` can request an OpenAI draft suggestion using the selected draft's prompt packet and context snapshot. Provider output is stored as a suggestion until a human explicitly applies it to editable draft text.
+
+OpenAI requests do not mutate project status, risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings. Missing or failing provider credentials become scoped Writing/Settings messages and do not break local draft creation.
 
 Markdown export is local/browser-only. Export packets include draft text, metadata, review status, context warnings, source context summary, guardrails, review audit, and an optional prompt-packet appendix. Export does not imply that anything was sent, published, deployed, shipped, or verified.
 

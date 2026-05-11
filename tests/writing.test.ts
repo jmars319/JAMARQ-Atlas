@@ -11,13 +11,22 @@ import {
   copyTextToClipboard,
   createWritingDraft,
   createWritingPromptPacket,
+  applyWritingProviderSuggestion,
   markWritingDraftExported,
   markWritingDraftReviewed,
   normalizeWritingState,
+  recordWritingProviderSuggestion,
   recordWritingDraftCopied,
   updateWritingDraftText,
   writingGuardrails,
 } from '../src/services/aiWritingAssistant'
+import {
+  createWritingProviderInput,
+  createWritingProviderNotConfiguredResponse,
+  createWritingProviderStatus,
+  getWritingProviderConfig,
+  normalizeOpenAIResponseText,
+} from '../server/writingApi'
 
 const record = flattenProjects(seedWorkspace).find(
   (candidate) => candidate.project.id === 'midway-music-hall-site',
@@ -191,5 +200,107 @@ describe('AI writing assistant', () => {
     expect(success).toEqual({ ok: true, message: 'Copied locally.' })
     expect(unsupported.ok).toBe(false)
     expect(unsupported.message).toContain('Clipboard API')
+  })
+
+  it('reports missing OpenAI credentials as a scoped provider state', () => {
+    const config = getWritingProviderConfig({})
+    const status = createWritingProviderStatus(config)
+    const response = createWritingProviderNotConfiguredResponse(config)
+
+    expect(status.data?.configured).toBe(false)
+    expect(response.error?.type).toBe('not-configured')
+    expect(response.error?.message).toContain('OPENAI_API_KEY')
+  })
+
+  it('builds provider input with draft-only guardrails', () => {
+    const draft = createWritingDraft({
+      templateId: 'client-update',
+      record,
+      dispatch: seedDispatchState,
+      github: githubContext,
+      now,
+    })
+    const input = createWritingProviderInput({
+      draftId: draft.id,
+      title: draft.title,
+      templateId: draft.templateId,
+      promptPacket: draft.promptPacket,
+      contextSnapshot: draft.contextSnapshot,
+    })
+    const serialized = JSON.stringify(input)
+
+    expect(serialized).toContain('Return draft text only')
+    expect(serialized).toContain('must not decide or change status')
+    expect(serialized).toContain('Prompt packet')
+  })
+
+  it('normalizes OpenAI response text safely', () => {
+    expect(normalizeOpenAIResponseText({ output_text: '  Suggested text.  ' })).toBe('Suggested text.')
+    expect(
+      normalizeOpenAIResponseText({
+        output: [{ content: [{ text: 'Nested suggestion.' }] }],
+      }),
+    ).toBe('Nested suggestion.')
+  })
+
+  it('stores provider suggestions without changing draft text until explicitly applied', () => {
+    const draft = createWritingDraft({
+      templateId: 'client-update',
+      record,
+      dispatch: seedDispatchState,
+      github: githubContext,
+      now,
+    })
+    const suggested = recordWritingProviderSuggestion(
+      [draft],
+      draft.id,
+      {
+        status: 'generated',
+        providerName: 'openai',
+        model: 'gpt-5',
+        generatedText: 'Provider-written suggestion.',
+        generatedAt: now.toISOString(),
+        message: 'Provider suggestion generated.',
+      },
+      now,
+    )
+
+    expect(suggested[0].draftText).toBe(draft.draftText)
+    expect(suggested[0].providerResult.generatedText).toBe('Provider-written suggestion.')
+    expect(suggested[0].reviewEvents.map((event) => event.type)).toContain('provider-suggestion')
+
+    const applied = applyWritingProviderSuggestion(suggested, draft.id, now)
+
+    expect(applied[0].draftText).toBe('Provider-written suggestion.')
+    expect(applied[0].status).toBe('draft')
+    expect(applied[0].reviewEvents.map((event) => event.type)).toContain('suggestion-applied')
+    expect(record.project.manual.status).toBe('Active')
+  })
+
+  it('records provider errors without changing lifecycle state or draft text', () => {
+    const draft = createWritingDraft({
+      templateId: 'client-update',
+      record,
+      dispatch: seedDispatchState,
+      github: githubContext,
+      now,
+    })
+    const errored = recordWritingProviderSuggestion(
+      [draft],
+      draft.id,
+      {
+        status: 'error',
+        providerName: 'openai',
+        model: 'gpt-5',
+        generatedText: null,
+        generatedAt: null,
+        message: 'Provider failed.',
+      },
+      now,
+    )
+
+    expect(errored[0].draftText).toBe(draft.draftText)
+    expect(errored[0].status).toBe('draft')
+    expect(errored[0].reviewEvents.map((event) => event.type)).toEqual(['created'])
   })
 })

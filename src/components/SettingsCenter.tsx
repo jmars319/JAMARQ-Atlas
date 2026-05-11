@@ -38,6 +38,10 @@ import {
   createSyncRestorePreview,
   SYNC_RESTORE_CONFIRMATION_PHRASE,
 } from '../services/syncSnapshots'
+import {
+  fetchWritingProviderStatus,
+  type WritingProviderStatusResponse,
+} from '../services/writingProvider'
 
 interface GithubStatusResponse {
   configured: boolean
@@ -152,6 +156,40 @@ function buildHostedSyncCard(
   } satisfies AtlasConnectionCard
 }
 
+function buildWritingProviderCard(
+  status: WritingProviderStatusResponse | null,
+  error: string | null,
+) {
+  if (error) {
+    return {
+      id: 'writing',
+      title: 'Writing Provider',
+      status: 'unknown',
+      summary: 'Writing provider status could not be read.',
+      detail: error,
+    } satisfies AtlasConnectionCard
+  }
+
+  if (!status?.configured) {
+    return {
+      id: 'writing',
+      title: 'Writing Provider',
+      status: 'missing',
+      summary: 'No OpenAI API key is configured.',
+      detail:
+        'Writing still creates local draft packets. Set OPENAI_API_KEY locally to generate provider suggestions for human review.',
+    } satisfies AtlasConnectionCard
+  }
+
+  return {
+    id: 'writing',
+    title: 'Writing Provider',
+    status: 'available',
+    summary: 'OpenAI draft-only provider is configured.',
+    detail: `Suggestions use ${status.model}. Generated text is stored as a suggestion until explicitly applied.`,
+  } satisfies AtlasConnectionCard
+}
+
 function ConnectionCard({ card }: { card: AtlasConnectionCard }) {
   const Icon = connectionIcons[card.id as keyof typeof connectionIcons] ?? ShieldCheck
 
@@ -225,6 +263,10 @@ export function SettingsCenter({
   const [hostedSyncStatus, setHostedSyncStatus] = useState<HostedSyncStatus | null>(null)
   const [hostedSyncError, setHostedSyncError] = useState<string | null>(null)
   const [loadingHostedSync, setLoadingHostedSync] = useState(false)
+  const [writingProviderStatus, setWritingProviderStatus] =
+    useState<WritingProviderStatusResponse | null>(null)
+  const [writingProviderError, setWritingProviderError] = useState<string | null>(null)
+  const [loadingWritingProvider, setLoadingWritingProvider] = useState(false)
   const [snapshotLabel, setSnapshotLabel] = useState('')
   const [snapshotNote, setSnapshotNote] = useState('')
   const [selectedSnapshotId, setSelectedSnapshotId] = useState('')
@@ -286,6 +328,31 @@ export function SettingsCenter({
     }
   }
 
+  async function loadWritingProviderStatus() {
+    setLoadingWritingProvider(true)
+    setWritingProviderError(null)
+
+    try {
+      const result = await fetchWritingProviderStatus()
+
+      if (result.ok && result.data) {
+        setWritingProviderStatus(result.data)
+      } else {
+        setWritingProviderStatus(null)
+        setWritingProviderError(
+          result.error?.message || 'Writing provider status request failed.',
+        )
+      }
+    } catch (error) {
+      setWritingProviderError(
+        error instanceof Error ? error.message : 'Writing provider status request failed.',
+      )
+      setWritingProviderStatus(null)
+    } finally {
+      setLoadingWritingProvider(false)
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController()
 
@@ -334,13 +401,50 @@ export function SettingsCenter({
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+
+    void fetchWritingProviderStatus(controller.signal)
+      .then((result) => {
+        if (result.ok && result.data) {
+          setWritingProviderStatus(result.data)
+          setWritingProviderError(null)
+          return
+        }
+
+        setWritingProviderStatus(null)
+        setWritingProviderError(result.error?.message || 'Writing provider status request failed.')
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setWritingProviderError(
+          error instanceof Error ? error.message : 'Writing provider status request failed.',
+        )
+        setWritingProviderStatus(null)
+      })
+
+    return () => controller.abort()
+  }, [])
+
   const connectionCards = useMemo(
     () => [
       buildGithubCard(githubStatus, githubError),
       ...buildStaticConnectionCards(),
+      buildWritingProviderCard(writingProviderStatus, writingProviderError),
       buildHostedSyncCard(hostedSyncStatus, hostedSyncError, sync.provider),
     ],
-    [githubError, githubStatus, hostedSyncError, hostedSyncStatus, sync.provider],
+    [
+      githubError,
+      githubStatus,
+      hostedSyncError,
+      hostedSyncStatus,
+      sync.provider,
+      writingProviderError,
+      writingProviderStatus,
+    ],
   )
   const currentStores = useMemo(
     () => ({ workspace, dispatch, writing }),
@@ -516,7 +620,7 @@ export function SettingsCenter({
   }
 
   async function handleRefreshConnectionStatuses() {
-    await Promise.all([loadGithubStatus(), loadHostedSyncStatus()])
+    await Promise.all([loadGithubStatus(), loadHostedSyncStatus(), loadWritingProviderStatus()])
   }
 
   return (
@@ -596,7 +700,7 @@ export function SettingsCenter({
             <button
               type="button"
               onClick={() => void handleRefreshConnectionStatuses()}
-              disabled={loadingGithub || loadingHostedSync}
+              disabled={loadingGithub || loadingHostedSync || loadingWritingProvider}
             >
               <RefreshCw size={15} />
               Refresh
@@ -889,7 +993,7 @@ export function SettingsCenter({
             <li>GitHub tokens, AI keys, deployment credentials, and env vars stay out of browser state.</li>
             <li>Connection cards are status surfaces, not automation triggers.</li>
             <li>Hosted sync uses manual snapshot push/pull only; no background sync or merge runs.</li>
-            <li>Real AI providers remain disabled until explicit future phases.</li>
+            <li>OpenAI Writing suggestions remain draft-only until explicitly applied by a human.</li>
           </ul>
         </section>
       </div>

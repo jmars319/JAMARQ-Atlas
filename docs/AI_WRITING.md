@@ -20,8 +20,11 @@ Each draft includes:
 - Draft notes.
 - Writing-only review audit events.
 - Created and updated timestamps.
+- Optional provider suggestion text and metadata.
 
 The generated draft text is a local template scaffold. It is clearly marked as not AI generated.
+
+When `OPENAI_API_KEY` is configured, Writing can request a draft-only OpenAI suggestion. The suggestion is stored separately on the draft and does not overwrite editable draft text until a human explicitly chooses `Apply suggestion to draft`.
 
 ## Storage Boundary
 
@@ -52,6 +55,8 @@ Supported audit event types:
 - Approved
 - Copied
 - Prompt copied
+- Provider suggestion
+- Suggestion applied
 - Markdown exported
 - Archived
 
@@ -94,17 +99,24 @@ Markdown download is local/browser-only. Atlas does not send email, publish docu
 
 ## Provider Boundary
 
-`src/services/writingProvider.ts` is a no-op future provider boundary.
+`src/services/writingProvider.ts` calls the local Writing provider boundary. `server/writingApi.ts` reads OpenAI credentials server-side and uses the Responses API for draft-only suggestions.
 
 Current behavior:
 
-- No OpenAI key is required.
-- No external AI request is made.
-- Provider results return structured `stub` or `not-configured` states.
-- Prompt packets are prepared for a future provider but remain local review artifacts.
-- Copy/export workflows use existing local draft text only.
+- No OpenAI key is required for local draft packets.
+- Missing `OPENAI_API_KEY` returns a scoped `not-configured` state.
+- Configured OpenAI requests are made only through `/api/writing/generate`.
+- Provider output is stored as a suggestion, not as the draft body.
+- Applying a suggestion is explicit and audited.
 
-Future provider implementations must return suggestions for human review only.
+Environment:
+
+```sh
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5
+```
+
+OpenAI keys stay out of browser local storage and bundled client code.
 
 ## Guardrails
 

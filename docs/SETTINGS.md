@@ -22,7 +22,9 @@ Settings currently reports readiness for:
 - Data Center backup/restore
 - Supabase hosted sync provider and manual snapshots
 
-Connection cards are read-only status surfaces. They do not trigger GitHub writes, deployments, AI provider calls, backup restores, hosted sync, or project-state changes.
+Connection cards are read-only status surfaces. They do not trigger GitHub writes, deployments, AI generation, backup restores, hosted sync, or project-state changes.
+
+The Writing card reads `/api/writing/status`. Missing `OPENAI_API_KEY` is shown as a scoped missing state, while local draft packets remain available.
 
 ## Sync Snapshots
 
@@ -59,6 +61,6 @@ Future provider setup should keep secrets in server-side environment variables o
 ## Guardrails
 
 - GitHub missing-token states do not break Atlas.
-- Stubbed Writing status does not block local draft creation.
+- Missing OpenAI credentials do not block local draft creation.
 - Hosted sync remains optional and manual.
 - Connection readiness does not change Atlas status, risk, readiness, verification, bindings, or writing review state.

@@ -2,15 +2,18 @@ import { useEffect, useState } from 'react'
 import type { WritingDraft, WritingWorkbenchState } from '../domain/writing'
 import { emptyWritingState } from '../domain/writing'
 import {
+  applyWritingProviderSuggestion,
   approveWritingDraft,
   archiveWritingDraft,
   markWritingDraftReviewed,
   markWritingDraftExported,
   normalizeWritingState,
+  recordWritingProviderSuggestion,
   recordWritingDraftCopied,
   updateWritingDraftNotes,
   updateWritingDraftText,
 } from '../services/aiWritingAssistant'
+import type { WritingProviderResult } from '../domain/writing'
 
 const STORAGE_KEY = 'jamarq-atlas.writing.v1'
 
@@ -53,6 +56,20 @@ export function useLocalWriting() {
     setWriting((current) => ({
       ...current,
       drafts: updateWritingDraftNotes(current.drafts, draftId, notes),
+    }))
+  }
+
+  function recordProviderSuggestion(draftId: string, providerResult: WritingProviderResult) {
+    setWriting((current) => ({
+      ...current,
+      drafts: recordWritingProviderSuggestion(current.drafts, draftId, providerResult),
+    }))
+  }
+
+  function applyProviderSuggestion(draftId: string) {
+    setWriting((current) => ({
+      ...current,
+      drafts: applyWritingProviderSuggestion(current.drafts, draftId),
     }))
   }
 
@@ -102,6 +119,8 @@ export function useLocalWriting() {
     addDraft,
     updateDraftText,
     updateDraftNotes,
+    recordProviderSuggestion,
+    applyProviderSuggestion,
     markReviewed,
     approveDraft,
     recordCopied,

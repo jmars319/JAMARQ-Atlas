@@ -64,7 +64,6 @@ describe('settings', () => {
   it('builds scoped static connection readiness cards', () => {
     const cards = buildStaticConnectionCards()
 
-    expect(cards.map((card) => card.id)).toEqual(['dispatch', 'writing', 'data'])
-    expect(cards.find((card) => card.id === 'writing')?.status).toBe('stub')
+    expect(cards.map((card) => card.id)).toEqual(['dispatch', 'data'])
   })
 })

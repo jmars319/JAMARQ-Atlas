@@ -34,6 +34,8 @@ export type WritingReviewEventType =
   | 'approved'
   | 'copied'
   | 'prompt-copied'
+  | 'provider-suggestion'
+  | 'suggestion-applied'
   | 'markdown-exported'
   | 'archived'
 
@@ -118,10 +120,15 @@ export interface WritingContextSnapshot {
   warnings: string[]
 }
 
+export type WritingProviderStatus = 'not-configured' | 'stub' | 'configured' | 'generated' | 'error'
+
 export interface WritingProviderResult {
-  status: 'not-configured' | 'stub'
+  status: WritingProviderStatus
+  providerName: string
+  model: string
   message: string
   generatedText: string | null
+  generatedAt: string | null
 }
 
 export interface WritingDraft {

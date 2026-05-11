@@ -11,6 +11,7 @@ import {
   NotebookPen,
   Search,
   ShieldAlert,
+  Sparkles,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatDateLabel, formatDateTimeLabel, type ProjectRecord } from '../domain/atlas'
@@ -20,6 +21,7 @@ import {
   WRITING_TEMPLATES,
   type WritingDraft,
   type WritingDraftStatus,
+  type WritingProviderResult,
   type WritingTemplateId,
   type WritingWorkbenchState,
 } from '../domain/writing'
@@ -30,6 +32,7 @@ import {
   createWritingDraft,
 } from '../services/aiWritingAssistant'
 import { evaluateVerification } from '../services/verification'
+import { requestWritingProviderDraft } from '../services/writingProvider'
 
 type DraftFilter = WritingDraftStatus | 'active' | 'all'
 
@@ -46,6 +49,8 @@ interface WritingWorkbenchProps {
   onSelectDraft: (draftId: string) => void
   onUpdateDraftText: (draftId: string, draftText: string) => void
   onUpdateDraftNotes: (draftId: string, notes: string) => void
+  onRecordProviderSuggestion: (draftId: string, providerResult: WritingProviderResult) => void
+  onApplyProviderSuggestion: (draftId: string) => void
   onMarkReviewed: (draftId: string) => void
   onApproveDraft: (draftId: string) => void
   onRecordCopied: (draftId: string, type: 'copied' | 'prompt-copied') => void
@@ -104,6 +109,8 @@ export function WritingWorkbench({
   onSelectDraft,
   onUpdateDraftText,
   onUpdateDraftNotes,
+  onRecordProviderSuggestion,
+  onApplyProviderSuggestion,
   onMarkReviewed,
   onApproveDraft,
   onRecordCopied,
@@ -113,6 +120,7 @@ export function WritingWorkbench({
   const [draftFilter, setDraftFilter] = useState<DraftFilter>('active')
   const [query, setQuery] = useState('')
   const [actionMessage, setActionMessage] = useState('')
+  const [generatingDraftId, setGeneratingDraftId] = useState('')
   const selectedRecord =
     projectRecords.find((record) => record.project.id === selectedProjectId) ?? projectRecords[0]
   const selectedProjectDrafts = writing.drafts.filter(
@@ -184,6 +192,24 @@ export function WritingWorkbench({
     URL.revokeObjectURL(url)
     onMarkExported(draft.id)
     setActionMessage(`Markdown packet exported locally as ${packet.filename}.`)
+  }
+
+  async function handleGenerateProviderSuggestion(draft: WritingDraft) {
+    setGeneratingDraftId(draft.id)
+    setActionMessage('Requesting provider suggestion...')
+
+    try {
+      const result = await requestWritingProviderDraft(draft)
+      onRecordProviderSuggestion(draft.id, result)
+      setActionMessage(result.message)
+    } finally {
+      setGeneratingDraftId('')
+    }
+  }
+
+  function handleApplyProviderSuggestion(draft: WritingDraft) {
+    onApplyProviderSuggestion(draft.id)
+    setActionMessage('Provider suggestion applied to editable draft text.')
   }
 
   return (
@@ -310,6 +336,22 @@ export function WritingWorkbench({
               <div className="writing-editor-actions">
                 <button
                   type="button"
+                  disabled={selectedDraft.status === 'archived' || generatingDraftId === selectedDraft.id}
+                  onClick={() => void handleGenerateProviderSuggestion(selectedDraft)}
+                >
+                  <Sparkles size={15} />
+                  Generate provider suggestion
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedDraft.providerResult.generatedText}
+                  onClick={() => handleApplyProviderSuggestion(selectedDraft)}
+                >
+                  <Sparkles size={15} />
+                  Apply suggestion to draft
+                </button>
+                <button
+                  type="button"
                   disabled={selectedDraft.status !== 'draft'}
                   onClick={() => onMarkReviewed(selectedDraft.id)}
                 >
@@ -387,6 +429,28 @@ export function WritingWorkbench({
                 <p className="writing-action-message" aria-live="polite">
                   {actionMessage}
                 </p>
+              ) : null}
+
+              {selectedDraft.providerResult.generatedText ? (
+                <div className="writing-provider-suggestion" aria-label="Provider suggestion">
+                  <div className="resource-panel-header">
+                    <div>
+                      <strong>Provider Suggestion</strong>
+                      <span>
+                        {selectedDraft.providerResult.providerName} /{' '}
+                        {selectedDraft.providerResult.model || 'model not recorded'}
+                        {selectedDraft.providerResult.generatedAt
+                          ? ` / ${formatDateTimeLabel(selectedDraft.providerResult.generatedAt)}`
+                          : ''}
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => handleApplyProviderSuggestion(selectedDraft)}>
+                      <Sparkles size={15} />
+                      Apply suggestion to draft
+                    </button>
+                  </div>
+                  <textarea readOnly rows={7} value={selectedDraft.providerResult.generatedText} />
+                </div>
               ) : null}
 
               <label className="field field-full">

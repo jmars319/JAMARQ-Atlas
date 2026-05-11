@@ -46,7 +46,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Vite for the local app and local `/api/github`, `/api/dispatch`, and `/api/sync` boundaries.
 - Local storage for manual workspace edits and separate Dispatch state.
 - Local storage for Settings and manual Sync snapshots.
-- Server-side environment variables for GitHub tokens and optional Supabase sync credentials.
+- Server-side environment variables for GitHub tokens, optional Supabase sync credentials, and optional OpenAI provider credentials.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
 
 ## Quick Start
@@ -209,7 +209,7 @@ Manual verification cannot:
 
 ## AI Writing Workbench
 
-Writing turns Atlas project context into reviewable local draft packets. It is currently stub-first: no OpenAI key, provider call, or external AI request is required.
+Writing turns Atlas project context into reviewable local draft packets. Atlas still works without AI credentials; when `OPENAI_API_KEY` is configured, the local server can request draft-only OpenAI suggestions through `/api/writing`.
 
 First-class templates:
 
@@ -221,13 +221,21 @@ First-class templates:
 Each draft stores:
 
 - Editable draft text.
-- The prompt packet that could be sent to a future provider.
+- The prompt packet sent to the optional provider.
 - A short context snapshot from Atlas manual fields, activity, verification, Dispatch posture, and optional GitHub snippets.
+- Optional provider suggestion text.
 - Review status, review notes, Writing-only audit events, and timestamps.
 
 Writing state is stored separately under `jamarq-atlas.writing.v1`. Drafts reference projects by `projectId` and do not mutate workspace state.
 
-The provider boundary is intentionally a no-op stub. It returns structured not-configured/stub results so a real provider can be added later without changing the human-review workflow.
+Provider suggestions are not applied automatically. `Create draft packet` creates the local scaffold and prompt packet. `Generate provider suggestion` stores an OpenAI suggestion on the draft. `Apply suggestion to draft` is a separate human action that replaces the editable draft text.
+
+Optional OpenAI env vars:
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`, default `gpt-5`
+
+OpenAI credentials remain server-side. The browser stores only the selected draft's prompt/context snapshot and the returned suggestion.
 
 Writing review lifecycle:
 
@@ -361,7 +369,8 @@ Atlas separates manual intent from raw activity.
 - `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
 - `src/services/aiWritingAssistant.ts` creates Writing context snapshots, prompt packets, and local template drafts.
-- `src/services/writingProvider.ts` contains the no-op future AI provider boundary.
+- `src/services/writingProvider.ts` calls the local Writing provider API and normalizes suggestions/errors.
+- `server/writingApi.ts` provides the optional server-side OpenAI draft-only route.
 - `src/services/dataPortability.ts` builds backup bundles, Markdown reports, restore previews, and backup validation.
 - `src/services/settings.ts` normalizes local Settings state and static connection-readiness cards.
 - `src/services/syncSnapshots.ts` builds local snapshots, fingerprints stores, previews snapshot restore, and exposes sync provider stubs.
@@ -396,10 +405,11 @@ Writing activity is advisory:
 - Drafts do not change Atlas status.
 - Drafts do not change risk, blockers, next action, verification, Dispatch readiness, or GitHub bindings.
 - Prompt packets and template drafts are local review artifacts.
+- Provider suggestions are stored separately until explicitly applied.
 - Approved/exported states are Writing review states only.
 - Markdown export is local/browser-only and does not send, publish, deploy, or verify anything.
 - Optional GitHub snippets are included as context only and are not mirrored as full history.
-- The provider boundary is stubbed; no external AI request is made in this implementation.
+- OpenAI requests are optional, server-side only, and draft-only.
 
 Verification activity is advisory/manual:
 
@@ -458,6 +468,5 @@ Sync is manual:
 
 ## Roadmap
 
-1. Add a real AI writing provider behind the current stub boundary.
-2. Expand GitHub Intake with optional repo grouping suggestions for human review.
-3. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.
+1. Expand GitHub Intake with optional repo grouping suggestions for human review.
+2. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.

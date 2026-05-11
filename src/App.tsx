@@ -72,6 +72,8 @@ function App() {
     addDraft,
     updateDraftText,
     updateDraftNotes,
+    recordProviderSuggestion,
+    applyProviderSuggestion,
     markReviewed,
     approveDraft,
     recordCopied,
@@ -382,6 +384,8 @@ function App() {
             onSelectDraft={handleSelectWritingDraft}
             onUpdateDraftText={updateDraftText}
             onUpdateDraftNotes={updateDraftNotes}
+            onRecordProviderSuggestion={recordProviderSuggestion}
+            onApplyProviderSuggestion={applyProviderSuggestion}
             onMarkReviewed={markReviewed}
             onApproveDraft={approveDraft}
             onRecordCopied={recordCopied}

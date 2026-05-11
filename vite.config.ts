@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { dispatchApiMiddleware } from './server/dispatchApi'
 import { githubApiMiddleware } from './server/githubApi'
 import { syncApiMiddleware } from './server/syncApi'
+import { writingApiMiddleware } from './server/writingApi'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -14,7 +15,9 @@ export default defineConfig({
         server.middlewares.use((request, response, next) => {
           void dispatchApiMiddleware(request, response, () => {
             void githubApiMiddleware(request, response, () => {
-              void syncApiMiddleware(request, response, next)
+              void syncApiMiddleware(request, response, () => {
+                void writingApiMiddleware(request, response, next)
+              })
             })
           })
         })
@@ -23,7 +26,9 @@ export default defineConfig({
         server.middlewares.use((request, response, next) => {
           void dispatchApiMiddleware(request, response, () => {
             void githubApiMiddleware(request, response, () => {
-              void syncApiMiddleware(request, response, next)
+              void syncApiMiddleware(request, response, () => {
+                void writingApiMiddleware(request, response, next)
+              })
             })
           })
         })

@@ -87,14 +87,6 @@ export function buildStaticConnectionCards(): AtlasConnectionCard[] {
         'Dispatch preflight uses the local /api/dispatch/health boundary and does not deploy, upload, back up, or restore anything.',
     },
     {
-      id: 'writing',
-      title: 'Writing Provider',
-      status: 'stub',
-      summary: 'Writing remains stub-first.',
-      detail:
-        'Drafts are local template scaffolds and prompt packets. No external AI provider request is made.',
-    },
-    {
       id: 'data',
       title: 'Data Center',
       status: 'available',

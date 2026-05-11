@@ -1765,6 +1765,21 @@ h3 {
   line-height: 1.4;
 }
 
+.writing-provider-suggestion {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(9, 166, 214, 0.3);
+  background: rgba(9, 166, 214, 0.07);
+  padding: 10px;
+}
+
+.writing-provider-suggestion textarea {
+  width: 100%;
+  min-height: 150px;
+  border-color: rgba(9, 166, 214, 0.32);
+  background: rgba(13, 13, 15, 0.72);
+}
+
 .writing-action-message {
   border: 1px solid rgba(128, 213, 138, 0.26);
   background: rgba(128, 213, 138, 0.08);
