@@ -16,6 +16,8 @@ import {
   parseAtlasBackupJson,
   validateAtlasBackupEnvelope,
 } from '../src/services/dataPortability'
+import { emptySettingsState } from '../src/services/settings'
+import { createSyncSnapshot, emptySyncState } from '../src/services/syncSnapshots'
 
 const record = flattenProjects(seedWorkspace).find(
   (candidate) => candidate.project.id === 'midway-music-hall-site',
@@ -28,12 +30,31 @@ const draft = createWritingDraft({
   now,
 })
 const exportedDraft = markWritingDraftExported(approveWritingDraft([draft], draft.id, now), draft.id, now)[0]
+const settings = emptySettingsState(now)
+const sync = {
+  ...emptySyncState(now),
+  snapshots: [
+    createSyncSnapshot({
+      stores: {
+        workspace: seedWorkspace,
+        dispatch: seedDispatchState,
+        writing: { drafts: [exportedDraft] },
+      },
+      settings,
+      label: 'Test snapshot',
+      note: '',
+      now,
+    }),
+  ],
+}
 const stores = {
   workspace: seedWorkspace,
   dispatch: seedDispatchState,
   writing: {
     drafts: [exportedDraft],
   },
+  settings,
+  sync,
 }
 
 describe('data portability', () => {
@@ -41,10 +62,12 @@ describe('data portability', () => {
     const envelope = createAtlasBackupEnvelope(stores, now)
 
     expect(envelope.kind).toBe('jamarq-atlas-backup')
-    expect(envelope.schemaVersion).toBe(1)
+    expect(envelope.schemaVersion).toBe(2)
     expect(envelope.stores.workspace.id).toBe('jamarq-atlas')
     expect(envelope.stores.dispatch.targets.length).toBeGreaterThan(0)
     expect(envelope.stores.writing.drafts).toHaveLength(1)
+    expect(envelope.stores.settings.deviceLabel).toBe('Local Atlas workspace')
+    expect(envelope.stores.sync.snapshots).toHaveLength(1)
     expect(envelope.summary.workspace.projects).toBeGreaterThan(0)
   })
 
@@ -64,6 +87,8 @@ describe('data portability', () => {
     expect(report).toContain('Workspace:')
     expect(report).toContain('Dispatch:')
     expect(report).toContain('Writing:')
+    expect(report).toContain('Settings:')
+    expect(report).toContain('Sync:')
     expect(report).toContain('Restore requires typed human confirmation.')
     expect(report).toContain('GitHub tokens and environment variables')
   })
@@ -99,6 +124,26 @@ describe('data portability', () => {
     expect(unsupported.errors[0]).toContain('Unsupported backup schema version')
   })
 
+  it('imports older v1 backups by normalizing missing Settings and Sync stores', () => {
+    const envelope = createAtlasBackupEnvelope(stores, now)
+    const result = validateAtlasBackupEnvelope({
+      ...envelope,
+      schemaVersion: 1,
+      stores: {
+        workspace: envelope.stores.workspace,
+        dispatch: envelope.stores.dispatch,
+        writing: envelope.stores.writing,
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.envelope?.schemaVersion).toBe(2)
+    expect(result.envelope?.stores.settings.deviceLabel).toBe('Local Atlas workspace')
+    expect(result.envelope?.stores.sync.snapshots).toEqual([])
+    expect(result.warnings.map((warning) => warning.type)).toContain('missing-settings')
+    expect(result.warnings.map((warning) => warning.type)).toContain('missing-sync')
+  })
+
   it('builds restore previews without mutating current stores', () => {
     const currentBefore = JSON.stringify(stores)
     const incoming = createAtlasBackupEnvelope(
@@ -127,5 +172,6 @@ describe('data portability', () => {
     expect(summary).toContain('JAMARQ Atlas backup')
     expect(summary).toContain('projects')
     expect(summary).toContain('writing drafts')
+    expect(summary).toContain('sync snapshots')
   })
 })

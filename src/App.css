@@ -1352,7 +1352,7 @@ h3 {
 }
 
 .data-center .dashboard-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .settings-center .dashboard-stats {
@@ -1381,7 +1381,9 @@ h3 {
 }
 
 .settings-form-grid,
-.settings-connection-grid {
+.settings-connection-grid,
+.settings-sync-grid,
+.settings-preview-grid {
   display: grid;
   gap: 10px;
 }
@@ -1391,6 +1393,15 @@ h3 {
 }
 
 .settings-connection-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-sync-grid {
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.settings-preview-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1459,6 +1470,61 @@ h3 {
   border-color: rgba(9, 166, 214, 0.28);
 }
 
+.settings-snapshot-list,
+.settings-restore-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-snapshot-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 8px;
+}
+
+.settings-snapshot-card.is-selected {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.08);
+}
+
+.settings-snapshot-card > button:first-child {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.settings-snapshot-card strong,
+.settings-snapshot-summary strong {
+  color: var(--paper-white);
+  font-size: 0.84rem;
+}
+
+.settings-snapshot-card span,
+.settings-snapshot-summary span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.settings-snapshot-card > button:last-child {
+  width: fit-content;
+}
+
+.settings-snapshot-summary {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 10px;
+}
+
 .settings-status-available {
   color: var(--success);
 }
@@ -1480,7 +1546,7 @@ h3 {
 }
 
 .data-summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .data-preview-grid {
@@ -1941,6 +2007,8 @@ code {
   .data-preview-grid,
   .settings-form-grid,
   .settings-connection-grid,
+  .settings-sync-grid,
+  .settings-preview-grid,
   .writing-controls,
   .writing-context-grid,
   .writing-meta-grid,

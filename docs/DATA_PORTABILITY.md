@@ -14,10 +14,11 @@ Data Center supports:
 - JSON backup import.
 - Restore preview.
 - Full local restore after typed confirmation.
+- Backup schema v1 import compatibility.
 
 It does not support:
 
-- Hosted sync.
+- Hosted sync upload/download.
 - User accounts.
 - GitHub writes.
 - Automatic commits.
@@ -32,18 +33,24 @@ Atlas backups are versioned JSON envelopes.
 Required fields:
 
 - `kind: "jamarq-atlas-backup"`
-- `schemaVersion: 1`
+- `schemaVersion: 2`
 - `exportedAt`
 - `appName`
 - `stores.workspace`
 - `stores.dispatch`
 - `stores.writing`
+- `stores.settings`
+- `stores.sync`
 
 The backup includes only Atlas-owned stores:
 
 - Workspace: sections, groups, projects, manual fields, repo bindings, and activity events.
 - Dispatch: targets, records, readiness, and preflight evidence.
 - Writing: drafts, context snapshots, provider result metadata, review status, notes, and Writing-only audit events.
+- Settings: local device/operator labels and local-only notes.
+- Sync: local snapshot metadata and manual snapshots.
+
+Schema v1 backups that contain only Workspace, Dispatch, and Writing remain importable. Atlas normalizes missing Settings and Sync stores to safe local defaults during restore preview.
 
 ## Excluded Data
 
@@ -68,7 +75,7 @@ The import flow:
 3. Normalize compatible older store shapes.
 4. Show current local counts beside incoming backup counts.
 5. Require the exact typed confirmation `RESTORE ATLAS`.
-6. Replace Workspace, Dispatch, and Writing stores together.
+6. Replace Workspace, Dispatch, Writing, Settings, and Sync stores together.
 
 Restore does not merge records. Reset seed remains a separate action.
 

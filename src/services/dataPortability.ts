@@ -10,10 +10,14 @@ import {
 } from '../domain/dataPortability'
 import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
+import type { AtlasSettingsState } from '../domain/settings'
+import type { AtlasSyncState } from '../domain/sync'
 import type { WritingWorkbenchState } from '../domain/writing'
 import { normalizeWorkspaceVerificationCadence } from './verification'
 import { normalizeDispatchState } from './dispatchStorage'
 import { normalizeWritingState } from './aiWritingAssistant'
+import { normalizeSettingsState } from './settings'
+import { normalizeSyncState } from './syncSnapshots'
 
 export const RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
 
@@ -56,11 +60,27 @@ function collectWritingSummary(writing: WritingWorkbenchState) {
   }
 }
 
+function collectSettingsSummary(settings: AtlasSettingsState) {
+  return {
+    configured: settings.deviceLabel ? 1 : 0,
+    hasOperatorLabel: settings.operatorLabel ? 1 : 0,
+  }
+}
+
+function collectSyncSummary(sync: AtlasSyncState) {
+  return {
+    snapshots: sync.snapshots.length,
+    providerConfigured: 0,
+  }
+}
+
 export function summarizeAtlasStores(stores: AtlasBackupStores): AtlasBackupStoreSummary {
   return {
     workspace: collectWorkspaceSummary(stores.workspace),
     dispatch: collectDispatchSummary(stores.dispatch),
     writing: collectWritingSummary(stores.writing),
+    settings: collectSettingsSummary(stores.settings),
+    sync: collectSyncSummary(stores.sync),
   }
 }
 
@@ -98,6 +118,20 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
+  if (!value.settings) {
+    warnings.push({
+      type: 'missing-settings',
+      message: 'Backup is missing Settings state; a default local Settings store will be restored.',
+    })
+  }
+
+  if (!value.sync) {
+    warnings.push({
+      type: 'missing-sync',
+      message: 'Backup is missing Sync state; an empty local Sync store will be restored.',
+    })
+  }
+
   if (errors.length > 0) {
     return { stores: null, warnings, errors }
   }
@@ -105,11 +139,15 @@ export function normalizeBackupStores(value: unknown): {
   let workspace: Workspace
   let dispatch: DispatchState
   let writing: WritingWorkbenchState
+  let settings: AtlasSettingsState
+  let sync: AtlasSyncState
 
   try {
     workspace = normalizeWorkspaceVerificationCadence(value.workspace as Workspace)
     dispatch = normalizeDispatchState(value.dispatch ?? {})
     writing = normalizeWritingState(value.writing ?? {})
+    settings = normalizeSettingsState(value.settings ?? {})
+    sync = normalizeSyncState(value.sync ?? {})
   } catch {
     return {
       stores: null,
@@ -132,7 +170,21 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
-  const stores = { workspace, dispatch, writing }
+  if (!isRecord(value.settings) || typeof value.settings.deviceLabel !== 'string') {
+    warnings.push({
+      type: 'legacy-normalized',
+      message: 'Settings state was normalized for the current backup schema.',
+    })
+  }
+
+  if (!isRecord(value.sync) || !Array.isArray(value.sync.snapshots)) {
+    warnings.push({
+      type: 'legacy-normalized',
+      message: 'Sync state was normalized for the current backup schema.',
+    })
+  }
+
+  const stores = { workspace, dispatch, writing, settings, sync }
   const summary = summarizeAtlasStores(stores)
 
   if (summary.workspace.projects === 0) {
@@ -189,7 +241,7 @@ export function validateAtlasBackupEnvelope(value: unknown): AtlasBackupValidati
     errors.push('Backup kind is not jamarq-atlas-backup.')
   }
 
-  if (value.schemaVersion !== ATLAS_BACKUP_SCHEMA_VERSION) {
+  if (value.schemaVersion !== 1 && value.schemaVersion !== ATLAS_BACKUP_SCHEMA_VERSION) {
     errors.push(`Unsupported backup schema version: ${String(value.schemaVersion)}.`)
   }
 
@@ -242,7 +294,7 @@ export function createRestorePreview(
 }
 
 export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing } = envelope.summary
+  const { workspace, dispatch, writing, settings, sync } = envelope.summary
 
   return `# JAMARQ Atlas Backup Report
 
@@ -256,11 +308,13 @@ Schema: ${envelope.schemaVersion}
 - Activity events: ${workspace.activityEvents}
 - Dispatch: ${dispatch.targets} targets, ${dispatch.records} records, ${dispatch.readinessEntries} readiness entries, ${dispatch.preflightRuns} preflight runs
 - Writing: ${writing.drafts} drafts, ${writing.reviewEvents} review events, ${writing.approvedDrafts} approved, ${writing.exportedDrafts} exported, ${writing.archivedDrafts} archived
+- Settings: ${settings.configured} local settings store
+- Sync: ${sync.snapshots} local snapshots, provider configured: ${sync.providerConfigured ? 'yes' : 'no'}
 
 ## Restore Rules
 
 - Restore is previewed before it replaces local Atlas data.
-- Restore replaces Workspace, Dispatch, and Writing stores together.
+- Restore replaces Workspace, Dispatch, Writing, Settings, and Sync stores together.
 - Restore does not merge records.
 - Restore requires typed human confirmation.
 - Reset seed remains separate from restore.
@@ -281,9 +335,9 @@ Schema: ${envelope.schemaVersion}
 }
 
 export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing } = envelope.summary
+  const { workspace, dispatch, writing, sync } = envelope.summary
 
-  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${writing.drafts} writing drafts.`
+  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${writing.drafts} writing drafts, ${sync.snapshots} sync snapshots.`
 }
 
 export function canApplyAtlasRestore(confirmation: string) {

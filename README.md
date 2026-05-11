@@ -21,6 +21,7 @@ The dashboard currently supports:
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
 - Settings & Connections Center for local workspace labels and integration-readiness status without storing secrets.
+- Manual local Sync snapshots for future hosted persistence preparation.
 
 No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
 
@@ -34,8 +35,9 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
-- Versioned local backup/export helpers for Workspace, Dispatch, and Writing data.
+- Versioned local backup/export helpers for Workspace, Dispatch, Writing, Settings, and Sync data.
 - Local settings storage for device/operator labels and connection-readiness surfaces.
+- Local sync snapshot storage and provider-ready no-op sync boundary.
 - Unit and Playwright smoke tests for the main operator flows.
 
 ## Tech Stack
@@ -43,6 +45,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - React + TypeScript for the dashboard and detail surfaces.
 - Vite for the local app and local `/api/github` boundary.
 - Local storage for manual workspace edits and separate Dispatch state.
+- Local storage for Settings and manual Sync snapshots.
 - Server-side environment variables for GitHub tokens.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
 
@@ -244,16 +247,18 @@ It can export:
 The JSON backup is a versioned envelope:
 
 - `kind: "jamarq-atlas-backup"`
-- `schemaVersion: 1`
+- `schemaVersion: 2`
 - `exportedAt`
 - `appName`
 - `stores.workspace`
 - `stores.dispatch`
 - `stores.writing`
+- `stores.settings`
+- `stores.sync`
 
-Backups include Atlas Workspace, Dispatch, and Writing stores only. They exclude GitHub tokens, environment variables, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
+Backups include Atlas Workspace, Dispatch, Writing, Settings, and Sync stores only. They exclude GitHub tokens, environment variables, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots. Schema v1 backups remain importable and receive default Settings and Sync stores during restore preview.
 
-Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, and Writing state. Restore does not merge records and remains separate from Reset seed.
+Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, Writing, Settings, and Sync state. Restore does not merge records and remains separate from Reset seed.
 
 ## Settings & Connections
 
@@ -266,6 +271,20 @@ Settings stores local workspace identity only:
 - Last updated timestamp
 
 Settings also shows connection-readiness cards for GitHub, Dispatch, Writing, Data Center, and future Sync. It does not store GitHub tokens, AI keys, deployment credentials, environment variables, or browser secrets. Connection cards are status/readiness surfaces only; they do not trigger automation.
+
+## Sync Snapshots
+
+Sync is local-only in this phase. It supports manual snapshots inside Settings so future hosted persistence can use a stable store boundary.
+
+Current Sync behavior:
+
+- Create manual snapshots.
+- Preview snapshot restore counts.
+- Restore Workspace, Dispatch, and Writing after typing `RESTORE ATLAS`.
+- Delete snapshots after explicit confirmation.
+- Return no-op `not-configured` provider results for future push/pull hooks.
+
+Snapshots store Workspace, Dispatch, and Writing only. They do not store Settings, Sync, secrets, unknown localStorage keys, or full live GitHub history.
 
 ## Documentation
 
@@ -280,6 +299,7 @@ Focused references:
 - `docs/AI_WRITING.md`
 - `docs/DATA_PORTABILITY.md`
 - `docs/SETTINGS.md`
+- `docs/SYNC.md`
 
 ## Architecture
 
@@ -290,7 +310,9 @@ Atlas separates manual intent from raw activity.
 - `src/domain/writing.ts` defines Writing templates, drafts, context snapshots, provider results, and local workbench state.
 - `src/domain/dataPortability.ts` defines backup envelopes, validation results, summaries, and restore previews.
 - `src/domain/settings.ts` defines local settings and connection-readiness cards.
+- `src/domain/sync.ts` defines local sync snapshots, provider status, and restore previews.
 - `src/hooks/useLocalSettings.ts` persists local Settings state under `jamarq-atlas.settings.v1`.
+- `src/hooks/useLocalSync.ts` persists local Sync state under `jamarq-atlas.sync.v1`.
 - `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
 - `src/hooks/useLocalWriting.ts` persists Writing state separately under `jamarq-atlas.writing.v1`.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
@@ -316,6 +338,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/writingProvider.ts` contains the no-op future AI provider boundary.
 - `src/services/dataPortability.ts` builds backup bundles, Markdown reports, restore previews, and backup validation.
 - `src/services/settings.ts` normalizes local Settings state and static connection-readiness cards.
+- `src/services/syncSnapshots.ts` builds local snapshots, fingerprints stores, previews snapshot restore, and exposes sync provider stubs.
 
 ## Guardrails
 
@@ -386,6 +409,13 @@ Settings is local/manual:
 - Connection status does not change Atlas project state.
 - Future provider configuration must keep secrets outside browser local storage.
 
+Sync is local/manual:
+
+- Snapshots are created only by explicit action.
+- Snapshot restore is preview-first and full-replace for Workspace, Dispatch, and Writing.
+- Sync provider push/pull is stubbed and performs no external read or write.
+- Sync does not merge records or change Atlas source-of-truth rules.
+
 ## Statuses
 
 - Inbox
@@ -400,7 +430,7 @@ Settings is local/manual:
 
 ## Roadmap
 
-1. Add hosted persistence only after the local backup/restore model is proven.
+1. Add hosted persistence only after the local backup/restore and snapshot model is proven.
 2. Add a real AI writing provider behind the current stub boundary.
 3. Expand GitHub Intake with optional repo grouping suggestions for human review.
 4. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.

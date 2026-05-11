@@ -20,9 +20,24 @@ Settings currently reports readiness for:
 - Dispatch health and preflight boundary
 - Writing provider boundary
 - Data Center backup/restore
-- Future Sync provider
+- Sync provider and manual local snapshots
 
 Connection cards are read-only status surfaces. They do not trigger GitHub writes, deployments, AI provider calls, backup restores, hosted sync, or project-state changes.
+
+## Sync Snapshots
+
+Settings also hosts manual Sync snapshot controls.
+
+Snapshots capture normalized Workspace, Dispatch, and Writing stores only. They do not include Settings, Sync, GitHub tokens, AI keys, deployment credentials, environment variables, unknown localStorage keys, or live GitHub history.
+
+Current snapshot actions:
+
+- Create a manual local snapshot.
+- Preview a snapshot restore.
+- Restore Workspace, Dispatch, and Writing after typing `RESTORE ATLAS`.
+- Delete a local snapshot after explicit confirmation.
+
+Hosted push/pull remains a stubbed provider boundary. No external sync read or write occurs in this phase.
 
 ## Secrets
 

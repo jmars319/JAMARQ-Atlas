@@ -3,6 +3,8 @@ import { ArchiveRestore, ClipboardCopy, Download, FileJson, FileText, ShieldChec
 import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasBackupStores, AtlasRestorePreview } from '../domain/dataPortability'
+import type { AtlasSettingsState } from '../domain/settings'
+import type { AtlasSyncState } from '../domain/sync'
 import type { WritingWorkbenchState } from '../domain/writing'
 import {
   createAtlasBackupEnvelope,
@@ -19,6 +21,8 @@ interface DataCenterProps {
   workspace: Workspace
   dispatch: DispatchState
   writing: WritingWorkbenchState
+  settings: AtlasSettingsState
+  sync: AtlasSyncState
   onRestoreStores: (stores: AtlasBackupStores) => void
 }
 
@@ -69,6 +73,7 @@ function PreviewComparison({ preview }: { preview: AtlasRestorePreview }) {
           { label: 'Dispatch targets', value: preview.currentSummary.dispatch.targets },
           { label: 'Preflight runs', value: preview.currentSummary.dispatch.preflightRuns },
           { label: 'Writing drafts', value: preview.currentSummary.writing.drafts },
+          { label: 'Sync snapshots', value: preview.currentSummary.sync.snapshots },
         ]}
       />
       <SummaryCard
@@ -79,6 +84,7 @@ function PreviewComparison({ preview }: { preview: AtlasRestorePreview }) {
           { label: 'Dispatch targets', value: preview.incomingSummary.dispatch.targets },
           { label: 'Preflight runs', value: preview.incomingSummary.dispatch.preflightRuns },
           { label: 'Writing drafts', value: preview.incomingSummary.writing.drafts },
+          { label: 'Sync snapshots', value: preview.incomingSummary.sync.snapshots },
         ]}
       />
     </div>
@@ -89,13 +95,18 @@ export function DataCenter({
   workspace,
   dispatch,
   writing,
+  settings,
+  sync,
   onRestoreStores,
 }: DataCenterProps) {
   const [preview, setPreview] = useState<AtlasRestorePreview | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [confirmation, setConfirmation] = useState('')
   const [message, setMessage] = useState('')
-  const stores = useMemo(() => ({ workspace, dispatch, writing }), [dispatch, workspace, writing])
+  const stores = useMemo(
+    () => ({ workspace, dispatch, writing, settings, sync }),
+    [dispatch, settings, sync, workspace, writing],
+  )
   const envelope = useMemo(() => createAtlasBackupEnvelope(stores), [stores])
   const summary = useMemo(() => summarizeAtlasStores(stores), [stores])
   const restoreReady = preview !== null && canApplyAtlasRestore(confirmation)
@@ -162,7 +173,9 @@ export function DataCenter({
     setPreview(null)
     setConfirmation('')
     setErrors([])
-    setMessage('Backup restored locally. Workspace, Dispatch, and Writing stores were replaced.')
+    setMessage(
+      'Backup restored locally. Workspace, Dispatch, Writing, Settings, and Sync stores were replaced.',
+    )
   }
 
   return (
@@ -173,7 +186,7 @@ export function DataCenter({
           <h1 id="data-center-title">Backups & Restore</h1>
           <p>
             Export local Atlas state, inspect backup contents, and restore Workspace, Dispatch,
-            and Writing stores after explicit human confirmation.
+            Writing, Settings, and Sync stores after explicit human confirmation.
           </p>
         </div>
         <div className="dashboard-stats" aria-label="Data inventory counts">
@@ -191,6 +204,11 @@ export function DataCenter({
             <FileText size={16} />
             <strong>{summary.writing.drafts}</strong>
             <span>Drafts</span>
+          </div>
+          <div>
+            <ArchiveRestore size={16} />
+            <strong>{summary.sync.snapshots}</strong>
+            <span>Snapshots</span>
           </div>
         </div>
       </div>
@@ -229,6 +247,15 @@ export function DataCenter({
                 { label: 'Approved', value: summary.writing.approvedDrafts },
                 { label: 'Exported', value: summary.writing.exportedDrafts },
                 { label: 'Archived', value: summary.writing.archivedDrafts },
+              ]}
+            />
+            <SummaryCard
+              title="Settings & Sync"
+              items={[
+                { label: 'Settings stores', value: summary.settings.configured },
+                { label: 'Operator labels', value: summary.settings.hasOperatorLabel },
+                { label: 'Snapshots', value: summary.sync.snapshots },
+                { label: 'Provider configured', value: summary.sync.providerConfigured },
               ]}
             />
           </div>
@@ -306,7 +333,7 @@ export function DataCenter({
             <h2>Data Rules</h2>
           </div>
           <ul className="dispatch-list">
-            <li>Backups include Workspace, Dispatch, and Writing stores only.</li>
+            <li>Backups include Workspace, Dispatch, Writing, Settings, and Sync stores only.</li>
             <li>Backups exclude GitHub tokens, env vars, browser secrets, and unknown storage keys.</li>
             <li>Restore replaces local stores after preview and typed confirmation.</li>
             <li>Restore does not send, publish, deploy, verify, or change source-of-truth rules.</li>

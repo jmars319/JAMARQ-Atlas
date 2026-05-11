@@ -15,6 +15,7 @@ The app has these main surfaces:
 - Writing Workbench: local draft packets and reviewable operational writing.
 - Data Center: local backup export, restore preview, and typed-confirmation restore.
 - Settings & Connections: local workspace identity and integration-readiness status.
+- Sync Snapshots: manual local snapshots for future hosted persistence.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
 
@@ -184,13 +185,15 @@ The backup envelope contains:
 - Workspace store
 - Dispatch store
 - Writing store
+- Settings store
+- Sync store
 - Schema version
 - Export timestamp
 - Inventory summary
 
 Backups intentionally exclude GitHub tokens, environment variables, credentials, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
 
-Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, and Writing normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
+Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Settings, and Sync normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
 Data Center does not merge records, write to GitHub, sync to hosted storage, send external data, or change Atlas source-of-truth rules.
 
@@ -209,6 +212,23 @@ Settings currently stores:
 Settings also displays readiness cards for GitHub, Dispatch, Writing, Data Center, and future Sync. These cards describe whether local boundaries are available, missing, stubbed, or local-only. They do not execute automation or change Atlas data.
 
 Settings must not store GitHub tokens, AI keys, deployment credentials, environment variables, or browser secrets. Future provider configuration should keep secrets in server-side environment variables or a dedicated secure backend, not browser local storage.
+
+## Sync Model
+
+Sync is stored under `jamarq-atlas.sync.v1`.
+
+Current Sync is local-only and manual. It supports:
+
+- Manual local snapshots.
+- Snapshot inventory.
+- Snapshot restore preview.
+- Typed-confirmation snapshot restore.
+- Snapshot deletion.
+- Provider-ready push/pull stubs that return `not-configured`.
+
+Snapshots contain Workspace, Dispatch, and Writing only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
+
+Snapshot restore replaces Workspace, Dispatch, and Writing only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
 
 ## Validation
 

@@ -8,6 +8,7 @@ import {
   PanelRightOpen,
   Rocket,
   Settings2,
+  UploadCloud,
 } from 'lucide-react'
 import './App.css'
 import { DataCenter } from './components/DataCenter'
@@ -29,9 +30,11 @@ import {
 } from './domain/atlas'
 import type { DeploymentTarget, DispatchReadiness } from './domain/dispatch'
 import type { AtlasBackupStores } from './domain/dataPortability'
+import type { AtlasSyncCoreStores } from './domain/sync'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalSettings } from './hooks/useLocalSettings'
+import { useLocalSync } from './hooks/useLocalSync'
 import { useLocalWriting } from './hooks/useLocalWriting'
 import { useLocalWorkspace } from './hooks/useLocalWorkspace'
 import { githubIngestionContract, type GithubRepositorySummary } from './services/githubIntegration'
@@ -42,6 +45,7 @@ import {
   unbindRepositoryFromProject,
 } from './services/repoBinding'
 import { runDispatchPreflight } from './services/dispatchPreflight'
+import { createSyncSnapshot } from './services/syncSnapshots'
 import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
 
 type StatusFilter = WorkStatus | 'All'
@@ -52,7 +56,8 @@ function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
   const { dispatch, setDispatch, updateTarget, updateReadiness, addPreflightRun } =
     useLocalDispatch()
-  const { settings, updateLocalSettings } = useLocalSettings()
+  const { settings, setSettings, updateLocalSettings } = useLocalSettings()
+  const { sync, setSync, addSnapshot, removeSnapshot } = useLocalSync()
   const {
     writing,
     setWriting,
@@ -199,6 +204,28 @@ function App() {
     setWorkspace(stores.workspace)
     setDispatch(stores.dispatch)
     setWriting(stores.writing)
+    setSettings(stores.settings)
+    setSync(stores.sync)
+    setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
+    setSelectedWritingDraftId('')
+  }
+
+  function handleCreateSnapshot(label: string, note: string) {
+    addSnapshot(
+      createSyncSnapshot({
+        stores: { workspace, dispatch, writing },
+        settings,
+        sync,
+        label,
+        note,
+      }),
+    )
+  }
+
+  function handleRestoreSnapshot(stores: AtlasSyncCoreStores) {
+    setWorkspace(stores.workspace)
+    setDispatch(stores.dispatch)
+    setWriting(stores.writing)
     setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
     setSelectedWritingDraftId('')
   }
@@ -241,6 +268,10 @@ function App() {
           <span>
             <Settings2 size={15} />
             Settings-ready
+          </span>
+          <span>
+            <UploadCloud size={15} />
+            Sync-local
           </span>
           <span>
             <PanelRightOpen size={15} />
@@ -354,10 +385,22 @@ function App() {
             workspace={workspace}
             dispatch={dispatch}
             writing={writing}
+            settings={settings}
+            sync={sync}
             onRestoreStores={handleRestoreStores}
           />
         ) : appView === 'settings' ? (
-          <SettingsCenter settings={settings} onSettingsChange={updateLocalSettings} />
+          <SettingsCenter
+            settings={settings}
+            workspace={workspace}
+            dispatch={dispatch}
+            writing={writing}
+            sync={sync}
+            onSettingsChange={updateLocalSettings}
+            onCreateSnapshot={handleCreateSnapshot}
+            onDeleteSnapshot={removeSnapshot}
+            onRestoreSnapshot={handleRestoreSnapshot}
+          />
         ) : (
           <DispatchDashboard
             dispatch={dispatch}

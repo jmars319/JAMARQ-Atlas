@@ -58,6 +58,36 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input')).toHaveValue(
     'E2E operator',
   )
+  await page.locator('label.field').filter({ hasText: 'Snapshot label' }).locator('input').fill('E2E checkpoint')
+  await page
+    .locator('label.field')
+    .filter({ hasText: 'Snapshot note' })
+    .locator('input')
+    .fill('Before temporary mutation')
+  await page.getByRole('button', { name: 'Create local snapshot' }).click()
+  await expect(page.getByLabel('Sync snapshot inventory')).toContainText('E2E checkpoint')
+  await page.reload()
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByLabel('Sync snapshot inventory')).toContainText('E2E checkpoint')
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  const firstProjectNextAction = page
+    .locator('label.field')
+    .filter({ hasText: 'Next action' })
+    .locator('textarea')
+  await firstProjectNextAction.fill('Temporary mutation before snapshot restore')
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByLabel('Sync restore preview')).toContainText('Selected snapshot')
+  await page.getByLabel('Type RESTORE ATLAS to restore snapshot').fill('RESTORE ATLAS')
+  await page.getByRole('button', { name: 'Restore snapshot' }).click()
+  await expect(page.getByText('Snapshot restored locally')).toBeVisible()
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await expect(firstProjectNextAction).not.toHaveValue('Temporary mutation before snapshot restore')
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await page.getByRole('button', { name: 'Confirm delete' }).click()
+  await page.reload()
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByText('No local sync snapshots yet')).toBeVisible()
   await page.getByRole('button', { name: 'Board', exact: true }).click()
 
   await page.getByRole('button', { name: 'Verification', exact: true }).click()
@@ -205,10 +235,16 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
     return JSON.stringify({
       kind: 'jamarq-atlas-backup',
-      schemaVersion: 1,
+      schemaVersion: 2,
       exportedAt: '2026-05-10T12:00:00.000Z',
       appName: 'JAMARQ Atlas',
-      stores: { workspace, dispatch, writing },
+      stores: {
+        workspace,
+        dispatch,
+        writing,
+        settings: JSON.parse(window.localStorage.getItem('jamarq-atlas.settings.v1') ?? '{}'),
+        sync: JSON.parse(window.localStorage.getItem('jamarq-atlas.sync.v1') ?? '{}'),
+      },
     })
   })
 
