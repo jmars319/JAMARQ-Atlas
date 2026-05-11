@@ -295,6 +295,8 @@ Current Sync is manual and snapshot-based. It supports:
 - Optional Supabase hosted snapshot push.
 - Optional Supabase hosted snapshot listing and preview.
 - Typed-confirmation restore from a remote snapshot.
+- Remote/local snapshot comparison by fingerprint, counts, created date, and device label.
+- Explicit remote snapshot deletion.
 
 Snapshots contain Workspace, Dispatch, and Writing only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
 
@@ -306,8 +308,11 @@ Hosted sync runs through the local `/api/sync` boundary:
 - `/api/sync/push`
 - `/api/sync/remote-snapshots`
 - `/api/sync/remote-snapshots/:id`
+- `DELETE /api/sync/remote-snapshots/:id`
 
 Supabase credentials are read only by server-side middleware from `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ATLAS_SYNC_WORKSPACE_ID`. Missing configuration becomes a scoped not-configured state; it does not break Board, Dispatch, GitHub, Verification, Writing, Data Center, or local snapshots.
+
+Remote inventory is limited to the latest 50 snapshots in this phase. Restore previews warn about empty incoming stores, same-fingerprint restores, and count drops. These warnings do not block manual restore when the typed confirmation is present.
 
 ## Validation
 

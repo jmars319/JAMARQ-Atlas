@@ -1850,7 +1850,8 @@ h3 {
 .settings-form-grid,
 .settings-connection-grid,
 .settings-sync-grid,
-.settings-preview-grid {
+.settings-preview-grid,
+.settings-compare-grid {
   display: grid;
   gap: 10px;
 }
@@ -1870,6 +1871,10 @@ h3 {
 
 .settings-preview-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-compare-grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 1.4fr);
 }
 
 .settings-panel-heading-row {
@@ -2504,6 +2509,7 @@ code {
   .settings-connection-grid,
   .settings-sync-grid,
   .settings-preview-grid,
+  .settings-compare-grid,
   .planning-layout,
   .planning-controls,
   .planning-mini-summary,

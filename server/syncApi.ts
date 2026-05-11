@@ -289,6 +289,37 @@ async function getSnapshot(snapshotId: string, config: SyncConfig) {
   })
 }
 
+async function deleteSnapshot(snapshotId: string, config: SyncConfig) {
+  if (!config.configured) {
+    return createSyncNotConfiguredResponse(config)
+  }
+
+  const { error } = await supabaseClient(config)
+    .from(SYNC_TABLE)
+    .delete()
+    .eq('workspace_id', config.workspaceId)
+    .eq('snapshot_id', snapshotId)
+
+  if (error) {
+    return syncResponse({
+      configured: true,
+      data: null,
+      error: {
+        type: 'supabase-error',
+        message: error.message,
+      },
+    })
+  }
+
+  return syncResponse({
+    configured: true,
+    data: {
+      snapshotId,
+    },
+    error: null,
+  })
+}
+
 export async function syncApiMiddleware(
   request: IncomingMessage,
   response: ServerResponse,
@@ -319,6 +350,11 @@ export async function syncApiMiddleware(
     }
 
     const snapshotMatch = url.pathname.match(/^\/api\/sync\/remote-snapshots\/([^/]+)$/)
+
+    if (snapshotMatch && request.method === 'DELETE') {
+      json(response, 200, await deleteSnapshot(decodeURIComponent(snapshotMatch[1]), config))
+      return
+    }
 
     if (snapshotMatch) {
       json(response, 200, await getSnapshot(decodeURIComponent(snapshotMatch[1]), config))

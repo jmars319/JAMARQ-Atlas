@@ -7,6 +7,7 @@ import {
   normalizeSyncState,
   recordRemoteSyncPush,
   recordRemoteSyncSnapshots,
+  removeRemoteSyncSnapshot,
   updateSyncProviderState,
 } from '../services/syncSnapshots'
 
@@ -53,6 +54,10 @@ export function useLocalSync() {
     setSync((current) => recordRemoteSyncPush(current, snapshot))
   }
 
+  function removeRemoteSnapshot(snapshotId: string) {
+    setSync((current) => removeRemoteSyncSnapshot(current, snapshotId))
+  }
+
   function resetSync() {
     const freshSync = emptySyncState()
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshSync))
@@ -67,6 +72,7 @@ export function useLocalSync() {
     updateProvider,
     recordRemoteSnapshots,
     recordRemotePush,
+    removeRemoteSnapshot,
     resetSync,
   }
 }

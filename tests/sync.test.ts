@@ -4,12 +4,15 @@ import { seedWorkspace } from '../src/data/seedWorkspace'
 import { emptySettingsState } from '../src/services/settings'
 import {
   canApplySyncRestore,
+  compareSyncSnapshot,
   createSyncRestorePreview,
+  createRemoteSnapshotRetentionNotice,
   createSyncSnapshot,
   emptySyncState,
   fingerprintSyncStores,
   normalizeSyncState,
   recordRemoteSyncPush,
+  removeRemoteSyncSnapshot,
   updateSyncProviderState,
   runSyncProviderStub,
 } from '../src/services/syncSnapshots'
@@ -99,6 +102,36 @@ describe('sync snapshots', () => {
     expect(JSON.stringify(stores)).toBe(currentBefore)
   })
 
+  it('warns on same-fingerprint restores and incoming count drops', () => {
+    const identicalSnapshot = createSyncSnapshot({
+      stores,
+      label: 'Same state',
+      note: '',
+      now,
+    })
+    const samePreview = createSyncRestorePreview(stores, identicalSnapshot)
+
+    expect(samePreview.fingerprintMatches).toBe(true)
+    expect(samePreview.warnings).toContain('Incoming snapshot fingerprint matches current local stores.')
+
+    const smallerSnapshot = createSyncSnapshot({
+      stores: {
+        workspace: { ...seedWorkspace, sections: [] },
+        dispatch: { ...seedDispatchState, targets: [] },
+        writing: { drafts: [] },
+      },
+      label: 'Smaller state',
+      note: '',
+      now,
+    })
+    const smallerPreview = createSyncRestorePreview(stores, smallerSnapshot)
+
+    expect(smallerPreview.warnings).toContain('Incoming snapshot contains no projects.')
+    expect(smallerPreview.warnings).toContain(
+      'Incoming snapshot has fewer Dispatch targets than current local data.',
+    )
+  })
+
   it('requires exact typed confirmation before restore can apply', () => {
     expect(canApplySyncRestore('RESTORE ATLAS')).toBe(true)
     expect(canApplySyncRestore('restore atlas')).toBe(false)
@@ -181,5 +214,87 @@ describe('sync snapshots', () => {
     expect(updated.provider.status).toBe('configured')
     expect(updated.provider.remoteSnapshots[0].id).toBe(snapshot.id)
     expect(JSON.stringify(updated.provider.remoteSnapshots[0])).not.toContain('"stores"')
+  })
+
+  it('compares local and remote snapshot fingerprints and counts', () => {
+    const snapshot = createSyncSnapshot({
+      stores,
+      label: 'Remote comparison',
+      note: '',
+      now,
+    })
+    const comparison = compareSyncSnapshot(stores, {
+      id: snapshot.id,
+      label: snapshot.label,
+      note: snapshot.note,
+      createdAt: snapshot.createdAt,
+      deviceId: snapshot.deviceId,
+      deviceLabel: snapshot.deviceLabel,
+      fingerprint: snapshot.fingerprint,
+      summary: snapshot.summary,
+    })
+
+    expect(comparison.fingerprintMatches).toBe(true)
+    expect(comparison.summaryLines.join(' ')).toContain('Projects')
+  })
+
+  it('removes remote snapshot metadata locally after provider delete', () => {
+    const snapshot = createSyncSnapshot({
+      stores,
+      label: 'Remote delete candidate',
+      note: '',
+      now,
+    })
+    const withRemote = recordRemoteSyncPush(emptySyncState(now), {
+      id: snapshot.id,
+      label: snapshot.label,
+      note: snapshot.note,
+      createdAt: snapshot.createdAt,
+      deviceId: snapshot.deviceId,
+      deviceLabel: snapshot.deviceLabel,
+      fingerprint: snapshot.fingerprint,
+      summary: snapshot.summary,
+    })
+    const removed = removeRemoteSyncSnapshot(withRemote, snapshot.id, now)
+
+    expect(removed.provider.remoteSnapshots).toEqual([])
+  })
+
+  it('returns a latest-50 retention warning when remote metadata reaches the load limit', () => {
+    const notice = createRemoteSnapshotRetentionNotice(
+      Array.from({ length: 50 }, (_, index) => ({
+        id: `remote-${index}`,
+        label: `Remote ${index}`,
+        note: '',
+        createdAt: now.toISOString(),
+        deviceId: 'device',
+        deviceLabel: 'Device',
+        fingerprint: `fingerprint-${index}`,
+        summary: {
+          workspace: {
+            sections: 0,
+            groups: 0,
+            projects: 0,
+            repositoryBindings: 0,
+            activityEvents: 0,
+          },
+          dispatch: {
+            targets: 0,
+            records: 0,
+            readinessEntries: 0,
+            preflightRuns: 0,
+          },
+          writing: {
+            drafts: 0,
+            reviewEvents: 0,
+            approvedDrafts: 0,
+            exportedDrafts: 0,
+            archivedDrafts: 0,
+          },
+        },
+      })),
+    )
+
+    expect(notice.warning).toContain('Showing latest 50 remote snapshots')
   })
 })

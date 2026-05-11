@@ -85,8 +85,27 @@ export interface AtlasSyncRestorePreview {
   snapshotId: string
   currentSummary: AtlasSyncStoreSummary
   incomingSummary: AtlasSyncStoreSummary
+  fingerprintMatches: boolean
   warnings: string[]
   normalizedStores: AtlasSyncCoreStores
+}
+
+export interface AtlasSyncSnapshotComparison {
+  snapshotId: string
+  localFingerprint: string
+  remoteFingerprint: string
+  fingerprintMatches: boolean
+  createdAt: string
+  deviceLabel: string
+  countDrops: string[]
+  summaryLines: string[]
+}
+
+export interface AtlasSyncRetentionNotice {
+  limit: number
+  shown: number
+  message: string
+  warning: string | null
 }
 
 export interface AtlasSyncProviderResult {

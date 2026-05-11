@@ -16,6 +16,9 @@ Sync supports:
 - Optional Supabase remote snapshot push.
 - Optional Supabase remote snapshot inventory.
 - Optional Supabase remote snapshot preview and typed restore.
+- Remote/local snapshot comparison by fingerprint, counts, created date, and device label.
+- Remote snapshot deletion after explicit confirmation.
+- Latest-50 remote snapshot retention notice.
 
 Sync state is stored under `jamarq-atlas.sync.v1`.
 
@@ -48,6 +51,13 @@ Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
 Snapshot restore does not change Settings, Sync provider configuration, or snapshot inventory.
 
+Restore previews warn when:
+
+- Incoming stores are empty.
+- Incoming snapshots have fewer projects, Dispatch targets, or Writing drafts than current local data.
+- Incoming fingerprints match current local stores.
+- Remote metadata suggests older snapshots may exist outside the latest loaded set.
+
 ## Provider Boundary
 
 The hosted provider is optional. When `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ATLAS_SYNC_WORKSPACE_ID` are missing, Atlas reports a scoped not-configured state and local snapshots keep working.
@@ -58,10 +68,13 @@ When configured, the Supabase bridge stores remote snapshot rows through local s
 - `/api/sync/push`
 - `/api/sync/remote-snapshots`
 - `/api/sync/remote-snapshots/:id`
+- `DELETE /api/sync/remote-snapshots/:id`
 
 The service role key stays server-side. Browser state stores only provider status, remote snapshot metadata, and local restore history.
 
 This is not live sync. Push creates a snapshot. Pull lists snapshots. Restore is preview-first and full-replace after typing `RESTORE ATLAS`.
+
+Remote delete removes one snapshot from the hosted snapshot log after explicit confirmation in Settings. It does not delete local snapshots or change Workspace, Dispatch, or Writing stores.
 
 ## Guardrails
 

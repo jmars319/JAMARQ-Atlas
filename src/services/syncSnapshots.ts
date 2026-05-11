@@ -7,7 +7,9 @@ import {
   type AtlasSyncProviderResult,
   type AtlasSyncProviderState,
   type AtlasRemoteSyncSnapshot,
+  type AtlasSyncRetentionNotice,
   type AtlasSyncRestorePreview,
+  type AtlasSyncSnapshotComparison,
   type AtlasSyncSnapshot,
   type AtlasSyncState,
   type AtlasSyncStoreSummary,
@@ -17,6 +19,7 @@ import { normalizeDispatchState } from './dispatchStorage'
 import { normalizeWorkspaceVerificationCadence } from './verification'
 
 export const SYNC_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
+export const REMOTE_SYNC_SNAPSHOT_LIMIT = 50
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -377,6 +380,23 @@ export function recordRemoteSyncPush(
   )
 }
 
+export function removeRemoteSyncSnapshot(
+  state: AtlasSyncState,
+  snapshotId: string,
+  now = new Date(),
+): AtlasSyncState {
+  return updateSyncProviderState(
+    state,
+    {
+      remoteSnapshots: state.provider.remoteSnapshots.filter(
+        (snapshot) => snapshot.id !== snapshotId,
+      ),
+      message: 'Remote snapshot deleted from provider metadata.',
+    },
+    now,
+  )
+}
+
 export function addSyncSnapshot(state: AtlasSyncState, snapshot: AtlasSyncSnapshot): AtlasSyncState {
   return {
     ...state,
@@ -405,18 +425,132 @@ export function createSyncRestorePreview(
 ): AtlasSyncRestorePreview {
   const normalizedStores = normalizeSyncStores(snapshot.stores)
   const warnings: string[] = []
+  const currentSummary = summarizeSyncStores(currentStores)
   const incomingSummary = summarizeSyncStores(normalizedStores)
+  const currentFingerprint = fingerprintSyncStores(currentStores)
+  const incomingFingerprint = fingerprintSyncStores(normalizedStores)
 
   if (incomingSummary.workspace.projects === 0) {
     warnings.push('Incoming snapshot contains no projects.')
   }
 
+  if (incomingSummary.dispatch.targets === 0) {
+    warnings.push('Incoming snapshot contains no Dispatch targets.')
+  }
+
+  if (incomingSummary.writing.drafts === 0) {
+    warnings.push('Incoming snapshot contains no Writing drafts.')
+  }
+
+  if (currentFingerprint === incomingFingerprint) {
+    warnings.push('Incoming snapshot fingerprint matches current local stores.')
+  }
+
+  if (incomingSummary.workspace.projects < currentSummary.workspace.projects) {
+    warnings.push('Incoming snapshot has fewer projects than current local data.')
+  }
+
+  if (incomingSummary.dispatch.targets < currentSummary.dispatch.targets) {
+    warnings.push('Incoming snapshot has fewer Dispatch targets than current local data.')
+  }
+
+  if (incomingSummary.writing.drafts < currentSummary.writing.drafts) {
+    warnings.push('Incoming snapshot has fewer Writing drafts than current local data.')
+  }
+
   return {
     snapshotId: snapshot.id,
-    currentSummary: summarizeSyncStores(currentStores),
+    currentSummary,
     incomingSummary,
+    fingerprintMatches: currentFingerprint === incomingFingerprint,
     warnings,
     normalizedStores,
+  }
+}
+
+function countDrops(
+  currentSummary: AtlasSyncStoreSummary,
+  incomingSummary: AtlasSyncStoreSummary,
+) {
+  const drops: string[] = []
+
+  if (incomingSummary.workspace.projects < currentSummary.workspace.projects) {
+    drops.push(
+      `Projects drop from ${currentSummary.workspace.projects} to ${incomingSummary.workspace.projects}.`,
+    )
+  }
+
+  if (incomingSummary.workspace.repositoryBindings < currentSummary.workspace.repositoryBindings) {
+    drops.push(
+      `Repository bindings drop from ${currentSummary.workspace.repositoryBindings} to ${incomingSummary.workspace.repositoryBindings}.`,
+    )
+  }
+
+  if (incomingSummary.dispatch.targets < currentSummary.dispatch.targets) {
+    drops.push(
+      `Dispatch targets drop from ${currentSummary.dispatch.targets} to ${incomingSummary.dispatch.targets}.`,
+    )
+  }
+
+  if (incomingSummary.dispatch.preflightRuns < currentSummary.dispatch.preflightRuns) {
+    drops.push(
+      `Dispatch preflight runs drop from ${currentSummary.dispatch.preflightRuns} to ${incomingSummary.dispatch.preflightRuns}.`,
+    )
+  }
+
+  if (incomingSummary.writing.drafts < currentSummary.writing.drafts) {
+    drops.push(
+      `Writing drafts drop from ${currentSummary.writing.drafts} to ${incomingSummary.writing.drafts}.`,
+    )
+  }
+
+  return drops
+}
+
+export function compareSyncSnapshot(
+  currentStores: AtlasSyncCoreStores,
+  snapshot: Pick<
+    AtlasSyncSnapshot | AtlasRemoteSyncSnapshot,
+    'id' | 'createdAt' | 'deviceLabel' | 'fingerprint' | 'summary'
+  >,
+): AtlasSyncSnapshotComparison {
+  const currentSummary = summarizeSyncStores(currentStores)
+  const localFingerprint = fingerprintSyncStores(currentStores)
+  const drops = countDrops(currentSummary, snapshot.summary)
+
+  return {
+    snapshotId: snapshot.id,
+    localFingerprint,
+    remoteFingerprint: snapshot.fingerprint,
+    fingerprintMatches: localFingerprint === snapshot.fingerprint,
+    createdAt: snapshot.createdAt,
+    deviceLabel: snapshot.deviceLabel,
+    countDrops: drops,
+    summaryLines: [
+      `Projects: local ${currentSummary.workspace.projects}, snapshot ${snapshot.summary.workspace.projects}`,
+      `Repository bindings: local ${currentSummary.workspace.repositoryBindings}, snapshot ${snapshot.summary.workspace.repositoryBindings}`,
+      `Dispatch targets: local ${currentSummary.dispatch.targets}, snapshot ${snapshot.summary.dispatch.targets}`,
+      `Preflight runs: local ${currentSummary.dispatch.preflightRuns}, snapshot ${snapshot.summary.dispatch.preflightRuns}`,
+      `Writing drafts: local ${currentSummary.writing.drafts}, snapshot ${snapshot.summary.writing.drafts}`,
+      `Writing review events: local ${currentSummary.writing.reviewEvents}, snapshot ${snapshot.summary.writing.reviewEvents}`,
+    ],
+  }
+}
+
+export function createRemoteSnapshotRetentionNotice(
+  snapshots: AtlasRemoteSyncSnapshot[],
+  limit = REMOTE_SYNC_SNAPSHOT_LIMIT,
+): AtlasSyncRetentionNotice {
+  const warning =
+    snapshots.length >= limit
+      ? `Showing latest ${limit} remote snapshots. Older remote snapshots may exist in Supabase but are not loaded locally.`
+      : null
+
+  return {
+    limit,
+    shown: snapshots.length,
+    message: `Showing latest ${limit} remote snapshots.`,
+    warning,
   }
 }
 

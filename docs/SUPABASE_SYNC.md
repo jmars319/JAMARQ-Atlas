@@ -10,6 +10,8 @@ The bridge supports:
 - Manual push of the current Workspace, Dispatch, and Writing stores.
 - Remote snapshot metadata listing.
 - Remote snapshot preview.
+- Remote/local snapshot comparison.
+- Remote snapshot deletion after explicit confirmation.
 - Full local restore after typing `RESTORE ATLAS`.
 
 The bridge does not support:
@@ -43,8 +45,11 @@ Hosted sync uses the local server boundary:
 - `POST /api/sync/push`
 - `GET /api/sync/remote-snapshots`
 - `GET /api/sync/remote-snapshots/:id`
+- `DELETE /api/sync/remote-snapshots/:id`
 
 Push requests send a normalized Atlas snapshot containing only Workspace, Dispatch, and Writing stores. Pull requests return snapshot metadata or one selected snapshot for preview.
+
+Remote lists are limited to the latest 50 snapshots for this phase. Settings shows that limit and warns that older hosted snapshots may exist when the loaded list reaches the limit.
 
 ## Required Table
 
@@ -97,3 +102,11 @@ Remote snapshots do not store:
 Remote restore is preview-first and full-replace. Atlas loads one remote snapshot, normalizes it through existing Workspace, Dispatch, and Writing normalizers, shows count differences, and requires the exact typed confirmation `RESTORE ATLAS`.
 
 Restore does not merge records, update Settings, change Sync provider configuration, or make operational decisions.
+
+Settings compares selected remote snapshots against current local stores by fingerprint, created date, device label, and summary counts. Same-fingerprint restores and count drops are warnings only; humans decide whether to restore.
+
+## Delete
+
+Remote delete is explicit and one-snapshot-at-a-time. The browser sends `DELETE /api/sync/remote-snapshots/:id` through the local Vite middleware, and the service-role key remains server-side.
+
+Deleting a remote snapshot does not alter local snapshots or replace Workspace, Dispatch, or Writing stores.

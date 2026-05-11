@@ -25,6 +25,7 @@ import type {
 } from '../domain/sync'
 import type { WritingWorkbenchState } from '../domain/writing'
 import {
+  deleteHostedSyncSnapshot,
   fetchHostedSyncSnapshot,
   fetchHostedSyncSnapshots,
   fetchHostedSyncStatus,
@@ -34,8 +35,11 @@ import {
 import { buildStaticConnectionCards } from '../services/settings'
 import {
   canApplySyncRestore,
+  compareSyncSnapshot,
   createSyncSnapshot,
+  createRemoteSnapshotRetentionNotice,
   createSyncRestorePreview,
+  REMOTE_SYNC_SNAPSHOT_LIMIT,
   SYNC_RESTORE_CONFIRMATION_PHRASE,
 } from '../services/syncSnapshots'
 import {
@@ -64,6 +68,7 @@ interface SettingsCenterProps {
   onSyncProviderChange: (update: Partial<AtlasSyncProviderState>) => void
   onRecordRemoteSnapshots: (snapshots: AtlasRemoteSyncSnapshot[]) => void
   onRecordRemotePush: (snapshot: AtlasRemoteSyncSnapshot) => void
+  onRemoveRemoteSnapshot: (snapshotId: string) => void
 }
 
 const connectionIcons = {
@@ -256,6 +261,7 @@ export function SettingsCenter({
   onSyncProviderChange,
   onRecordRemoteSnapshots,
   onRecordRemotePush,
+  onRemoveRemoteSnapshot,
 }: SettingsCenterProps) {
   const [githubStatus, setGithubStatus] = useState<GithubStatusResponse | null>(null)
   const [githubError, setGithubError] = useState<string | null>(null)
@@ -277,6 +283,8 @@ export function SettingsCenter({
   const [remoteSnapshotConfirmation, setRemoteSnapshotConfirmation] = useState('')
   const [remoteSnapshot, setRemoteSnapshot] = useState<AtlasSyncSnapshot | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState('')
+  const [pendingRemoteDeleteId, setPendingRemoteDeleteId] = useState('')
+  const [remoteSnapshotLimit, setRemoteSnapshotLimit] = useState(REMOTE_SYNC_SNAPSHOT_LIMIT)
   const [syncMessage, setSyncMessage] = useState('')
 
   async function loadGithubStatus() {
@@ -461,6 +469,27 @@ export function SettingsCenter({
     : null
   const remoteRestoreReady =
     remoteRestorePreview !== null && canApplySyncRestore(remoteSnapshotConfirmation)
+  const selectedRemoteMetadata =
+    sync.provider.remoteSnapshots.find((snapshot) => snapshot.id === selectedRemoteSnapshotId) ??
+    (remoteSnapshot
+      ? {
+          id: remoteSnapshot.id,
+          label: remoteSnapshot.label,
+          note: remoteSnapshot.note,
+          createdAt: remoteSnapshot.createdAt,
+          deviceId: remoteSnapshot.deviceId,
+          deviceLabel: remoteSnapshot.deviceLabel,
+          fingerprint: remoteSnapshot.fingerprint,
+          summary: remoteSnapshot.summary,
+        }
+      : null)
+  const remoteSnapshotComparison = selectedRemoteMetadata
+    ? compareSyncSnapshot(currentStores, selectedRemoteMetadata)
+    : null
+  const remoteRetentionNotice = createRemoteSnapshotRetentionNotice(
+    sync.provider.remoteSnapshots,
+    remoteSnapshotLimit,
+  )
 
   function handleCreateSnapshot() {
     onCreateSnapshot(snapshotLabel, snapshotNote)
@@ -601,6 +630,46 @@ export function SettingsCenter({
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Remote snapshot preview failed.'
+      setHostedSyncError(message)
+      setSyncMessage(message)
+      onSyncProviderChange({ id: 'supabase', status: 'error', message })
+    } finally {
+      setLoadingHostedSync(false)
+    }
+  }
+
+  async function handleDeleteRemoteSnapshot(snapshotId: string) {
+    setLoadingHostedSync(true)
+    setHostedSyncError(null)
+
+    try {
+      const result = await deleteHostedSyncSnapshot(snapshotId)
+
+      if (result.ok && result.data) {
+        onRemoveRemoteSnapshot(snapshotId)
+        setPendingRemoteDeleteId('')
+        setSelectedRemoteSnapshotId((current) => (current === snapshotId ? '' : current))
+        setRemoteSnapshot((current) => (current?.id === snapshotId ? null : current))
+        setRemoteSnapshotConfirmation('')
+        setSyncMessage('Remote snapshot deleted from Supabase.')
+        onSyncProviderChange({
+          id: 'supabase',
+          status: 'configured',
+          message: 'Remote snapshot deleted from Supabase.',
+        })
+        return
+      }
+
+      const message = result.error?.message || 'Remote snapshot delete failed.'
+      setHostedSyncError(message)
+      setSyncMessage(message)
+      onSyncProviderChange({
+        id: 'supabase',
+        status: result.error?.type === 'not-configured' ? 'not-configured' : 'error',
+        message,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Remote snapshot delete failed.'
       setHostedSyncError(message)
       setSyncMessage(message)
       onSyncProviderChange({ id: 'supabase', status: 'error', message })
@@ -866,6 +935,31 @@ export function SettingsCenter({
           </div>
           <div className="settings-form-grid">
             <label className="field">
+              <span>Remote retention view</span>
+              <select
+                aria-label="Remote retention view"
+                value={remoteSnapshotLimit}
+                onChange={(event) => setRemoteSnapshotLimit(Number(event.target.value))}
+              >
+                <option value={50}>Show latest 50</option>
+              </select>
+            </label>
+            <div className="settings-snapshot-summary">
+              <strong>Remote inventory</strong>
+              <span>{remoteRetentionNotice.message}</span>
+              <span>{remoteRetentionNotice.shown} snapshots loaded locally</span>
+            </div>
+          </div>
+          {remoteRetentionNotice.warning ? (
+            <div className="data-warning">
+              <strong>Remote retention warning</strong>
+              <ul>
+                <li>{remoteRetentionNotice.warning}</li>
+              </ul>
+            </div>
+          ) : null}
+          <div className="settings-form-grid">
+            <label className="field">
               <span>Remote snapshot label</span>
               <input
                 value={remoteSnapshotLabel}
@@ -922,12 +1016,68 @@ export function SettingsCenter({
                       <span>{snapshot.deviceLabel}</span>
                       <span>{snapshot.fingerprint}</span>
                     </button>
+                    {pendingRemoteDeleteId === snapshot.id ? (
+                      <button
+                        type="button"
+                        className="danger-action"
+                        onClick={() => void handleDeleteRemoteSnapshot(snapshot.id)}
+                      >
+                        <Trash2 size={15} />
+                        Confirm remote delete
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setPendingRemoteDeleteId(snapshot.id)}
+                      >
+                        <Trash2 size={15} />
+                        Delete remote snapshot
+                      </button>
+                    )}
                   </article>
                 ))}
               </div>
 
               {remoteRestorePreview ? (
                 <div className="settings-restore-preview" aria-label="Remote sync restore preview">
+                  {remoteSnapshotComparison ? (
+                    <div
+                      className="settings-compare-grid"
+                      aria-label="Remote/local snapshot comparison"
+                    >
+                      <div className="settings-snapshot-summary">
+                        <strong>Fingerprint</strong>
+                        <span>
+                          {remoteSnapshotComparison.fingerprintMatches
+                            ? 'Fingerprints match'
+                            : 'Fingerprints differ'}
+                        </span>
+                        <span>Local: {remoteSnapshotComparison.localFingerprint}</span>
+                        <span>Remote: {remoteSnapshotComparison.remoteFingerprint}</span>
+                      </div>
+                      <div className="settings-snapshot-summary">
+                        <strong>Remote source</strong>
+                        <span>{remoteSnapshotComparison.deviceLabel}</span>
+                        <span>{new Date(remoteSnapshotComparison.createdAt).toLocaleString()}</span>
+                      </div>
+                      <div className="settings-snapshot-summary">
+                        <strong>Count comparison</strong>
+                        {remoteSnapshotComparison.summaryLines.map((line) => (
+                          <span key={line}>{line}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {remoteSnapshotComparison?.countDrops.length ? (
+                    <div className="data-warning">
+                      <strong>Remote/local count drops</strong>
+                      <ul>
+                        {remoteSnapshotComparison.countDrops.map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   <div className="settings-preview-grid">
                     <SnapshotSummary
                       title="Current local data"

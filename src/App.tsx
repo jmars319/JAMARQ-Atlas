@@ -84,6 +84,7 @@ function App() {
     updateProvider,
     recordRemoteSnapshots,
     recordRemotePush,
+    removeRemoteSnapshot,
   } = useLocalSync()
   const {
     writing,
@@ -522,6 +523,7 @@ function App() {
             onSyncProviderChange={updateProvider}
             onRecordRemoteSnapshots={recordRemoteSnapshots}
             onRecordRemotePush={recordRemotePush}
+            onRemoveRemoteSnapshot={removeRemoteSnapshot}
           />
         ) : (
           <DispatchDashboard

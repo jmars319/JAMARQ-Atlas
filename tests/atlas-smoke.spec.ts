@@ -129,6 +129,22 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   })
 
   await page.route(/\/api\/sync\/remote-snapshots\/[^/]+$/, async (route) => {
+    if (route.request().method() === 'DELETE') {
+      const snapshotId = remoteSnapshot?.id ?? 'remote-e2e'
+      remoteSnapshot = null
+
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          configured: true,
+          data: { snapshotId },
+          error: null,
+        }),
+      })
+      return
+    }
+
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
@@ -185,9 +201,16 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await page.getByRole('button', { name: 'Settings' }).click()
   await page.getByRole('button', { name: /Remote E2E checkpoint/ }).click()
   await expect(page.getByLabel('Remote sync restore preview')).toContainText('Remote snapshot')
+  await expect(page.getByLabel('Remote/local snapshot comparison')).toContainText(
+    'Fingerprints differ',
+  )
   await page.getByLabel('Type RESTORE ATLAS to restore remote snapshot').fill('RESTORE ATLAS')
   await page.getByRole('button', { name: 'Restore remote snapshot' }).click()
   await expect(page.getByText('Remote snapshot restored locally')).toBeVisible()
+  await page.getByRole('button', { name: 'Delete remote snapshot' }).click()
+  await page.getByRole('button', { name: 'Confirm remote delete' }).click()
+  await expect(page.getByText('Remote snapshot deleted from Supabase.')).toBeVisible()
+  await expect(page.getByText('No remote snapshots loaded')).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Board', exact: true }).click()
   await expect(firstProjectNextAction).not.toHaveValue('Temporary mutation before remote snapshot restore')

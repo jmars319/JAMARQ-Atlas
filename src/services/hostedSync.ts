@@ -32,6 +32,10 @@ export interface HostedSyncSnapshotResult {
   snapshot: AtlasSyncSnapshot
 }
 
+export interface HostedSyncDeleteResult {
+  snapshotId: string
+}
+
 async function fetchHostedSyncJson<T>(
   path: string,
   init?: RequestInit,
@@ -77,5 +81,12 @@ export function fetchHostedSyncSnapshot(snapshotId: string, signal?: AbortSignal
   return fetchHostedSyncJson<HostedSyncSnapshotResult>(
     `/api/sync/remote-snapshots/${encodeURIComponent(snapshotId)}`,
     { signal },
+  )
+}
+
+export function deleteHostedSyncSnapshot(snapshotId: string) {
+  return fetchHostedSyncJson<HostedSyncDeleteResult>(
+    `/api/sync/remote-snapshots/${encodeURIComponent(snapshotId)}`,
+    { method: 'DELETE' },
   )
 }

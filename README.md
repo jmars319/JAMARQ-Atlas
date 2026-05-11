@@ -161,6 +161,8 @@ npm run dev
 
 The browser can push, list, preview, and restore remote snapshots through `/api/sync`. The service role key remains server-side. Atlas still runs normally when these values are missing.
 
+Settings compares selected remote snapshots with current local stores by fingerprint, counts, created date, and device label before restore. Remote snapshot lists are capped at the latest 50 and can be deleted one at a time after explicit confirmation. There is still no automatic merge or background sync.
+
 ## Atlas Dispatch
 
 Dispatch tracks deployment posture without executing deployments. Dispatch data is stored separately from Atlas workspace state under `jamarq-atlas.dispatch.v1`.
@@ -368,6 +370,8 @@ Current Sync behavior:
 - Push the current Workspace, Dispatch, and Writing stores as a remote snapshot when Supabase env vars are configured.
 - Load remote snapshot metadata.
 - Preview and restore a remote snapshot after typing `RESTORE ATLAS`.
+- Compare remote snapshots against current local stores by fingerprint and counts.
+- Delete one remote snapshot after explicit confirmation.
 
 Snapshots store Workspace, Dispatch, and Writing only. They do not store Settings, Sync, secrets, unknown localStorage keys, or full live GitHub history.
 
