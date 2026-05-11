@@ -313,6 +313,22 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(
     detail.locator('label.field').filter({ hasText: 'Status' }).locator('select'),
   ).toHaveValue(statusBeforePreflight)
+  await expect(detail.getByLabel('Midway Music Hall production automation readiness')).toContainText(
+    'Automation Readiness',
+  )
+  const automationRunbookCheck = detail
+    .getByLabel('Midway Music Hall production automation readiness')
+    .locator('label.check-field')
+    .filter({ hasText: 'Runbook reviewed for this target' })
+    .locator('input')
+  await automationRunbookCheck.check()
+  await detail.getByRole('button', { name: 'Generate no-op dry-run plan' }).click()
+  await expect(detail.getByLabel('Midway Music Hall production dry-run plan')).toContainText(
+    'No SSH',
+  )
+  await expect(
+    detail.locator('label.field').filter({ hasText: 'Status' }).locator('select'),
+  ).toHaveValue(statusBeforePreflight)
 
   const deploymentNotesField = detail
     .locator('label.field')
@@ -322,6 +338,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await deploymentNotesField.fill('E2E dispatch note')
   await page.reload()
   await expect(deploymentNotesField).toHaveValue('E2E dispatch note')
+  await expect(automationRunbookCheck).toBeChecked()
   await expect(detail.getByLabel('Midway Music Hall production preflight')).toContainText(
     'Preflight history',
   )

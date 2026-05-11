@@ -20,6 +20,7 @@ The dashboard currently supports:
 - Planning Center for manual objectives, milestones, work sessions, and planning notes.
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
+- Dispatch automation readiness for runbook notes, confirmations, checklist posture, artifact expectations, backup requirements, rollback requirements, and no-op dry-run planning.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Reports for assembling local Markdown update packets from approved Writing drafts and operational context.
 - Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
@@ -38,6 +39,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Separate Planning storage for human-authored objectives, milestones, work sessions, and notes.
 - Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
+- Dispatch automation readiness helpers and no-op dry-run planning.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
 - Versioned local backup/export helpers for Workspace, Dispatch, Writing, Settings, and Sync data.
@@ -179,6 +181,7 @@ Current Dispatch data:
 - Rollback reference and database backup reference.
 - Backup-required and destructive-confirmation-required flags.
 - Advisory readiness blockers and warnings.
+- Automation readiness runbook notes, checklist items, confirmations, artifact expectations, backup requirements, rollback requirements, and dry-run notes.
 
 Dispatch Preflight collects short local evidence snapshots for human review:
 
@@ -222,6 +225,8 @@ Future deployment runner phases are stubbed:
 7. Rollback
 
 Every runner phase currently returns a structured no-op result. No network write, file overwrite, database operation, or deployment command is executed.
+
+Dispatch also includes an automation readiness layer. It stores per-target runbook notes, required confirmations, checklist items, artifact expectations, backup requirements, rollback requirements, and dry-run notes. The dry-run planner returns advisory no-op phase output only; it does not execute SSH, SFTP, cPanel, GoDaddy, file, database, release, rollback, or deployment commands.
 
 ## Verification Center
 
@@ -513,6 +518,7 @@ Dispatch activity is advisory:
 
 - Readiness does not change Atlas status.
 - Preflight evidence does not change Atlas or Dispatch status.
+- Automation readiness and dry-run plans do not change Atlas or Dispatch status.
 - Health checks do not mark a project stable.
 - Backup warnings do not change priority.
 - Deployment records do not decide what should ship.

@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react'
 import { seedDispatchState } from '../data/seedDispatch'
 import type {
   DeploymentTarget,
+  DispatchAutomationReadiness,
   DispatchPreflightRun,
   DispatchReadiness,
   DispatchState,
 } from '../domain/dispatch'
-import { addDispatchPreflightRun, normalizeDispatchState } from '../services/dispatchStorage'
+import {
+  addDispatchPreflightRun,
+  normalizeDispatchState,
+  replaceDispatchAutomationReadiness,
+} from '../services/dispatchStorage'
 
 const STORAGE_KEY = 'jamarq-atlas.dispatch.v1'
 
@@ -93,12 +98,23 @@ export function useLocalDispatch() {
     })
   }
 
+  function updateAutomationReadiness(
+    targetId: string,
+    projectId: string,
+    update: Partial<DispatchAutomationReadiness>,
+  ) {
+    setDispatch((current) =>
+      replaceDispatchAutomationReadiness(current, projectId, targetId, update),
+    )
+  }
+
   return {
     dispatch,
     setDispatch,
     resetDispatch,
     updateTarget,
     updateReadiness,
+    updateAutomationReadiness,
     addPreflightRun,
   }
 }

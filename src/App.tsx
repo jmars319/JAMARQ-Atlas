@@ -34,7 +34,11 @@ import {
   type VerificationCadence,
   type WorkStatus,
 } from './domain/atlas'
-import type { DeploymentTarget, DispatchReadiness } from './domain/dispatch'
+import type {
+  DeploymentTarget,
+  DispatchAutomationReadiness,
+  DispatchReadiness,
+} from './domain/dispatch'
 import type { AtlasBackupStores } from './domain/dataPortability'
 import type { AtlasSyncCoreStores } from './domain/sync'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
@@ -73,8 +77,14 @@ type AppView =
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
-  const { dispatch, setDispatch, updateTarget, updateReadiness, addPreflightRun } =
-    useLocalDispatch()
+  const {
+    dispatch,
+    setDispatch,
+    updateTarget,
+    updateReadiness,
+    updateAutomationReadiness,
+    addPreflightRun,
+  } = useLocalDispatch()
   const { settings, setSettings, updateLocalSettings } = useLocalSettings()
   const {
     sync,
@@ -164,6 +174,14 @@ function App() {
     update: Partial<DispatchReadiness>,
   ) {
     updateReadiness(targetId, projectId, update)
+  }
+
+  function handleDispatchAutomationReadinessChange(
+    targetId: string,
+    projectId: string,
+    update: Partial<DispatchAutomationReadiness>,
+  ) {
+    updateAutomationReadiness(targetId, projectId, update)
   }
 
   async function handleRunDispatchPreflight(targetId: string) {
@@ -546,6 +564,7 @@ function App() {
             onManualChange={updateManualState}
             onDispatchTargetChange={handleDispatchTargetChange}
             onDispatchReadinessChange={handleDispatchReadinessChange}
+            onDispatchAutomationReadinessChange={handleDispatchAutomationReadinessChange}
             onRunDispatchPreflight={handleRunDispatchPreflight}
             preflightRunningTargetId={preflightRunningTargetId}
             onRepositoryUnbind={handleUnbindRepository}

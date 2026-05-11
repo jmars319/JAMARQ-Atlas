@@ -4,6 +4,7 @@ import type {
   DispatchPreflightRun,
   DispatchReadiness,
   DispatchState,
+  DispatchAutomationReadiness,
 } from '../domain/dispatch'
 import {
   findReadiness,
@@ -11,17 +12,31 @@ import {
   getTargetPreflightRuns,
   getTargetRecords,
 } from '../domain/dispatch'
+import { normalizeAutomationReadiness } from './dispatchAutomation'
 
 const PREFLIGHT_HISTORY_LIMIT = 50
 
 export function normalizeDispatchState(value: unknown): DispatchState {
   const candidate = typeof value === 'object' && value !== null ? (value as Partial<DispatchState>) : {}
+  const targets = Array.isArray(candidate.targets) ? candidate.targets : []
+  const automationReadiness = Array.isArray(candidate.automationReadiness)
+    ? targets.map((target) =>
+        normalizeAutomationReadiness(
+          candidate.automationReadiness?.find(
+            (readiness) =>
+              readiness.projectId === target.projectId && readiness.targetId === target.id,
+          ),
+          target,
+        ),
+      )
+    : targets.map((target) => normalizeAutomationReadiness(null, target))
 
   return {
-    targets: Array.isArray(candidate.targets) ? candidate.targets : [],
+    targets,
     records: Array.isArray(candidate.records) ? candidate.records : [],
     readiness: Array.isArray(candidate.readiness) ? candidate.readiness : [],
     preflightRuns: Array.isArray(candidate.preflightRuns) ? candidate.preflightRuns : [],
+    automationReadiness,
   }
 }
 
@@ -120,5 +135,43 @@ export function addDispatchPreflightRun(
       run,
       ...state.preflightRuns.filter((existingRun) => existingRun.id !== run.id),
     ].slice(0, PREFLIGHT_HISTORY_LIMIT),
+  }
+}
+
+export function replaceDispatchAutomationReadiness(
+  state: DispatchState,
+  projectId: string,
+  targetId: string,
+  update: Partial<DispatchAutomationReadiness>,
+): DispatchState {
+  const target = state.targets.find(
+    (candidate) => candidate.projectId === projectId && candidate.id === targetId,
+  )
+
+  if (!target) {
+    return state
+  }
+
+  const existing =
+    state.automationReadiness.find(
+      (candidate) => candidate.projectId === projectId && candidate.targetId === targetId,
+    ) ?? normalizeAutomationReadiness(null, target)
+  const next: DispatchAutomationReadiness = {
+    ...existing,
+    ...update,
+    projectId,
+    targetId,
+    lastReviewedAt: new Date().toISOString(),
+  }
+
+  return {
+    ...state,
+    automationReadiness: state.automationReadiness.some(
+      (candidate) => candidate.projectId === projectId && candidate.targetId === targetId,
+    )
+      ? state.automationReadiness.map((candidate) =>
+          candidate.projectId === projectId && candidate.targetId === targetId ? next : candidate,
+        )
+      : [...state.automationReadiness, next],
   }
 }

@@ -10,6 +10,10 @@ import {
   getLatestPreflightRun,
   type DispatchState,
 } from '../domain/dispatch'
+import {
+  evaluateAutomationReadiness,
+  findAutomationReadiness,
+} from '../services/dispatchAutomation'
 import { evaluateDispatchReadiness } from '../services/dispatchReadiness'
 
 interface DispatchDashboardProps {
@@ -72,6 +76,11 @@ export function DispatchDashboard({
           const readiness = findReadiness(dispatch, target.projectId, target.id)
           const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
           const latestPreflight = getLatestPreflightRun(dispatch, target.id)
+          const automationReadiness = findAutomationReadiness(
+            dispatch.automationReadiness,
+            target,
+          )
+          const automationEvaluation = evaluateAutomationReadiness(target, automationReadiness)
           const health = getHealthCheckSummary(latestDeployment?.healthCheckResults)
           const evaluation = evaluateDispatchReadiness({
             target,
@@ -130,6 +139,13 @@ export function DispatchDashboard({
                     {latestPreflight ? formatPreflightStatus(latestPreflight.status) : 'Not run'}
                   </strong>
                 </div>
+                <div>
+                  <span>Automation</span>
+                  <strong>
+                    {automationEvaluation.completeChecklistItems}/
+                    {automationEvaluation.totalChecklistItems}
+                  </strong>
+                </div>
               </div>
               <p>{target.publicUrl || 'No public URL configured.'}</p>
               <div className="card-footer">
@@ -141,6 +157,12 @@ export function DispatchDashboard({
                 <span>
                   Preflight:{' '}
                   {latestPreflight ? formatDateTimeLabel(latestPreflight.completedAt) : 'not run'}
+                </span>
+                <span>
+                  Automation:{' '}
+                  {automationEvaluation.ready
+                    ? 'readiness documented'
+                    : `${automationEvaluation.blockers.length} blockers`}
                 </span>
               </div>
               {target.publicUrl ? (

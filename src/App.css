@@ -1157,6 +1157,8 @@ h3 {
 .dispatch-summary-card,
 .dispatch-readiness,
 .dispatch-preflight,
+.dispatch-automation,
+.dispatch-dry-run,
 .dispatch-target-detail {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1285,10 +1287,17 @@ h3 {
 
 .dispatch-summary-card,
 .dispatch-readiness,
-.dispatch-preflight {
+.dispatch-preflight,
+.dispatch-automation,
+.dispatch-dry-run {
   display: grid;
   gap: 10px;
   padding: 12px;
+}
+
+.dispatch-checklist {
+  display: grid;
+  gap: 8px;
 }
 
 .dispatch-preflight-actions {

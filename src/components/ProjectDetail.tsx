@@ -22,7 +22,12 @@ import {
   type ProjectRecord,
   type VerificationCadence,
 } from '../domain/atlas'
-import type { DeploymentTarget, DispatchReadiness, DispatchState } from '../domain/dispatch'
+import type {
+  DeploymentTarget,
+  DispatchAutomationReadiness,
+  DispatchReadiness,
+  DispatchState,
+} from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import type { TimelineEvent } from '../domain/timeline'
 import {
@@ -50,6 +55,11 @@ interface ProjectDetailProps {
     targetId: string,
     projectId: string,
     update: Partial<DispatchReadiness>,
+  ) => void
+  onDispatchAutomationReadinessChange: (
+    targetId: string,
+    projectId: string,
+    update: Partial<DispatchAutomationReadiness>,
   ) => void
   onRunDispatchPreflight: (targetId: string) => Promise<void>
   preflightRunningTargetId: string
@@ -101,6 +111,7 @@ export function ProjectDetail({
   onManualChange,
   onDispatchTargetChange,
   onDispatchReadinessChange,
+  onDispatchAutomationReadinessChange,
   onRunDispatchPreflight,
   preflightRunningTargetId,
   onRepositoryUnbind,
@@ -255,6 +266,7 @@ export function ProjectDetail({
           dispatch={dispatch}
           onTargetChange={onDispatchTargetChange}
           onReadinessChange={onDispatchReadinessChange}
+          onAutomationReadinessChange={onDispatchAutomationReadinessChange}
           onRunPreflight={onRunDispatchPreflight}
           preflightRunningTargetId={preflightRunningTargetId}
         />

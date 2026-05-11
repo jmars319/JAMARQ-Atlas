@@ -122,6 +122,8 @@ Primary concepts:
 - Health check result
 - Dispatch preflight run
 - Dispatch preflight check
+- Dispatch automation readiness
+- Dispatch automation dry-run plan
 - Deployment runner phase
 - Deployment runner result
 
@@ -130,6 +132,8 @@ Dispatch references Atlas projects by `projectId`. It does not mutate Atlas proj
 Dispatch Preflight stores short local evidence snapshots under the Dispatch storage key. It checks target configuration, health URLs, backup and rollback posture, and optional GitHub snippets when repo bindings and token permissions allow. Preflight does not create deployment records, update Atlas status, update Dispatch readiness, stamp verification, or decide what should ship.
 
 The local `/api/dispatch/health` boundary performs timeout-bound read-only `http`/`https` probes without credentials or request bodies. Browser code receives normalized health results, so CORS and network failures are displayed as scoped evidence instead of breaking the app.
+
+Dispatch Automation Readiness is advisory documentation for future automation. It stores per-target runbook notes, required confirmations, checklist items, artifact expectations, backup requirements, rollback requirements, and dry-run notes. The dry-run planner returns no-op phase output only and does not execute deployment commands.
 
 ## GitHub Boundary
 

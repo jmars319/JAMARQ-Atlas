@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DeploymentTarget, DispatchReadiness } from '../src/domain/dispatch'
+import {
+  createDefaultAutomationReadiness,
+  createDispatchAutomationDryRunPlan,
+  evaluateAutomationReadiness,
+} from '../src/services/dispatchAutomation'
 import { evaluateDispatchReadiness } from '../src/services/dispatchReadiness'
 import { probeHealthChecks } from '../src/services/dispatchHealthChecks'
 import { deploymentRunnerPhases, runDeploymentPhase, runDeploymentPlan } from '../src/services/dispatchRunner'
@@ -208,6 +213,7 @@ describe('dispatch readiness', () => {
       records: [],
       readiness: [repoReadiness],
       preflightRuns: [],
+      automationReadiness: [],
     }
 
     if (!record) {
@@ -272,6 +278,7 @@ describe('dispatch readiness', () => {
       records: [],
       readiness: [readiness],
       preflightRuns: [],
+      automationReadiness: [],
     }
     const before = JSON.stringify(dispatch)
 
@@ -281,6 +288,47 @@ describe('dispatch readiness', () => {
 
     await runDispatchPreflight({ record, dispatch, target })
 
+    expect(JSON.stringify(dispatch)).toBe(before)
+  })
+
+  it('normalizes older dispatch storage with automation readiness defaults', () => {
+    const normalized = normalizeDispatchState({
+      targets: [target],
+      records: [],
+      readiness: [readiness],
+      preflightRuns: [],
+    })
+
+    expect(normalized.automationReadiness).toHaveLength(1)
+    expect(normalized.automationReadiness[0].checklistItems.length).toBeGreaterThan(0)
+  })
+
+  it('blocks automation readiness when required checklist items are incomplete', () => {
+    const automation = createDefaultAutomationReadiness(target, new Date('2026-05-10T12:00:00Z'))
+    const evaluation = evaluateAutomationReadiness(target, automation)
+
+    expect(evaluation.ready).toBe(false)
+    expect(evaluation.blockers.length).toBeGreaterThan(0)
+  })
+
+  it('creates a no-op automation dry-run plan without mutating dispatch state', () => {
+    const automation = createDefaultAutomationReadiness(target, new Date('2026-05-10T12:00:00Z'))
+    const dispatch = {
+      targets: [target],
+      records: [],
+      readiness: [readiness],
+      preflightRuns: [],
+      automationReadiness: [automation],
+    }
+    const before = JSON.stringify(dispatch)
+    const plan = createDispatchAutomationDryRunPlan({
+      target,
+      readiness: automation,
+      now: new Date('2026-05-10T13:00:00Z'),
+    })
+
+    expect(plan.steps.every((step) => step.message.includes('No SSH'))).toBe(true)
+    expect(plan.steps.some((step) => step.requiresConfirmation)).toBe(true)
     expect(JSON.stringify(dispatch)).toBe(before)
   })
 })

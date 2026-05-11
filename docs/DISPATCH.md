@@ -13,6 +13,7 @@ Dispatch currently supports:
 - Environment and host metadata
 - Public URLs and health check URLs
 - Read-only preflight evidence history
+- Automation readiness runbook notes and checklist posture
 - Last deployed and last verified dates
 - Readiness blockers and warnings
 - Rollback references
@@ -50,6 +51,7 @@ Dispatch services live under `src/services`.
 - `dispatchPreflight.ts`: read-only preflight run assembly.
 - `dispatchHealthChecks.ts`: read-only local health probe client.
 - `dispatchRunner.ts`: no-op future deployment runner boundary.
+- `dispatchAutomation.ts`: advisory automation readiness and no-op dry-run planning.
 
 ## Preflight Evidence
 
@@ -87,6 +89,30 @@ Future deployment automation is shaped around these phases:
 7. Rollback
 
 Every phase currently returns a structured no-op result. No deployment command is executed.
+
+## Automation Readiness
+
+Automation readiness prepares Dispatch for future safe deployment workflows without enabling deployment automation.
+
+Per-target readiness records include:
+
+- Runbook notes.
+- Required confirmations.
+- Checklist items.
+- Artifact expectations.
+- Backup requirements.
+- Rollback requirements.
+- Dry-run notes.
+
+The no-op dry-run planner maps the existing future runner phases into an advisory plan. It can report incomplete documentation and confirmation gaps, but every phase remains `not-implemented` or `blocked`. It does not run SSH, SFTP, cPanel, GoDaddy, file overwrite, database, release, rollback, or deployment commands.
+
+Automation readiness must not:
+
+- Change Atlas project status.
+- Change Dispatch target status or readiness.
+- Create deployment records.
+- Stamp verification.
+- Decide whether anything should ship.
 
 ## Safety Rules
 

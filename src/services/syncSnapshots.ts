@@ -423,11 +423,12 @@ export function createSyncRestorePreview(
   currentStores: AtlasSyncCoreStores,
   snapshot: AtlasSyncSnapshot,
 ): AtlasSyncRestorePreview {
+  const normalizedCurrentStores = normalizeSyncStores(currentStores)
   const normalizedStores = normalizeSyncStores(snapshot.stores)
   const warnings: string[] = []
-  const currentSummary = summarizeSyncStores(currentStores)
+  const currentSummary = summarizeSyncStores(normalizedCurrentStores)
   const incomingSummary = summarizeSyncStores(normalizedStores)
-  const currentFingerprint = fingerprintSyncStores(currentStores)
+  const currentFingerprint = fingerprintSyncStores(normalizedCurrentStores)
   const incomingFingerprint = fingerprintSyncStores(normalizedStores)
 
   if (incomingSummary.workspace.projects === 0) {
@@ -514,8 +515,9 @@ export function compareSyncSnapshot(
     'id' | 'createdAt' | 'deviceLabel' | 'fingerprint' | 'summary'
   >,
 ): AtlasSyncSnapshotComparison {
-  const currentSummary = summarizeSyncStores(currentStores)
-  const localFingerprint = fingerprintSyncStores(currentStores)
+  const normalizedCurrentStores = normalizeSyncStores(currentStores)
+  const currentSummary = summarizeSyncStores(normalizedCurrentStores)
+  const localFingerprint = fingerprintSyncStores(normalizedCurrentStores)
   const drops = countDrops(currentSummary, snapshot.summary)
 
   return {

@@ -133,11 +133,53 @@ export interface DispatchPreflightRun {
   checks: DispatchPreflightCheck[]
 }
 
+export interface DispatchAutomationChecklistItem {
+  id: string
+  label: string
+  required: boolean
+  complete: boolean
+  notes: string
+}
+
+export interface DispatchAutomationReadiness {
+  projectId: string
+  targetId: string
+  runbookNotes: string[]
+  requiredConfirmations: string[]
+  checklistItems: DispatchAutomationChecklistItem[]
+  artifactExpectations: string[]
+  backupRequirements: string[]
+  rollbackRequirements: string[]
+  dryRunNotes: string[]
+  lastReviewedAt: string
+}
+
+export interface DispatchAutomationDryRunStep {
+  phase: DeploymentRunnerPhase
+  status: 'not-implemented' | 'skipped' | 'blocked'
+  requiresConfirmation: boolean
+  message: string
+  blockers: string[]
+  warnings: string[]
+}
+
+export interface DispatchAutomationDryRunPlan {
+  targetId: string
+  projectId: string
+  generatedAt: string
+  status: 'advisory' | 'blocked'
+  summary: string
+  blockers: string[]
+  warnings: string[]
+  steps: DispatchAutomationDryRunStep[]
+}
+
 export interface DispatchState {
   targets: DeploymentTarget[]
   records: DeploymentRecord[]
   readiness: DispatchReadiness[]
   preflightRuns: DispatchPreflightRun[]
+  automationReadiness: DispatchAutomationReadiness[]
 }
 
 export type DeploymentRunnerPhase =
