@@ -35,6 +35,14 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Atlas status board')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Active' })).toBeVisible()
 
+  await page.getByRole('button', { name: 'Timeline' }).click()
+  await expect(page.getByRole('heading', { name: 'Timeline', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Timeline evidence rows')).toContainText('Deployment record')
+  await page.getByLabel('Filter timeline source').selectOption('dispatch')
+  await page.getByLabel('Search timeline').fill('baseline')
+  await expect(page.getByLabel('Timeline evidence rows')).toContainText('baseline')
+  await expect(page.locator('.project-detail')).toContainText('Evidence Timeline')
+
   await page.getByRole('button', { name: 'GitHub' }).click()
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
   await expect(page.locator('.github-error')).toContainText(/Set GITHUB_TOKEN|GH_TOKEN/)

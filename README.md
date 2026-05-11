@@ -14,6 +14,7 @@ The dashboard currently supports:
 
 - Board-level review of sections, project groups, and projects.
 - Project detail pages for status, next action, blockers, deferred work, not-doing items, notes, decisions, and last verification.
+- Timeline evidence ledger derived from Workspace, Dispatch, Writing, Sync, and existing activity events.
 - GitHub Intake for discovering repositories, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
 - Verification Center for cadence-based manual review queues and verification audit notes.
@@ -39,6 +40,22 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Local settings storage for device/operator labels and connection-readiness surfaces.
 - Local sync snapshot storage and optional Supabase hosted sync bridge.
 - Unit and Playwright smoke tests for the main operator flows.
+
+## Timeline
+
+Timeline is a derived evidence ledger. It shows existing Atlas evidence in one place without creating a new source of truth.
+
+Current Timeline sources:
+
+- Workspace activity.
+- Manual verification events.
+- Dispatch deployment records and preflight runs.
+- Writing review/audit events.
+- Local and loaded remote Sync snapshots.
+- Hosted Sync push/pull timestamps.
+- GitHub activity already present in Atlas activity records.
+
+Timeline rows can be filtered by project, section, source, type, date range, and search. Project detail pages include a compact timeline for the selected project. Timeline does not change status, verification, readiness, Writing state, GitHub bindings, Sync state, or any operational decision.
 
 ## Tech Stack
 
@@ -327,6 +344,7 @@ Start here:
 Focused references:
 
 - `docs/GITHUB_INTEGRATION.md`
+- `docs/TIMELINE.md`
 - `docs/DISPATCH.md`
 - `docs/AI_WRITING.md`
 - `docs/DATA_PORTABILITY.md`

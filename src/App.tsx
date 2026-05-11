@@ -5,6 +5,7 @@ import {
   DatabaseZap,
   FileText,
   GitBranch,
+  ListTree,
   PanelRightOpen,
   Rocket,
   Settings2,
@@ -17,6 +18,7 @@ import { DispatchDashboard } from './components/DispatchDashboard'
 import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
 import { ProjectDetail } from './components/ProjectDetail'
 import { SettingsCenter } from './components/SettingsCenter'
+import { TimelineDashboard } from './components/TimelineDashboard'
 import { VerificationCenter } from './components/VerificationCenter'
 import { WritingWorkbench } from './components/WritingWorkbench'
 import {
@@ -46,11 +48,20 @@ import {
 } from './services/repoBinding'
 import { runDispatchPreflight } from './services/dispatchPreflight'
 import { createSyncSnapshot } from './services/syncSnapshots'
+import { deriveTimelineEvents } from './services/timeline'
 import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
 
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
-type AppView = 'board' | 'github' | 'verification' | 'dispatch' | 'writing' | 'data' | 'settings'
+type AppView =
+  | 'board'
+  | 'timeline'
+  | 'github'
+  | 'verification'
+  | 'dispatch'
+  | 'writing'
+  | 'data'
+  | 'settings'
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
@@ -81,6 +92,10 @@ function App() {
     archiveDraft,
   } = useLocalWriting()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
+  const timelineEvents = useMemo(
+    () => deriveTimelineEvents({ projectRecords, dispatch, writing, sync }),
+    [dispatch, projectRecords, sync, writing],
+  )
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
   )
@@ -256,6 +271,10 @@ function App() {
             Local-first
           </span>
           <span>
+            <ListTree size={15} />
+            Timeline-ready
+          </span>
+          <span>
             <GitBranch size={15} />
             GitHub-ready
           </span>
@@ -297,6 +316,13 @@ function App() {
           onClick={() => setAppView('board')}
         >
           Board
+        </button>
+        <button
+          type="button"
+          className={appView === 'timeline' ? 'is-selected' : ''}
+          onClick={() => setAppView('timeline')}
+        >
+          Timeline
         </button>
         <button
           type="button"
@@ -355,6 +381,13 @@ function App() {
             onQueryChange={setQuery}
             onStatusFilterChange={setStatusFilter}
             onSectionFilterChange={setSectionFilter}
+          />
+        ) : appView === 'timeline' ? (
+          <TimelineDashboard
+            events={timelineEvents}
+            projectRecords={projectRecords}
+            selectedProjectId={selectedRecord?.project.id ?? ''}
+            onSelectProject={selectProject}
           />
         ) : appView === 'github' ? (
           <GitHubIntakeDashboard
@@ -430,6 +463,9 @@ function App() {
             record={selectedRecord}
             dispatch={dispatch}
             writingDrafts={writing.drafts}
+            timelineEvents={timelineEvents.filter(
+              (event) => event.projectId === selectedRecord.project.id,
+            )}
             onManualChange={updateManualState}
             onDispatchTargetChange={handleDispatchTargetChange}
             onDispatchReadinessChange={handleDispatchReadinessChange}

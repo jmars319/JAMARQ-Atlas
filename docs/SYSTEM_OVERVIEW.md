@@ -9,6 +9,7 @@ Atlas is a working MVP. It is intentionally simple: React, Vite, TypeScript, loc
 The app has these main surfaces:
 
 - Board: human-authored operational status across sections, groups, and projects.
+- Timeline: derived evidence ledger across existing Atlas stores.
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
 - Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture and read-only preflight evidence across configured targets.
@@ -18,6 +19,12 @@ The app has these main surfaces:
 - Sync Snapshots: manual local snapshots and optional Supabase hosted snapshots.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
+
+## Timeline Model
+
+Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight evidence, Writing audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
+
+Timeline supports filtering by project, section, source, type, date range, and search. It does not mutate Workspace, Dispatch, Writing, Sync, Settings, GitHub bindings, verification, readiness, or project status.
 
 ## Workspace Model
 

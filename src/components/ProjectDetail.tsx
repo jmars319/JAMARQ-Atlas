@@ -3,6 +3,7 @@ import {
   CalendarCheck,
   FileText,
   GitBranch,
+  ListTree,
   NotebookPen,
   RefreshCcw,
   Rocket,
@@ -21,6 +22,7 @@ import {
   type VerificationCadence,
 } from '../domain/atlas'
 import type { DeploymentTarget, DispatchReadiness, DispatchState } from '../domain/dispatch'
+import type { TimelineEvent } from '../domain/timeline'
 import {
   getWritingTemplate,
   WRITING_TEMPLATES,
@@ -31,11 +33,13 @@ import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
 import { StatusBadge } from './StatusBadge'
+import { TimelineEventList } from './TimelineDashboard'
 
 interface ProjectDetailProps {
   record: ProjectRecord
   dispatch: DispatchState
   writingDrafts: WritingDraft[]
+  timelineEvents: TimelineEvent[]
   onManualChange: (manual: Partial<ManualOperationalState>) => void
   onDispatchTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
   onDispatchReadinessChange: (
@@ -87,6 +91,7 @@ export function ProjectDetail({
   record,
   dispatch,
   writingDrafts,
+  timelineEvents,
   onManualChange,
   onDispatchTargetChange,
   onDispatchReadinessChange,
@@ -254,6 +259,18 @@ export function ProjectDetail({
           <h3>GitHub Activity</h3>
         </div>
         <RepoActivityPanel project={project} />
+      </section>
+
+      <section className="detail-panel">
+        <div className="panel-heading">
+          <ListTree size={17} />
+          <h3>Evidence Timeline</h3>
+        </div>
+        <TimelineEventList
+          events={timelineEvents.slice(0, 5)}
+          compact
+          emptyLabel="No derived timeline evidence for this project yet."
+        />
       </section>
 
       <section className="detail-panel">
