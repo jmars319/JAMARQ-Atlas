@@ -57,7 +57,15 @@ function App() {
   const { dispatch, setDispatch, updateTarget, updateReadiness, addPreflightRun } =
     useLocalDispatch()
   const { settings, setSettings, updateLocalSettings } = useLocalSettings()
-  const { sync, setSync, addSnapshot, removeSnapshot } = useLocalSync()
+  const {
+    sync,
+    setSync,
+    addSnapshot,
+    removeSnapshot,
+    updateProvider,
+    recordRemoteSnapshots,
+    recordRemotePush,
+  } = useLocalSync()
   const {
     writing,
     setWriting,
@@ -400,6 +408,9 @@ function App() {
             onCreateSnapshot={handleCreateSnapshot}
             onDeleteSnapshot={removeSnapshot}
             onRestoreSnapshot={handleRestoreSnapshot}
+            onSyncProviderChange={updateProvider}
+            onRecordRemoteSnapshots={recordRemoteSnapshots}
+            onRecordRemotePush={recordRemotePush}
           />
         ) : (
           <DispatchDashboard

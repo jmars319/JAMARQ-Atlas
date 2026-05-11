@@ -20,7 +20,7 @@ Settings currently reports readiness for:
 - Dispatch health and preflight boundary
 - Writing provider boundary
 - Data Center backup/restore
-- Sync provider and manual local snapshots
+- Supabase hosted sync provider and manual snapshots
 
 Connection cards are read-only status surfaces. They do not trigger GitHub writes, deployments, AI provider calls, backup restores, hosted sync, or project-state changes.
 
@@ -36,8 +36,12 @@ Current snapshot actions:
 - Preview a snapshot restore.
 - Restore Workspace, Dispatch, and Writing after typing `RESTORE ATLAS`.
 - Delete a local snapshot after explicit confirmation.
+- Check hosted sync status.
+- Push a manual remote snapshot when Supabase env vars are configured.
+- Load remote snapshot metadata.
+- Preview and restore a remote snapshot after typing `RESTORE ATLAS`.
 
-Hosted push/pull remains a stubbed provider boundary. No external sync read or write occurs in this phase.
+Hosted sync is snapshot-based only. It does not run automatically, merge records, resolve conflicts, or change source-of-truth fields.
 
 ## Secrets
 
@@ -46,6 +50,7 @@ Settings must not store:
 - GitHub tokens
 - AI provider keys
 - Deployment credentials
+- Supabase service role keys
 - Environment variables
 - Browser secrets
 
@@ -55,5 +60,5 @@ Future provider setup should keep secrets in server-side environment variables o
 
 - GitHub missing-token states do not break Atlas.
 - Stubbed Writing status does not block local draft creation.
-- Sync remains local-only until a future hosted persistence phase.
+- Hosted sync remains optional and manual.
 - Connection readiness does not change Atlas status, risk, readiness, verification, bindings, or writing review state.

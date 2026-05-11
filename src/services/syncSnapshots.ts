@@ -6,6 +6,7 @@ import {
   type AtlasSyncProviderOperation,
   type AtlasSyncProviderResult,
   type AtlasSyncProviderState,
+  type AtlasRemoteSyncSnapshot,
   type AtlasSyncRestorePreview,
   type AtlasSyncSnapshot,
   type AtlasSyncState,
@@ -23,6 +24,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readString(value: unknown) {
   return typeof value === 'string' ? value : ''
+}
+
+function emptySyncSummary(): AtlasSyncStoreSummary {
+  return {
+    workspace: {
+      sections: 0,
+      groups: 0,
+      projects: 0,
+      repositoryBindings: 0,
+      activityEvents: 0,
+    },
+    dispatch: {
+      targets: 0,
+      records: 0,
+      readinessEntries: 0,
+      preflightRuns: 0,
+    },
+    writing: {
+      drafts: 0,
+      reviewEvents: 0,
+      approvedDrafts: 0,
+      exportedDrafts: 0,
+      archivedDrafts: 0,
+    },
+  }
 }
 
 function safeDate(value: unknown, fallback: Date) {
@@ -123,6 +149,30 @@ export function createLocalSyncProviderState(now = new Date()): AtlasSyncProvide
     status: 'local-only',
     message: 'Manual local snapshots are available. Hosted sync is not configured.',
     updatedAt: now.toISOString(),
+    remoteSnapshots: [],
+  }
+}
+
+export function createSupabaseSyncProviderState({
+  status,
+  message,
+  workspaceId,
+  remoteSnapshots = [],
+  now = new Date(),
+}: {
+  status: AtlasSyncProviderState['status']
+  message: string
+  workspaceId?: string
+  remoteSnapshots?: AtlasRemoteSyncSnapshot[]
+  now?: Date
+}): AtlasSyncProviderState {
+  return {
+    id: 'supabase',
+    status,
+    message,
+    workspaceId,
+    updatedAt: now.toISOString(),
+    remoteSnapshots,
   }
 }
 
@@ -172,12 +222,29 @@ export function normalizeSyncState(value: unknown, now = new Date()): AtlasSyncS
 
   const provider = isRecord(value.provider)
     ? {
-        id: 'local' as const,
-        status: 'local-only' as const,
+        id: readString(value.provider.id) === 'supabase' ? ('supabase' as const) : ('local' as const),
+        status:
+          readString(value.provider.status) === 'configured' ||
+          readString(value.provider.status) === 'not-configured' ||
+          readString(value.provider.status) === 'error'
+            ? (readString(value.provider.status) as AtlasSyncProviderState['status'])
+            : ('local-only' as const),
         message:
           readString(value.provider.message) ||
           'Manual local snapshots are available. Hosted sync is not configured.',
         updatedAt: safeDate(value.provider.updatedAt, now),
+        workspaceId: readString(value.provider.workspaceId) || undefined,
+        lastPushAt: readString(value.provider.lastPushAt)
+          ? safeDate(value.provider.lastPushAt, now)
+          : undefined,
+        lastPullAt: readString(value.provider.lastPullAt)
+          ? safeDate(value.provider.lastPullAt, now)
+          : undefined,
+        remoteSnapshots: Array.isArray(value.provider.remoteSnapshots)
+          ? value.provider.remoteSnapshots
+              .map((snapshot) => normalizeRemoteSyncSnapshot(snapshot))
+              .filter((snapshot): snapshot is AtlasRemoteSyncSnapshot => snapshot !== null)
+          : [],
       }
     : defaults.provider
   const snapshots = Array.isArray(value.snapshots)
@@ -229,6 +296,85 @@ export function createSyncSnapshot({
     summary: summarizeSyncStores(normalizedStores),
     stores: normalizedStores,
   }
+}
+
+export function normalizeRemoteSyncSnapshot(value: unknown): AtlasRemoteSyncSnapshot | null {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  if (!readString(value.id)) {
+    return null
+  }
+
+  return {
+    id: readString(value.id),
+    label: readString(value.label) || 'Remote snapshot',
+    note: readString(value.note),
+    createdAt: safeDate(value.createdAt, new Date()),
+    deviceId: readString(value.deviceId) || 'unknown-device',
+    deviceLabel: readString(value.deviceLabel) || 'Unknown device',
+    fingerprint: readString(value.fingerprint),
+    summary: isRecord(value.summary) ? (value.summary as unknown as AtlasSyncStoreSummary) : emptySyncSummary(),
+  }
+}
+
+export function updateSyncProviderState(
+  state: AtlasSyncState,
+  provider: Partial<AtlasSyncProviderState>,
+  now = new Date(),
+): AtlasSyncState {
+  return {
+    ...state,
+    provider: {
+      ...state.provider,
+      ...provider,
+      remoteSnapshots: provider.remoteSnapshots ?? state.provider.remoteSnapshots,
+      updatedAt: now.toISOString(),
+    },
+    updatedAt: now.toISOString(),
+  }
+}
+
+export function recordRemoteSyncSnapshots(
+  state: AtlasSyncState,
+  remoteSnapshots: AtlasRemoteSyncSnapshot[],
+  now = new Date(),
+): AtlasSyncState {
+  return updateSyncProviderState(
+    state,
+    {
+      id: 'supabase',
+      status: 'configured',
+      message: `${remoteSnapshots.length} remote snapshots loaded.`,
+      remoteSnapshots,
+      lastPullAt: now.toISOString(),
+    },
+    now,
+  )
+}
+
+export function recordRemoteSyncPush(
+  state: AtlasSyncState,
+  snapshot: AtlasRemoteSyncSnapshot,
+  now = new Date(),
+): AtlasSyncState {
+  const remoteSnapshots = [
+    snapshot,
+    ...state.provider.remoteSnapshots.filter((candidate) => candidate.id !== snapshot.id),
+  ]
+
+  return updateSyncProviderState(
+    state,
+    {
+      id: 'supabase',
+      status: 'configured',
+      message: `Remote snapshot ${snapshot.label} pushed.`,
+      remoteSnapshots,
+      lastPushAt: now.toISOString(),
+    },
+    now,
+  )
 }
 
 export function addSyncSnapshot(state: AtlasSyncState, snapshot: AtlasSyncSnapshot): AtlasSyncState {

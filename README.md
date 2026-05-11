@@ -21,7 +21,7 @@ The dashboard currently supports:
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
 - Settings & Connections Center for local workspace labels and integration-readiness status without storing secrets.
-- Manual local Sync snapshots for future hosted persistence preparation.
+- Manual local Sync snapshots and optional Supabase hosted snapshot push/pull.
 
 No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
 
@@ -37,16 +37,16 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Versioned local backup/export helpers for Workspace, Dispatch, Writing, Settings, and Sync data.
 - Local settings storage for device/operator labels and connection-readiness surfaces.
-- Local sync snapshot storage and provider-ready no-op sync boundary.
+- Local sync snapshot storage and optional Supabase hosted sync bridge.
 - Unit and Playwright smoke tests for the main operator flows.
 
 ## Tech Stack
 
 - React + TypeScript for the dashboard and detail surfaces.
-- Vite for the local app and local `/api/github` boundary.
+- Vite for the local app and local `/api/github`, `/api/dispatch`, and `/api/sync` boundaries.
 - Local storage for manual workspace edits and separate Dispatch state.
 - Local storage for Settings and manual Sync snapshots.
-- Server-side environment variables for GitHub tokens.
+- Server-side environment variables for GitHub tokens and optional Supabase sync credentials.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
 
 ## Quick Start
@@ -107,6 +107,19 @@ GitHub Intake supports two read-only inventory sources:
 Atlas stores only the resulting project repository bindings or explicitly created Inbox projects. It does not mirror full GitHub history into local storage.
 
 The older `npm run ingest:github` snapshot command remains available for raw cache experiments, but the app now uses `/api/github` for interactive read-only views.
+
+## Hosted Sync
+
+Hosted sync is optional and Supabase-backed. It stores manual remote snapshots, not live merged state.
+
+```sh
+SUPABASE_URL=https://your-project.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=your_server_side_service_role_key \
+ATLAS_SYNC_WORKSPACE_ID=jamarq-atlas-local \
+npm run dev
+```
+
+The browser can push, list, preview, and restore remote snapshots through `/api/sync`. The service role key remains server-side. Atlas still runs normally when these values are missing.
 
 ## Atlas Dispatch
 
@@ -270,11 +283,11 @@ Settings stores local workspace identity only:
 - Settings schema version
 - Last updated timestamp
 
-Settings also shows connection-readiness cards for GitHub, Dispatch, Writing, Data Center, and future Sync. It does not store GitHub tokens, AI keys, deployment credentials, environment variables, or browser secrets. Connection cards are status/readiness surfaces only; they do not trigger automation.
+Settings also shows connection-readiness cards for GitHub, Dispatch, Writing, Data Center, and Supabase hosted sync. It does not store GitHub tokens, AI keys, deployment credentials, Supabase keys, environment variables, or browser secrets. Connection cards are status/readiness surfaces only; they do not trigger automation.
 
 ## Sync Snapshots
 
-Sync is local-only in this phase. It supports manual snapshots inside Settings so future hosted persistence can use a stable store boundary.
+Sync supports local manual snapshots and optional Supabase hosted snapshots inside Settings. Hosted sync is still manual: no background sync, no merge, no accounts, and no conflict resolution are enabled.
 
 Current Sync behavior:
 
@@ -282,9 +295,20 @@ Current Sync behavior:
 - Preview snapshot restore counts.
 - Restore Workspace, Dispatch, and Writing after typing `RESTORE ATLAS`.
 - Delete snapshots after explicit confirmation.
-- Return no-op `not-configured` provider results for future push/pull hooks.
+- Check Supabase hosted sync status through the local `/api/sync/status` route.
+- Push the current Workspace, Dispatch, and Writing stores as a remote snapshot when Supabase env vars are configured.
+- Load remote snapshot metadata.
+- Preview and restore a remote snapshot after typing `RESTORE ATLAS`.
 
 Snapshots store Workspace, Dispatch, and Writing only. They do not store Settings, Sync, secrets, unknown localStorage keys, or full live GitHub history.
+
+Optional Supabase env vars:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ATLAS_SYNC_WORKSPACE_ID`
+
+The Supabase service role key is read server-side only by the local Vite middleware. It is never bundled into browser code or stored in local storage.
 
 ## Documentation
 
@@ -300,6 +324,7 @@ Focused references:
 - `docs/DATA_PORTABILITY.md`
 - `docs/SETTINGS.md`
 - `docs/SYNC.md`
+- `docs/SUPABASE_SYNC.md`
 
 ## Architecture
 
@@ -319,6 +344,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
 - `server/githubApi.ts` normalizes GitHub REST responses and maps permission/rate-limit/not-found errors.
 - `server/dispatchApi.ts` provides read-only Dispatch health probing for preflight checks.
+- `server/syncApi.ts` provides optional Supabase hosted snapshot push/pull routes.
 - `src/components/Dashboard.tsx` renders the compact status board.
 - `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
@@ -339,6 +365,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/dataPortability.ts` builds backup bundles, Markdown reports, restore previews, and backup validation.
 - `src/services/settings.ts` normalizes local Settings state and static connection-readiness cards.
 - `src/services/syncSnapshots.ts` builds local snapshots, fingerprints stores, previews snapshot restore, and exposes sync provider stubs.
+- `src/services/hostedSync.ts` calls the local hosted sync API and normalizes scoped provider errors.
 
 ## Guardrails
 
@@ -409,11 +436,12 @@ Settings is local/manual:
 - Connection status does not change Atlas project state.
 - Future provider configuration must keep secrets outside browser local storage.
 
-Sync is local/manual:
+Sync is manual:
 
 - Snapshots are created only by explicit action.
 - Snapshot restore is preview-first and full-replace for Workspace, Dispatch, and Writing.
-- Sync provider push/pull is stubbed and performs no external read or write.
+- Hosted push/pull is optional and snapshot-based; it never runs automatically.
+- Supabase credentials stay server-side.
 - Sync does not merge records or change Atlas source-of-truth rules.
 
 ## Statuses
@@ -430,7 +458,6 @@ Sync is local/manual:
 
 ## Roadmap
 
-1. Add hosted persistence only after the local backup/restore and snapshot model is proven.
-2. Add a real AI writing provider behind the current stub boundary.
-3. Expand GitHub Intake with optional repo grouping suggestions for human review.
-4. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.
+1. Add a real AI writing provider behind the current stub boundary.
+2. Expand GitHub Intake with optional repo grouping suggestions for human review.
+3. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.

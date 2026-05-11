@@ -18,7 +18,7 @@ Data Center supports:
 
 It does not support:
 
-- Hosted sync upload/download.
+- Hosted sync upload/download from Data Center.
 - User accounts.
 - GitHub writes.
 - Automatic commits.
@@ -97,6 +97,8 @@ Data Center may:
 - Validate and preview a backup.
 - Replace local Atlas stores after explicit typed human confirmation.
 
-## Future Hosted Persistence
+## Hosted Persistence Relationship
 
-Hosted persistence should build on this backup model instead of bypassing it. A future backend should preserve the same store boundaries, schema versioning, validation, restore preview, and source-of-truth rules.
+Supabase hosted sync lives in Settings, not Data Center. It uses the same normalized Workspace, Dispatch, and Writing store boundaries and keeps restore preview plus typed confirmation. Data Center remains the browser-local JSON/Markdown portability surface.
+
+Future hosted persistence should keep these store boundaries, schema versioning, validation, restore preview, and source-of-truth rules.

@@ -48,6 +48,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.locator('.settings-connection-card').filter({ hasText: 'Writing Provider' })).toContainText(
     'Stubbed',
   )
+  await expect(
+    page.locator('.settings-connection-card').filter({ hasText: 'Supabase Hosted Sync' }),
+  ).toContainText('Missing')
   await page.locator('label.field').filter({ hasText: 'Device label' }).locator('input').fill('E2E Atlas device')
   await page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input').fill('E2E operator')
   await page.reload()
@@ -58,11 +61,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input')).toHaveValue(
     'E2E operator',
   )
-  await page.locator('label.field').filter({ hasText: 'Snapshot label' }).locator('input').fill('E2E checkpoint')
+  await page.getByRole('textbox', { name: 'Snapshot label', exact: true }).fill('E2E checkpoint')
   await page
-    .locator('label.field')
-    .filter({ hasText: 'Snapshot note' })
-    .locator('input')
+    .getByRole('textbox', { name: 'Snapshot note', exact: true })
     .fill('Before temporary mutation')
   await page.getByRole('button', { name: 'Create local snapshot' }).click()
   await expect(page.getByLabel('Sync snapshot inventory')).toContainText('E2E checkpoint')
@@ -77,7 +78,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await firstProjectNextAction.fill('Temporary mutation before snapshot restore')
   await page.getByRole('button', { name: 'Settings' }).click()
   await expect(page.getByLabel('Sync restore preview')).toContainText('Selected snapshot')
-  await page.getByLabel('Type RESTORE ATLAS to restore snapshot').fill('RESTORE ATLAS')
+  await page.getByLabel('Type RESTORE ATLAS to restore snapshot', { exact: true }).fill('RESTORE ATLAS')
   await page.getByRole('button', { name: 'Restore snapshot' }).click()
   await expect(page.getByText('Snapshot restored locally')).toBeVisible()
   await page.getByRole('button', { name: 'Board', exact: true }).click()
@@ -88,6 +89,100 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await page.reload()
   await page.getByRole('button', { name: 'Settings' }).click()
   await expect(page.getByText('No local sync snapshots yet')).toBeVisible()
+
+  let remoteSnapshot: Record<string, unknown> | null = null
+  const remoteMetadata = (snapshot: Record<string, unknown>) => ({
+    id: snapshot.id,
+    label: snapshot.label,
+    note: snapshot.note,
+    createdAt: snapshot.createdAt,
+    deviceId: snapshot.deviceId,
+    deviceLabel: snapshot.deviceLabel,
+    fingerprint: snapshot.fingerprint,
+    summary: snapshot.summary,
+  })
+
+  await page.route('**/api/sync/status', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        configured: true,
+        data: {
+          provider: 'supabase',
+          configured: true,
+          workspaceId: 'atlas-e2e',
+          table: 'atlas_sync_snapshots',
+          message: 'Supabase hosted sync is configured for manual snapshots.',
+        },
+        error: null,
+      }),
+    })
+  })
+
+  await page.route(/\/api\/sync\/remote-snapshots\/[^/]+$/, async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        configured: true,
+        data: { snapshot: remoteSnapshot },
+        error: null,
+      }),
+    })
+  })
+
+  await page.route(/\/api\/sync\/remote-snapshots$/, async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        configured: true,
+        data: { snapshots: remoteSnapshot ? [remoteMetadata(remoteSnapshot)] : [] },
+        error: null,
+      }),
+    })
+  })
+
+  await page.route('**/api/sync/push', async (route) => {
+    const body = JSON.parse(route.request().postData() ?? '{}') as Record<string, unknown>
+    const snapshot = body.snapshot as Record<string, unknown>
+    remoteSnapshot = snapshot
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        configured: true,
+        data: { snapshot: remoteMetadata(snapshot) },
+        error: null,
+      }),
+    })
+  })
+
+  await page.getByRole('button', { name: 'Refresh hosted status' }).click()
+  await expect(
+    page.locator('.settings-connection-card').filter({ hasText: 'Supabase Hosted Sync' }),
+  ).toContainText('Available')
+  await page.getByRole('textbox', { name: 'Remote snapshot label' }).fill('Remote E2E checkpoint')
+  await page
+    .getByRole('textbox', { name: 'Remote snapshot note' })
+    .fill('Before remote restore mutation')
+  await page.getByRole('button', { name: 'Push current state' }).click()
+  await expect(page.getByText('Remote snapshot pushed to Supabase.')).toBeVisible()
+  await page.getByRole('button', { name: 'Load remote snapshots' }).click()
+  await expect(page.getByLabel('Remote sync snapshot inventory')).toContainText('Remote E2E checkpoint')
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await firstProjectNextAction.fill('Temporary mutation before remote snapshot restore')
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: /Remote E2E checkpoint/ }).click()
+  await expect(page.getByLabel('Remote sync restore preview')).toContainText('Remote snapshot')
+  await page.getByLabel('Type RESTORE ATLAS to restore remote snapshot').fill('RESTORE ATLAS')
+  await page.getByRole('button', { name: 'Restore remote snapshot' }).click()
+  await expect(page.getByText('Remote snapshot restored locally')).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await expect(firstProjectNextAction).not.toHaveValue('Temporary mutation before remote snapshot restore')
   await page.getByRole('button', { name: 'Board', exact: true }).click()
 
   await page.getByRole('button', { name: 'Verification', exact: true }).click()

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
-import type { AtlasSyncSnapshot, AtlasSyncState } from '../domain/sync'
+import type { AtlasRemoteSyncSnapshot, AtlasSyncProviderState, AtlasSyncSnapshot, AtlasSyncState } from '../domain/sync'
 import {
   addSyncSnapshot,
   deleteSyncSnapshot,
   emptySyncState,
   normalizeSyncState,
+  recordRemoteSyncPush,
+  recordRemoteSyncSnapshots,
+  updateSyncProviderState,
 } from '../services/syncSnapshots'
 
 const STORAGE_KEY = 'jamarq-atlas.sync.v1'
@@ -38,6 +41,18 @@ export function useLocalSync() {
     setSync((current) => deleteSyncSnapshot(current, snapshotId))
   }
 
+  function updateProvider(update: Partial<AtlasSyncProviderState>) {
+    setSync((current) => updateSyncProviderState(current, update))
+  }
+
+  function recordRemoteSnapshots(snapshots: AtlasRemoteSyncSnapshot[]) {
+    setSync((current) => recordRemoteSyncSnapshots(current, snapshots))
+  }
+
+  function recordRemotePush(snapshot: AtlasRemoteSyncSnapshot) {
+    setSync((current) => recordRemoteSyncPush(current, snapshot))
+  }
+
   function resetSync() {
     const freshSync = emptySyncState()
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshSync))
@@ -49,6 +64,9 @@ export function useLocalSync() {
     setSync,
     addSnapshot,
     removeSnapshot,
+    updateProvider,
+    recordRemoteSnapshots,
+    recordRemotePush,
     resetSync,
   }
 }

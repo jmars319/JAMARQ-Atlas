@@ -9,8 +9,16 @@ import {
   emptySyncState,
   fingerprintSyncStores,
   normalizeSyncState,
+  recordRemoteSyncPush,
+  updateSyncProviderState,
   runSyncProviderStub,
 } from '../src/services/syncSnapshots'
+import {
+  createSyncNotConfiguredResponse,
+  createSyncStatus,
+  getSyncConfig,
+  snapshotToRemoteRow,
+} from '../server/syncApi'
 
 const now = new Date('2026-05-10T12:00:00Z')
 const stores = {
@@ -102,5 +110,76 @@ describe('sync snapshots', () => {
     expect(result.status).toBe('not-configured')
     expect(result.operation).toBe('push')
     expect(result.message).toContain('No external read or write')
+  })
+
+  it('reports missing Supabase config as a scoped not-configured result', () => {
+    const config = getSyncConfig({})
+    const status = createSyncStatus(config)
+    const response = createSyncNotConfiguredResponse(config)
+
+    expect(status.data?.configured).toBe(false)
+    expect(response.error?.type).toBe('not-configured')
+    expect(response.configured).toBe(false)
+  })
+
+  it('builds Supabase push rows from Workspace, Dispatch, and Writing only', () => {
+    const snapshot = createSyncSnapshot({
+      stores,
+      settings: emptySettingsState(now),
+      sync: emptySyncState(now),
+      label: 'Remote candidate',
+      note: 'No sensitive values.',
+      now,
+    })
+    const row = snapshotToRemoteRow(snapshot, 'atlas-test')
+
+    expect(row.workspace_id).toBe('atlas-test')
+    expect(row.snapshot_id).toBe(snapshot.id)
+    expect(Object.keys(row.stores)).toEqual(['workspace', 'dispatch', 'writing'])
+    expect(collectKeys(row).join(' ')).not.toMatch(/token|secret|password|credential/i)
+  })
+
+  it('records remote provider errors without removing local snapshots', () => {
+    const snapshot = createSyncSnapshot({
+      stores,
+      label: 'Local keeper',
+      note: '',
+      now,
+    })
+    const withSnapshot = {
+      ...emptySyncState(now),
+      snapshots: [snapshot],
+    }
+    const errored = updateSyncProviderState(withSnapshot, {
+      id: 'supabase',
+      status: 'error',
+      message: 'Provider error.',
+    })
+
+    expect(errored.snapshots).toHaveLength(1)
+    expect(errored.provider.status).toBe('error')
+  })
+
+  it('tracks pushed remote snapshots without copying full stores into provider metadata', () => {
+    const snapshot = createSyncSnapshot({
+      stores,
+      label: 'Remote metadata',
+      note: '',
+      now,
+    })
+    const updated = recordRemoteSyncPush(emptySyncState(now), {
+      id: snapshot.id,
+      label: snapshot.label,
+      note: snapshot.note,
+      createdAt: snapshot.createdAt,
+      deviceId: snapshot.deviceId,
+      deviceLabel: snapshot.deviceLabel,
+      fingerprint: snapshot.fingerprint,
+      summary: snapshot.summary,
+    })
+
+    expect(updated.provider.status).toBe('configured')
+    expect(updated.provider.remoteSnapshots[0].id).toBe(snapshot.id)
+    expect(JSON.stringify(updated.provider.remoteSnapshots[0])).not.toContain('"stores"')
   })
 })

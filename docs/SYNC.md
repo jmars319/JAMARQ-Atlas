@@ -1,8 +1,8 @@
 # Atlas Sync Foundation
 
-Atlas Sync is currently a local-only snapshot foundation for future hosted persistence.
+Atlas Sync is a manual snapshot foundation for local and optional hosted persistence.
 
-It does not add accounts, cloud storage, external writes, background sync, or merge behavior.
+It does not add accounts, background sync, automatic merge behavior, GitHub writes, or automatic project-state changes.
 
 ## Current Scope
 
@@ -13,7 +13,9 @@ Sync supports:
 - Snapshot restore preview.
 - Full local snapshot restore after typed confirmation.
 - Snapshot deletion after explicit confirmation.
-- Provider-ready no-op push/pull results.
+- Optional Supabase remote snapshot push.
+- Optional Supabase remote snapshot inventory.
+- Optional Supabase remote snapshot preview and typed restore.
 
 Sync state is stored under `jamarq-atlas.sync.v1`.
 
@@ -48,9 +50,18 @@ Snapshot restore does not change Settings, Sync provider configuration, or snaps
 
 ## Provider Boundary
 
-The current provider is local-only. Future push/pull hooks return structured `not-configured` results and perform no external reads or writes.
+The hosted provider is optional. When `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ATLAS_SYNC_WORKSPACE_ID` are missing, Atlas reports a scoped not-configured state and local snapshots keep working.
 
-Hosted persistence should plug in behind this boundary later, after data portability and local restore behavior remain stable.
+When configured, the Supabase bridge stores remote snapshot rows through local server routes:
+
+- `/api/sync/status`
+- `/api/sync/push`
+- `/api/sync/remote-snapshots`
+- `/api/sync/remote-snapshots/:id`
+
+The service role key stays server-side. Browser state stores only provider status, remote snapshot metadata, and local restore history.
+
+This is not live sync. Push creates a snapshot. Pull lists snapshots. Restore is preview-first and full-replace after typing `RESTORE ATLAS`.
 
 ## Guardrails
 
@@ -60,3 +71,4 @@ Hosted persistence should plug in behind this boundary later, after data portabi
 - No AI provider calls.
 - No deployment writes.
 - No automatic Atlas status, risk, readiness, verification, binding, or Writing review-state changes.
+- No Supabase credentials in browser local storage.

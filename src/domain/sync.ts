@@ -5,7 +5,8 @@ import type { WritingWorkbenchState } from './writing'
 export const ATLAS_SYNC_SCHEMA_VERSION = 1
 
 export type AtlasSyncSchemaVersion = typeof ATLAS_SYNC_SCHEMA_VERSION
-export type AtlasSyncProviderStatus = 'local-only' | 'not-configured'
+export type AtlasSyncProviderId = 'local' | 'supabase'
+export type AtlasSyncProviderStatus = 'local-only' | 'not-configured' | 'configured' | 'error'
 export type AtlasSyncProviderOperation = 'push' | 'pull'
 
 export interface AtlasSyncCoreStores {
@@ -49,11 +50,26 @@ export interface AtlasSyncSnapshot {
   stores: AtlasSyncCoreStores
 }
 
+export interface AtlasRemoteSyncSnapshot {
+  id: string
+  label: string
+  note: string
+  createdAt: string
+  deviceId: string
+  deviceLabel: string
+  fingerprint: string
+  summary: AtlasSyncStoreSummary
+}
+
 export interface AtlasSyncProviderState {
-  id: 'local'
+  id: AtlasSyncProviderId
   status: AtlasSyncProviderStatus
   message: string
   updatedAt: string
+  workspaceId?: string
+  lastPushAt?: string
+  lastPullAt?: string
+  remoteSnapshots: AtlasRemoteSyncSnapshot[]
 }
 
 export interface AtlasSyncState {
@@ -75,7 +91,12 @@ export interface AtlasSyncRestorePreview {
 
 export interface AtlasSyncProviderResult {
   operation: AtlasSyncProviderOperation
-  status: 'not-configured'
+  status: 'not-configured' | 'configured' | 'error'
   message: string
   occurredAt: string
+}
+
+export interface AtlasSyncApiError {
+  type: 'not-configured' | 'supabase-error' | 'invalid-request' | 'not-found' | 'unknown'
+  message: string
 }

@@ -102,13 +102,5 @@ export function buildStaticConnectionCards(): AtlasConnectionCard[] {
       detail:
         'Backups are browser-local and exclude tokens, env vars, browser secrets, and unknown localStorage keys.',
     },
-    {
-      id: 'sync',
-      title: 'Sync Provider',
-      status: 'local-only',
-      summary: 'Hosted sync is not configured.',
-      detail:
-        'Atlas is local-first. Provider-ready sync storage will be added behind this boundary before any hosted persistence.',
-    },
   ]
 }

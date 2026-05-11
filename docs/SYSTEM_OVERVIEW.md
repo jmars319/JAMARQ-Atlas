@@ -15,7 +15,7 @@ The app has these main surfaces:
 - Writing Workbench: local draft packets and reviewable operational writing.
 - Data Center: local backup export, restore preview, and typed-confirmation restore.
 - Settings & Connections: local workspace identity and integration-readiness status.
-- Sync Snapshots: manual local snapshots for future hosted persistence.
+- Sync Snapshots: manual local snapshots and optional Supabase hosted snapshots.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
 
@@ -209,7 +209,7 @@ Settings currently stores:
 - Settings schema version
 - Last updated timestamp
 
-Settings also displays readiness cards for GitHub, Dispatch, Writing, Data Center, and future Sync. These cards describe whether local boundaries are available, missing, stubbed, or local-only. They do not execute automation or change Atlas data.
+Settings also displays readiness cards for GitHub, Dispatch, Writing, Data Center, and Supabase hosted sync. These cards describe whether local boundaries are available, missing, stubbed, or local-only. They do not execute automation or change Atlas data.
 
 Settings must not store GitHub tokens, AI keys, deployment credentials, environment variables, or browser secrets. Future provider configuration should keep secrets in server-side environment variables or a dedicated secure backend, not browser local storage.
 
@@ -217,18 +217,29 @@ Settings must not store GitHub tokens, AI keys, deployment credentials, environm
 
 Sync is stored under `jamarq-atlas.sync.v1`.
 
-Current Sync is local-only and manual. It supports:
+Current Sync is manual and snapshot-based. It supports:
 
 - Manual local snapshots.
 - Snapshot inventory.
 - Snapshot restore preview.
 - Typed-confirmation snapshot restore.
 - Snapshot deletion.
-- Provider-ready push/pull stubs that return `not-configured`.
+- Optional Supabase hosted snapshot push.
+- Optional Supabase hosted snapshot listing and preview.
+- Typed-confirmation restore from a remote snapshot.
 
 Snapshots contain Workspace, Dispatch, and Writing only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
 
 Snapshot restore replaces Workspace, Dispatch, and Writing only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
+
+Hosted sync runs through the local `/api/sync` boundary:
+
+- `/api/sync/status`
+- `/api/sync/push`
+- `/api/sync/remote-snapshots`
+- `/api/sync/remote-snapshots/:id`
+
+Supabase credentials are read only by server-side middleware from `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ATLAS_SYNC_WORKSPACE_ID`. Missing configuration becomes a scoped not-configured state; it does not break Board, Dispatch, GitHub, Verification, Writing, Data Center, or local snapshots.
 
 ## Validation
 
