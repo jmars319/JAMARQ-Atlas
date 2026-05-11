@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   CalendarCheck,
+  ClipboardList,
   FileText,
   GitBranch,
   ListTree,
@@ -22,6 +23,7 @@ import {
   type VerificationCadence,
 } from '../domain/atlas'
 import type { DeploymentTarget, DispatchReadiness, DispatchState } from '../domain/dispatch'
+import type { PlanningState } from '../domain/planning'
 import type { TimelineEvent } from '../domain/timeline'
 import {
   getWritingTemplate,
@@ -31,6 +33,7 @@ import {
 } from '../domain/writing'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
+import { PlanningPanel } from './PlanningPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
 import { StatusBadge } from './StatusBadge'
 import { TimelineEventList } from './TimelineDashboard'
@@ -38,6 +41,7 @@ import { TimelineEventList } from './TimelineDashboard'
 interface ProjectDetailProps {
   record: ProjectRecord
   dispatch: DispatchState
+  planning: PlanningState
   writingDrafts: WritingDraft[]
   timelineEvents: TimelineEvent[]
   onManualChange: (manual: Partial<ManualOperationalState>) => void
@@ -54,6 +58,7 @@ interface ProjectDetailProps {
   onMarkVerified: (projectId: string, note: string) => void
   onWritingRequest: (projectId: string, templateId: WritingTemplateId) => void
   onOpenWritingDraft: (draftId: string) => void
+  onOpenPlanning: (projectId: string) => void
   onResetWorkspace: () => void
 }
 
@@ -90,6 +95,7 @@ function TextAreaField({ label, value, onChange }: TextAreaFieldProps) {
 export function ProjectDetail({
   record,
   dispatch,
+  planning,
   writingDrafts,
   timelineEvents,
   onManualChange,
@@ -102,6 +108,7 @@ export function ProjectDetail({
   onMarkVerified,
   onWritingRequest,
   onOpenWritingDraft,
+  onOpenPlanning,
   onResetWorkspace,
 }: ProjectDetailProps) {
   const { project, group, section } = record
@@ -375,6 +382,18 @@ export function ProjectDetail({
         ) : (
           <p className="empty-state">No repository binding yet.</p>
         )}
+      </section>
+
+      <section className="detail-panel">
+        <div className="panel-heading">
+          <ClipboardList size={17} />
+          <h3>Planning</h3>
+        </div>
+        <PlanningPanel
+          planning={planning}
+          projectId={project.id}
+          onOpenPlanning={onOpenPlanning}
+        />
       </section>
 
       <section className="detail-panel">

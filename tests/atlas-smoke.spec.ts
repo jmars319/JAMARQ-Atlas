@@ -229,6 +229,40 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   )
   await expect(page.locator('.project-detail')).toContainText('E2E verification note')
 
+  await page.getByRole('button', { name: 'Planning', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Planning Center' })).toBeVisible()
+  await page.getByLabel('Planning project').selectOption('vaexcore-studio')
+  const statusBeforePlanning = await page
+    .locator('.project-detail')
+    .locator('label.field')
+    .filter({ hasText: 'Status' })
+    .locator('select')
+    .inputValue()
+  await page.getByLabel('Planning kind', { exact: true }).selectOption('objective')
+  await page.getByLabel('New planning status').selectOption('active')
+  await page.getByLabel('Planning title', { exact: true }).fill('E2E planning objective')
+  await page
+    .getByLabel('Planning detail', { exact: true })
+    .fill('Human-authored planning note from E2E.')
+  await page.getByRole('button', { name: 'Add planning record' }).click()
+  await expect(page.getByLabel('Planning records', { exact: true })).toContainText(
+    'E2E planning objective',
+  )
+  await expect(page.locator('.project-detail').locator('label.field').filter({ hasText: 'Status' }).locator('select')).toHaveValue(
+    statusBeforePlanning,
+  )
+  await page.reload()
+  await page.getByRole('button', { name: 'Planning', exact: true }).click()
+  await expect(page.getByLabel('Planning records', { exact: true })).toContainText(
+    'E2E planning objective',
+  )
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
+  await expect(page.getByLabel('Project planning')).toContainText('E2E planning objective')
+  await expect(page.locator('.project-detail').locator('label.field').filter({ hasText: 'Status' }).locator('select')).toHaveValue(
+    statusBeforePlanning,
+  )
+
   await page.getByRole('button', { name: 'Board', exact: true }).click()
 
   await page.getByRole('button', { name: 'Dispatch' }).click()

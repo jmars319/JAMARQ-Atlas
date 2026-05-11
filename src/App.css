@@ -57,7 +57,12 @@
 .settings-card-heading,
 .settings-panel-heading-row,
 .settings-panel-heading-row div,
-.settings-meta {
+.settings-meta,
+.planning-card-heading,
+.planning-card-meta,
+.planning-summary,
+.planning-mini-list article div,
+.planning-mini-list small {
   display: flex;
   align-items: center;
 }
@@ -1396,6 +1401,10 @@ h3 {
   min-width: 0;
 }
 
+.planning-center {
+  min-width: 0;
+}
+
 .data-center .dashboard-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -1406,6 +1415,10 @@ h3 {
 
 .timeline-dashboard .dashboard-stats {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.planning-center .dashboard-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .data-layout {
@@ -1425,6 +1438,159 @@ h3 {
   grid-template-columns: minmax(240px, 1.2fr) repeat(5, minmax(150px, 1fr));
   gap: 10px;
   margin: 12px 0;
+}
+
+.planning-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.34fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.planning-panel,
+.planning-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 12px;
+}
+
+.planning-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.planning-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(150px, 0.5fr));
+  gap: 10px;
+}
+
+.planning-summary {
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 9px 10px;
+  font-size: 0.78rem;
+}
+
+.planning-records,
+.planning-mini,
+.planning-mini-list {
+  display: grid;
+  gap: 9px;
+}
+
+.planning-card {
+  background: rgba(250, 250, 250, 0.02);
+}
+
+.planning-card-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.planning-card-heading > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.planning-card-heading strong,
+.planning-mini-list strong {
+  color: var(--paper-white);
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.planning-card-heading span:not(.section-label),
+.planning-card-meta,
+.planning-mini-list span,
+.planning-mini-list small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.planning-card-fields {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.planning-card-meta {
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.planning-status-active {
+  border-color: rgba(9, 166, 214, 0.34);
+}
+
+.planning-status-waiting {
+  border-color: rgba(244, 199, 107, 0.32);
+}
+
+.planning-status-done {
+  border-color: rgba(128, 213, 138, 0.3);
+}
+
+.icon-action {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.planning-mini-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.planning-mini-summary div,
+.planning-mini-list article {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 9px;
+}
+
+.planning-mini-summary span,
+.planning-mini-summary strong {
+  display: block;
+}
+
+.planning-mini-summary span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.planning-mini-summary strong {
+  margin-top: 4px;
+  color: var(--paper-white);
+}
+
+.planning-mini-list article {
+  display: grid;
+  gap: 6px;
+}
+
+.planning-mini-list article div,
+.planning-mini-list small {
+  gap: 6px;
+}
+
+.planning-mini-list p {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .timeline-panel {
@@ -2126,6 +2292,10 @@ code {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .planning-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .control-bar {
     grid-template-columns: 1fr;
   }
@@ -2162,6 +2332,9 @@ code {
   .settings-connection-grid,
   .settings-sync-grid,
   .settings-preview-grid,
+  .planning-layout,
+  .planning-controls,
+  .planning-mini-summary,
   .timeline-controls,
   .writing-controls,
   .writing-context-grid,

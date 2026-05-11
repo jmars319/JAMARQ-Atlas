@@ -17,6 +17,7 @@ The dashboard currently supports:
 - Timeline evidence ledger derived from Workspace, Dispatch, Writing, Sync, and existing activity events.
 - GitHub Intake for discovering repositories, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
+- Planning Center for manual objectives, milestones, work sessions, and planning notes.
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
@@ -33,6 +34,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Separate local storage hooks for workspace state and Dispatch state.
 - Optional GitHub REST integration through `/api/github`.
 - Repository binding/import helpers that persist repo links only.
+- Separate Planning storage for human-authored objectives, milestones, work sessions, and notes.
 - Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
@@ -56,6 +58,21 @@ Current Timeline sources:
 - GitHub activity already present in Atlas activity records.
 
 Timeline rows can be filtered by project, section, source, type, date range, and search. Project detail pages include a compact timeline for the selected project. Timeline does not change status, verification, readiness, Writing state, GitHub bindings, Sync state, or any operational decision.
+
+## Planning Center
+
+Planning Center stores lightweight human-authored planning records under `jamarq-atlas.planning.v1`.
+
+Current planning record types:
+
+- Objectives
+- Milestones
+- Work sessions
+- Planning notes
+
+Planning records link to Atlas projects and can be filtered by section, kind, manual planning status, and search. Project detail pages include a compact Planning panel for the selected project.
+
+Planning is manual-only. GitHub, Dispatch, Verification, Writing, and AI provider signals do not create or update Planning records automatically. Planning records do not change Atlas project status, risk, next action, verification, Dispatch readiness, GitHub bindings, or Writing review state.
 
 ## Tech Stack
 
@@ -349,6 +366,7 @@ Focused references:
 
 - `docs/GITHUB_INTEGRATION.md`
 - `docs/TIMELINE.md`
+- `docs/PLANNING.md`
 - `docs/DISPATCH.md`
 - `docs/AI_WRITING.md`
 - `docs/DATA_PORTABILITY.md`
@@ -364,11 +382,13 @@ Atlas separates manual intent from raw activity.
 - `src/domain/dispatch.ts` defines Dispatch targets, statuses, records, readiness, health checks, and runner results.
 - `src/domain/writing.ts` defines Writing templates, drafts, context snapshots, provider results, and local workbench state.
 - `src/domain/dataPortability.ts` defines backup envelopes, validation results, summaries, and restore previews.
+- `src/domain/planning.ts` defines manual Planning records and planning statuses.
 - `src/domain/settings.ts` defines local settings and connection-readiness cards.
 - `src/domain/sync.ts` defines local sync snapshots, provider status, and restore previews.
 - `src/hooks/useLocalSettings.ts` persists local Settings state under `jamarq-atlas.settings.v1`.
 - `src/hooks/useLocalSync.ts` persists local Sync state under `jamarq-atlas.sync.v1`.
 - `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
+- `src/hooks/useLocalPlanning.ts` persists Planning state separately under `jamarq-atlas.planning.v1`.
 - `src/hooks/useLocalWriting.ts` persists Writing state separately under `jamarq-atlas.writing.v1`.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
 - `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
@@ -377,6 +397,8 @@ Atlas separates manual intent from raw activity.
 - `server/syncApi.ts` provides optional Supabase hosted snapshot push/pull routes.
 - `src/components/Dashboard.tsx` renders the compact status board.
 - `src/components/GitHubIntakeDashboard.tsx` renders repository discovery, binding, and explicit Inbox import.
+- `src/components/PlanningCenter.tsx` renders manual planning creation, filters, and editable planning cards.
+- `src/components/PlanningPanel.tsx` renders compact project-level planning context.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
 - `src/components/WritingWorkbench.tsx` renders local writing draft creation, editing, review state, and draft history.
 - `src/components/DataCenter.tsx` renders local backup export, import validation, restore preview, and typed restore.
@@ -384,6 +406,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and Writing launchers.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
+- `src/services/planning.ts` normalizes Planning storage and applies manual planning record changes.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
 - `src/services/dispatchPreflight.ts` assembles read-only preflight evidence without mutating status or readiness.
@@ -432,6 +455,13 @@ Writing activity is advisory:
 - Markdown export is local/browser-only and does not send, publish, deploy, or verify anything.
 - Optional GitHub snippets are included as context only and are not mirrored as full history.
 - OpenAI requests are optional, server-side only, and draft-only.
+
+Planning activity is manual:
+
+- Planning records are created and edited only by explicit user action.
+- Planning status is separate from Atlas project status.
+- Planning does not update risk, blockers, next action, verification, Dispatch readiness, GitHub bindings, or Writing drafts.
+- External signals may provide context elsewhere, but they do not make planning decisions.
 
 Verification activity is advisory/manual:
 

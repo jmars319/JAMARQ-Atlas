@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   ArchiveRestore,
   CalendarCheck,
+  ClipboardList,
   DatabaseZap,
   FileText,
   GitBranch,
@@ -16,6 +17,7 @@ import { DataCenter } from './components/DataCenter'
 import { Dashboard } from './components/Dashboard'
 import { DispatchDashboard } from './components/DispatchDashboard'
 import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
+import { PlanningCenter } from './components/PlanningCenter'
 import { ProjectDetail } from './components/ProjectDetail'
 import { SettingsCenter } from './components/SettingsCenter'
 import { TimelineDashboard } from './components/TimelineDashboard'
@@ -35,6 +37,7 @@ import type { AtlasBackupStores } from './domain/dataPortability'
 import type { AtlasSyncCoreStores } from './domain/sync'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
+import { useLocalPlanning } from './hooks/useLocalPlanning'
 import { useLocalSettings } from './hooks/useLocalSettings'
 import { useLocalSync } from './hooks/useLocalSync'
 import { useLocalWriting } from './hooks/useLocalWriting'
@@ -57,6 +60,7 @@ type AppView =
   | 'board'
   | 'timeline'
   | 'github'
+  | 'planning'
   | 'verification'
   | 'dispatch'
   | 'writing'
@@ -91,6 +95,12 @@ function App() {
     markExported,
     archiveDraft,
   } = useLocalWriting()
+  const {
+    planning,
+    createItem: createPlanningItem,
+    updateItem: updatePlanningItem,
+    deleteItem: deletePlanningItem,
+  } = useLocalPlanning()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
   const timelineEvents = useMemo(
     () => deriveTimelineEvents({ projectRecords, dispatch, writing, sync }),
@@ -205,6 +215,11 @@ function App() {
     setAppView('writing')
   }
 
+  function handleOpenPlanning(projectId: string) {
+    selectProject(projectId)
+    setAppView('planning')
+  }
+
   function handleCreateWritingDraft(draft: WritingDraft) {
     addDraft(draft)
     setSelectedProjectId(draft.projectId)
@@ -279,6 +294,10 @@ function App() {
             GitHub-ready
           </span>
           <span>
+            <ClipboardList size={15} />
+            Planning-ready
+          </span>
+          <span>
             <Rocket size={15} />
             Dispatch-ready
           </span>
@@ -330,6 +349,13 @@ function App() {
           onClick={() => setAppView('github')}
         >
           GitHub
+        </button>
+        <button
+          type="button"
+          className={appView === 'planning' ? 'is-selected' : ''}
+          onClick={() => setAppView('planning')}
+        >
+          Planning
         </button>
         <button
           type="button"
@@ -397,6 +423,16 @@ function App() {
             onBindRepository={handleBindRepository}
             onCreateInboxProject={handleCreateInboxProject}
           />
+        ) : appView === 'planning' ? (
+          <PlanningCenter
+            planning={planning}
+            projectRecords={projectRecords}
+            selectedProjectId={selectedRecord?.project.id ?? ''}
+            onSelectProject={selectProject}
+            onCreateItem={createPlanningItem}
+            onUpdateItem={updatePlanningItem}
+            onDeleteItem={deletePlanningItem}
+          />
         ) : appView === 'verification' ? (
           <VerificationCenter
             projectRecords={projectRecords}
@@ -462,6 +498,7 @@ function App() {
           <ProjectDetail
             record={selectedRecord}
             dispatch={dispatch}
+            planning={planning}
             writingDrafts={writing.drafts}
             timelineEvents={timelineEvents.filter(
               (event) => event.projectId === selectedRecord.project.id,
@@ -476,6 +513,7 @@ function App() {
             onMarkVerified={handleMarkVerified}
             onWritingRequest={handleWritingRequest}
             onOpenWritingDraft={handleSelectWritingDraft}
+            onOpenPlanning={handleOpenPlanning}
             onResetWorkspace={() => {
               resetWorkspace()
             }}

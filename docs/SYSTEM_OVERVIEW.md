@@ -11,6 +11,7 @@ The app has these main surfaces:
 - Board: human-authored operational status across sections, groups, and projects.
 - Timeline: derived evidence ledger across existing Atlas stores.
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
+- Planning Center: human-authored objectives, milestones, work sessions, and notes.
 - Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture and read-only preflight evidence across configured targets.
 - Writing Workbench: local draft packets and reviewable operational writing.
@@ -57,6 +58,31 @@ Manual state includes:
 Workspace state persists through `src/hooks/useLocalWorkspace.ts`.
 
 Existing workspace records are normalized on read so older local storage receives a default monthly verification cadence without losing user-authored fields.
+
+## Planning Model
+
+Planning Center is stored separately under `jamarq-atlas.planning.v1`.
+
+Primary concepts:
+
+- Objective
+- Milestone
+- Work session
+- Planning note
+- Manual planning status
+
+Planning records reference Atlas projects by `projectId` and may carry section/group IDs for rollups. They are not part of Workspace manual status and do not update Workspace fields.
+
+Manual planning statuses:
+
+- Idea
+- Planned
+- Active
+- Waiting
+- Done
+- Deferred
+
+Planning is intentionally lightweight. It records what a human has decided to track, not what GitHub, Dispatch, Verification, or AI inferred. External signals do not create, edit, prioritize, complete, defer, or delete Planning records automatically.
 
 ## Verification Model
 
@@ -129,6 +155,8 @@ Permission gaps are resource-local. If a token can read commits but cannot read 
 GitHub Intake persists only Atlas decisions: repository bindings and explicitly created Inbox projects. It does not store full commit, PR, workflow, issue, release, deployment, or check history.
 
 The GitHub tab includes a selected-repo deep dive over these same live resources. Deep-dive data is fetched on demand and remains advisory.
+
+GitHub data does not create or update Planning records. Repo history may be useful context for a human planning session, but the current Planning Center remains explicit and manual-only.
 
 ## AI Boundary
 
