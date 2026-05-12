@@ -1159,6 +1159,7 @@ h3 {
 .dispatch-preflight,
 .dispatch-automation,
 .dispatch-dry-run,
+.dispatch-runbook,
 .dispatch-target-detail {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1238,6 +1239,25 @@ h3 {
 .dispatch-summary-grid,
 .dispatch-signal-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dispatch-runbook-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dispatch-runbook-grid > div {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 10px;
+}
+
+.dispatch-runbook-grid strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--paper-white);
+  font-size: 0.82rem;
 }
 
 .dispatch-mini-grid div,
@@ -2542,6 +2562,7 @@ code {
   .dispatch-mini-grid,
   .dispatch-summary-grid,
   .dispatch-signal-grid,
+  .dispatch-runbook-grid,
   .data-summary-grid,
   .data-preview-grid,
   .settings-form-grid,

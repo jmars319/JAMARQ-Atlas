@@ -1,6 +1,8 @@
 import type {
   DeploymentRecord,
+  DeploymentRunbook,
   DeploymentTarget,
+  DeploymentOrderGroup,
   DispatchPreflightRun,
   DispatchReadiness,
   DispatchState,
@@ -38,6 +40,12 @@ export function normalizeDispatchState(value: unknown, now = new Date()): Dispat
     readiness: Array.isArray(candidate.readiness) ? candidate.readiness : [],
     preflightRuns: Array.isArray(candidate.preflightRuns) ? candidate.preflightRuns : [],
     automationReadiness,
+    runbooks: Array.isArray(candidate.runbooks)
+      ? (candidate.runbooks as DeploymentRunbook[])
+      : [],
+    orderGroups: Array.isArray(candidate.orderGroups)
+      ? (candidate.orderGroups as DeploymentOrderGroup[])
+      : [],
   }
 }
 

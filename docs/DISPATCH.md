@@ -12,6 +12,9 @@ Dispatch currently supports:
 - Deployment records
 - Environment and host metadata
 - Public URLs and health check URLs
+- cPanel deploy runbooks
+- Expected deploy artifacts
+- Preserve/create-on-server path checklists
 - Read-only preflight evidence history
 - Automation readiness runbook notes and checklist posture
 - Last deployed and last verified dates
@@ -30,6 +33,16 @@ Seed targets exist for:
 - Tenra public site production
 
 Placeholder hosts and paths are marked as placeholders and must be confirmed before future automation work.
+
+Seed cPanel runbooks exist for the current five-site queue:
+
+1. Midway Mobile Storage
+2. Midway Music Hall
+3. Surplus Containers
+4. Thunder Road
+5. Bow Wow
+
+These runbooks capture artifact filenames, upload targets, preserve paths, and post-upload checks. They do not upload, extract, delete, overwrite, or create deployment records.
 
 ## Data Boundary
 
@@ -52,6 +65,30 @@ Dispatch services live under `src/services`.
 - `dispatchHealthChecks.ts`: read-only local health probe client.
 - `dispatchRunner.ts`: no-op future deployment runner boundary.
 - `dispatchAutomation.ts`: advisory automation readiness and no-op dry-run planning.
+
+## cPanel Runbooks
+
+Runbooks are local Dispatch data. They track:
+
+- `DeploymentArtifact`: expected zip filename, role, source repo/project, target path, checksum placeholder, inspection timestamp, warnings, and notes.
+- `DeploymentPreservePath`: server paths that must be preserved or created before upload.
+- `DeploymentVerificationCheck`: read-only `HEAD`/`GET` checks with expected statuses.
+- `DeploymentRunbook`: per-site artifact, preserve-path, verification, and manual deploy notes.
+- `DeploymentOrderGroup`: ordered deployment queue for related runbooks.
+
+Current artifact expectations:
+
+- Bow Wow: `deploy-placeholder.zip` only while placeholder is intended.
+- MMH, MMS, Surplus Containers, TRBG: `frontend-deploy.zip` to site root and `backend-deploy.zip` to `/api`.
+
+Current preserve/create notes:
+
+- MMH: preserve `/api/.env` and uploads.
+- MMS: create `/api/.env` from current config values and preserve `/api/config.php` for one transition deploy.
+- Surplus Containers: preserve `/api/.env`, logs, and runtime data.
+- TRBG: preserve `/api/.env`, `/api/uploads`, `/api/incoming`, logs/runtime data; backend artifact includes `vendor/`, so Composer is not run on the server.
+
+The most important cPanel rule remains: never replace the whole `/api` folder without preserving server-only files first.
 
 ## Preflight Evidence
 

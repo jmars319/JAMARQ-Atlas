@@ -174,12 +174,78 @@ export interface DispatchAutomationDryRunPlan {
   steps: DispatchAutomationDryRunStep[]
 }
 
+export type DeploymentArtifactRole = 'frontend' | 'backend' | 'placeholder'
+
+export interface DeploymentArtifact {
+  id: string
+  projectId: string
+  targetId: string
+  filename: string
+  role: DeploymentArtifactRole
+  sourceRepo: string
+  targetPath: string
+  required: boolean
+  onlyWhenFullAppReady: boolean
+  checksum: string
+  inspectedAt: string
+  warnings: string[]
+  notes: string[]
+}
+
+export interface DeploymentPreservePath {
+  id: string
+  projectId: string
+  targetId: string
+  path: string
+  reason: string
+  required: boolean
+  temporary: boolean
+  notes: string[]
+}
+
+export interface DeploymentVerificationCheck {
+  id: string
+  projectId: string
+  targetId: string
+  label: string
+  method: 'HEAD' | 'GET'
+  urlPath: string
+  expectedStatuses: number[]
+  protectedResource: boolean
+  notes: string[]
+}
+
+export interface DeploymentRunbook {
+  id: string
+  projectId: string
+  targetId: string
+  siteName: string
+  summary: string
+  deployOrder: number
+  enabled: boolean
+  notes: string[]
+  artifacts: DeploymentArtifact[]
+  preservePaths: DeploymentPreservePath[]
+  verificationChecks: DeploymentVerificationCheck[]
+  manualDeployNotes: string[]
+}
+
+export interface DeploymentOrderGroup {
+  id: string
+  name: string
+  description: string
+  runbookIds: string[]
+  notes: string[]
+}
+
 export interface DispatchState {
   targets: DeploymentTarget[]
   records: DeploymentRecord[]
   readiness: DispatchReadiness[]
   preflightRuns: DispatchPreflightRun[]
   automationReadiness: DispatchAutomationReadiness[]
+  runbooks: DeploymentRunbook[]
+  orderGroups: DeploymentOrderGroup[]
 }
 
 export type DeploymentRunnerPhase =
@@ -230,6 +296,10 @@ export function getTargetPreflightRuns(state: DispatchState, targetId: string) {
 
 export function getLatestPreflightRun(state: DispatchState, targetId: string) {
   return getTargetPreflightRuns(state, targetId)[0]
+}
+
+export function getRunbookForTarget(state: DispatchState, targetId: string) {
+  return state.runbooks.find((runbook) => runbook.targetId === targetId)
 }
 
 export function summarizePreflightStatus(checks: DispatchPreflightCheck[]): DispatchPreflightStatus {

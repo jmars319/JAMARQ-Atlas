@@ -8,6 +8,7 @@ import {
   getHealthCheckSummary,
   getLatestDeploymentRecord,
   getLatestPreflightRun,
+  getRunbookForTarget,
   type DispatchState,
 } from '../domain/dispatch'
 import {
@@ -76,6 +77,7 @@ export function DispatchDashboard({
           const readiness = findReadiness(dispatch, target.projectId, target.id)
           const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
           const latestPreflight = getLatestPreflightRun(dispatch, target.id)
+          const runbook = getRunbookForTarget(dispatch, target.id)
           const automationReadiness = findAutomationReadiness(
             dispatch.automationReadiness,
             target,
@@ -138,6 +140,10 @@ export function DispatchDashboard({
                   <strong>
                     {latestPreflight ? formatPreflightStatus(latestPreflight.status) : 'Not run'}
                   </strong>
+                </div>
+                <div>
+                  <span>Runbook</span>
+                  <strong>{runbook ? `#${runbook.deployOrder}` : 'None'}</strong>
                 </div>
                 <div>
                   <span>Automation</span>

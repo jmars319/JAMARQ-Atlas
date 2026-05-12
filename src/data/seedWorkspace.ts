@@ -194,6 +194,41 @@ export const seedWorkspace: Workspace = {
             }),
           ],
         },
+        {
+          id: 'bow-wow',
+          name: 'Bow Wow',
+          summary: 'Placeholder/live-site deployment tracking for the Bow Wow public site.',
+          projects: [
+            project({
+              id: 'bow-wow-site',
+              name: 'Bow Wow website',
+              kind: 'website',
+              summary: 'Public site currently tracked as placeholder-first until full launch is approved.',
+              manual: {
+                status: 'Verification',
+                nextAction: 'Confirm whether placeholder should remain live before uploading full app artifacts.',
+                lastMeaningfulChange: '2026-05-10: placeholder deploy option captured.',
+                lastVerified: '2026-05-10',
+                currentRisk: 'Uploading the full frontend/backend before launch approval would publish too much.',
+                blockers: ['Full app launch intent needs explicit confirmation.'],
+                deferredItems: ['Full backend launch until product readiness is confirmed.'],
+                notDoingItems: ['Do not upload full app artifacts while placeholder is intended.'],
+                notes: ['Use deploy-placeholder.zip only unless the full app is approved.'],
+                decisions: ['Placeholder deploy path is separate from full app launch path.'],
+              },
+              activity: [
+                activity(
+                  'bow-wow-a1',
+                  'note',
+                  'Placeholder deploy captured',
+                  'Bow Wow deploy runbook tracks placeholder-only path until full app launch is approved.',
+                  '2026-05-10',
+                  'manual',
+                ),
+              ],
+            }),
+          ],
+        },
       ],
     },
     {

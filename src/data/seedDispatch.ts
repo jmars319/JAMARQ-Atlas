@@ -1,8 +1,12 @@
 import type {
   DeploymentEnvironment,
+  DeploymentArtifact,
+  DeploymentPreservePath,
   DeploymentRecord,
+  DeploymentRunbook,
   DeploymentStatus,
   DeploymentTarget,
+  DeploymentVerificationCheck,
   DispatchReadiness,
   DispatchState,
   HealthCheckResult,
@@ -34,6 +38,138 @@ function record(seed: DeploymentRecord): DeploymentRecord {
 
 function readiness(seed: DispatchReadiness): DispatchReadiness {
   return seed
+}
+
+function artifact(seed: DeploymentArtifact): DeploymentArtifact {
+  return seed
+}
+
+function preservePath(seed: DeploymentPreservePath): DeploymentPreservePath {
+  return seed
+}
+
+function verificationCheck(seed: DeploymentVerificationCheck): DeploymentVerificationCheck {
+  return seed
+}
+
+function runbook(seed: DeploymentRunbook): DeploymentRunbook {
+  return seed
+}
+
+function cpanelChecks(projectId: string, targetId: string): DeploymentVerificationCheck[] {
+  return [
+    verificationCheck({
+      id: `${targetId}-verify-home`,
+      projectId,
+      targetId,
+      label: 'Homepage responds',
+      method: 'HEAD',
+      urlPath: '/',
+      expectedStatuses: [200, 301, 302],
+      protectedResource: false,
+      notes: ['Equivalent to curl -I https://domain.com/.'],
+    }),
+    verificationCheck({
+      id: `${targetId}-verify-api-health`,
+      projectId,
+      targetId,
+      label: 'API health responds when present',
+      method: 'HEAD',
+      urlPath: '/api/health',
+      expectedStatuses: [200, 404],
+      protectedResource: false,
+      notes: ['Expected 200 if the app exposes /api/health; 404 is acceptable for static/placeholder sites.'],
+    }),
+    verificationCheck({
+      id: `${targetId}-verify-env-protected`,
+      projectId,
+      targetId,
+      label: '.env remains protected',
+      method: 'HEAD',
+      urlPath: '/api/.env',
+      expectedStatuses: [403, 404],
+      protectedResource: true,
+      notes: ['Production secrets must not be web-readable.'],
+    }),
+    verificationCheck({
+      id: `${targetId}-verify-log-protected`,
+      projectId,
+      targetId,
+      label: 'App log remains protected',
+      method: 'HEAD',
+      urlPath: '/api/logs/app.log',
+      expectedStatuses: [403, 404],
+      protectedResource: true,
+      notes: ['Logs/runtime data must not be web-readable.'],
+    }),
+  ]
+}
+
+function frontendArtifact(projectId: string, targetId: string, sourceRepo: string) {
+  return artifact({
+    id: `${targetId}-frontend-zip`,
+    projectId,
+    targetId,
+    filename: 'frontend-deploy.zip',
+    role: 'frontend',
+    sourceRepo,
+    targetPath: 'site-root',
+    required: true,
+    onlyWhenFullAppReady: false,
+    checksum: '',
+    inspectedAt: '',
+    warnings: [],
+    notes: ['Frontend zip is uploaded to the site root. Do not delete server folders wholesale.'],
+  })
+}
+
+function backendArtifact(projectId: string, targetId: string, sourceRepo: string) {
+  return artifact({
+    id: `${targetId}-backend-zip`,
+    projectId,
+    targetId,
+    filename: 'backend-deploy.zip',
+    role: 'backend',
+    sourceRepo,
+    targetPath: '/api',
+    required: true,
+    onlyWhenFullAppReady: false,
+    checksum: '',
+    inspectedAt: '',
+    warnings: [],
+    notes: ['Backend zip is uploaded to /api. Preserve server-only files first.'],
+  })
+}
+
+function placeholderArtifact(projectId: string, targetId: string, sourceRepo: string) {
+  return artifact({
+    id: `${targetId}-placeholder-zip`,
+    projectId,
+    targetId,
+    filename: 'deploy-placeholder.zip',
+    role: 'placeholder',
+    sourceRepo,
+    targetPath: 'site-root',
+    required: true,
+    onlyWhenFullAppReady: false,
+    checksum: '',
+    inspectedAt: '',
+    warnings: [],
+    notes: ['Use this only if keeping the placeholder live. Do not upload full app artifacts unless ready.'],
+  })
+}
+
+function preserve(projectId: string, targetId: string, path: string, reason: string, temporary = false) {
+  return preservePath({
+    id: `${targetId}-preserve-${path.replace(/[^a-z0-9]+/gi, '-')}`,
+    projectId,
+    targetId,
+    path,
+    reason,
+    required: true,
+    temporary,
+    notes: [],
+  })
 }
 
 function productionTarget({
@@ -125,6 +261,14 @@ function productionRecord({
 
 export const seedDispatchState: DispatchState = {
   targets: [
+    productionTarget({
+      id: 'bow-wow-production',
+      projectId: 'bow-wow-site',
+      name: 'Bow Wow production',
+      publicUrl: 'https://bowwow.example',
+      status: 'verification',
+      notes: ['GoDaddy/cPanel placeholder target until full app launch is approved.'],
+    }),
     productionTarget({
       id: 'midway-music-hall-production',
       projectId: 'midway-music-hall-site',
@@ -270,6 +414,20 @@ export const seedDispatchState: DispatchState = {
   ],
   readiness: [
     readiness({
+      projectId: 'bow-wow-site',
+      targetId: 'bow-wow-production',
+      repoCleanKnown: false,
+      buildStatusKnown: false,
+      artifactReady: false,
+      backupReady: true,
+      healthChecksDefined: true,
+      ready: false,
+      blocked: true,
+      blockers: ['Confirm placeholder-only deploy remains the intended live state.'],
+      warnings: ['Host/path values are placeholders.'],
+      lastCheckedAt: '2026-05-10T14:00:00Z',
+    }),
+    readiness({
       projectId: 'midway-music-hall-site',
       targetId: 'midway-music-hall-production',
       repoCleanKnown: false,
@@ -353,6 +511,137 @@ export const seedDispatchState: DispatchState = {
       warnings: ['Host/path values are placeholders.'],
       lastCheckedAt: '2026-05-01T14:00:00Z',
     }),
+  ],
+  runbooks: [
+    runbook({
+      id: 'mms-cpanel-runbook',
+      projectId: 'midway-mobile-storage-site',
+      targetId: 'midway-mobile-storage-production',
+      siteName: 'MMS',
+      summary: 'Deploy MMS first because it has the config-system transition.',
+      deployOrder: 1,
+      enabled: true,
+      notes: [
+        'Create /api/.env from local backend/.env.example.',
+        'Copy current production DB/JWT/origin values from existing /api/config.php.',
+        'Keep config.php for one transition deploy, then remove later after verification.',
+      ],
+      artifacts: [
+        frontendArtifact('midway-mobile-storage-site', 'midway-mobile-storage-production', 'midway-mobile-storage'),
+        backendArtifact('midway-mobile-storage-site', 'midway-mobile-storage-production', 'midway-mobile-storage'),
+      ],
+      preservePaths: [
+        preserve('midway-mobile-storage-site', 'midway-mobile-storage-production', '/api/.env', 'Create from current production config before deploy.'),
+        preserve('midway-mobile-storage-site', 'midway-mobile-storage-production', '/api/config.php', 'Preserve for one transition deploy.', true),
+      ],
+      verificationChecks: cpanelChecks('midway-mobile-storage-site', 'midway-mobile-storage-production'),
+      manualDeployNotes: ['Upload backend zip to /api, then frontend zip to root, then verify API and public site.'],
+    }),
+    runbook({
+      id: 'mmh-cpanel-runbook',
+      projectId: 'midway-music-hall-site',
+      targetId: 'midway-music-hall-production',
+      siteName: 'MMH',
+      summary: 'Deploy backend to /api and frontend to root after MMS config transition is verified.',
+      deployOrder: 2,
+      enabled: true,
+      notes: ['Preserve /api/.env and uploads before uploading fresh artifacts.'],
+      artifacts: [
+        frontendArtifact('midway-music-hall-site', 'midway-music-hall-production', 'midway-music-hall'),
+        backendArtifact('midway-music-hall-site', 'midway-music-hall-production', 'midway-music-hall'),
+      ],
+      preservePaths: [
+        preserve('midway-music-hall-site', 'midway-music-hall-production', '/api/.env', 'Production secrets are intentionally not in deploy zips.'),
+        preserve('midway-music-hall-site', 'midway-music-hall-production', '/api/uploads', 'User/runtime uploads must survive deploy.'),
+      ],
+      verificationChecks: cpanelChecks('midway-music-hall-site', 'midway-music-hall-production'),
+      manualDeployNotes: ['Verify seat requests, admin paths, and API behavior after upload.'],
+    }),
+    runbook({
+      id: 'surplus-cpanel-runbook',
+      projectId: 'surplus-containers-site',
+      targetId: 'surplus-containers-production',
+      siteName: 'SurplusContainers',
+      summary: 'Deploy frontend/backend artifacts while preserving env, logs, and runtime data.',
+      deployOrder: 3,
+      enabled: true,
+      notes: ['Backend zip includes migrations intentionally; .htaccess blocks direct web access.'],
+      artifacts: [
+        frontendArtifact('surplus-containers-site', 'surplus-containers-production', 'surplus-containers'),
+        backendArtifact('surplus-containers-site', 'surplus-containers-production', 'surplus-containers'),
+      ],
+      preservePaths: [
+        preserve('surplus-containers-site', 'surplus-containers-production', '/api/.env', 'Production secrets are intentionally not in deploy zips.'),
+        preserve('surplus-containers-site', 'surplus-containers-production', '/api/logs', 'Logs/runtime data must survive deploy.'),
+        preserve('surplus-containers-site', 'surplus-containers-production', '/api/runtime', 'Runtime data must survive deploy.'),
+      ],
+      verificationChecks: cpanelChecks('surplus-containers-site', 'surplus-containers-production'),
+      manualDeployNotes: ['Verify public pages and admin/API after upload.'],
+    }),
+    runbook({
+      id: 'trbg-cpanel-runbook',
+      projectId: 'thunder-road-site',
+      targetId: 'thunder-road-production',
+      siteName: 'TRBG',
+      summary: 'Deploy backend with vendor included; do not run Composer on the server.',
+      deployOrder: 4,
+      enabled: true,
+      notes: ['Backend zip includes vendor/. Do not run Composer on the server.'],
+      artifacts: [
+        frontendArtifact('thunder-road-site', 'thunder-road-production', 'thunder-road'),
+        backendArtifact('thunder-road-site', 'thunder-road-production', 'thunder-road'),
+      ],
+      preservePaths: [
+        preserve('thunder-road-site', 'thunder-road-production', '/api/.env', 'Production secrets are intentionally not in deploy zips.'),
+        preserve('thunder-road-site', 'thunder-road-production', '/api/uploads', 'Uploaded media must survive deploy.'),
+        preserve('thunder-road-site', 'thunder-road-production', '/api/incoming', 'Incoming runtime data must survive deploy.'),
+        preserve('thunder-road-site', 'thunder-road-production', '/api/logs', 'Logs/runtime data must survive deploy.'),
+      ],
+      verificationChecks: [
+        ...cpanelChecks('thunder-road-site', 'thunder-road-production'),
+        verificationCheck({
+          id: 'thunder-road-production-verify-settings',
+          projectId: 'thunder-road-site',
+          targetId: 'thunder-road-production',
+          label: '/api/settings responds',
+          method: 'HEAD',
+          urlPath: '/api/settings',
+          expectedStatuses: [200],
+          protectedResource: false,
+          notes: ['Also verify /api/navigation and /api/menu manually after upload.'],
+        }),
+      ],
+      manualDeployNotes: ['Verify /api/settings, /api/navigation, and /api/menu after upload.'],
+    }),
+    runbook({
+      id: 'bow-wow-cpanel-runbook',
+      projectId: 'bow-wow-site',
+      targetId: 'bow-wow-production',
+      siteName: 'Bow Wow',
+      summary: 'Placeholder-first deploy path. Upload full app only after launch approval.',
+      deployOrder: 5,
+      enabled: true,
+      notes: ['Use deploy-placeholder.zip if keeping placeholder live. Do not upload full frontend/backend unless ready.'],
+      artifacts: [placeholderArtifact('bow-wow-site', 'bow-wow-production', 'bow-wow')],
+      preservePaths: [],
+      verificationChecks: cpanelChecks('bow-wow-site', 'bow-wow-production'),
+      manualDeployNotes: ['If placeholder is intended, upload only deploy-placeholder.zip to root.'],
+    }),
+  ],
+  orderGroups: [
+    {
+      id: 'current-cpanel-sites',
+      name: 'Current cPanel Deploy Queue',
+      description: 'Recommended read-only Atlas deploy order for the five live-current cPanel sites.',
+      runbookIds: [
+        'mms-cpanel-runbook',
+        'mmh-cpanel-runbook',
+        'surplus-cpanel-runbook',
+        'trbg-cpanel-runbook',
+        'bow-wow-cpanel-runbook',
+      ],
+      notes: ['Never replace /api wholesale without preserving server-only files first.'],
+    },
   ],
   preflightRuns: [],
   automationReadiness: [],

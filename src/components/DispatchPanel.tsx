@@ -17,6 +17,7 @@ import {
   getHealthCheckSummary,
   getLatestDeploymentRecord,
   getLatestPreflightRun,
+  getRunbookForTarget,
   getTargetPreflightRuns,
   getTargetRecords,
   type DispatchAutomationDryRunPlan,
@@ -102,6 +103,7 @@ export function DispatchPanel({
         const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
         const deploymentRecords = getTargetRecords(dispatch, target.id)
         const latestPreflight = getLatestPreflightRun(dispatch, target.id)
+        const runbook = getRunbookForTarget(dispatch, target.id)
         const preflightRuns = getTargetPreflightRuns(dispatch, target.id)
         const preflightRunning = preflightRunningTargetId === target.id
         const health = getHealthCheckSummary(latestDeployment?.healthCheckResults)
@@ -170,6 +172,86 @@ export function DispatchPanel({
                   </strong>
                 </div>
               </div>
+            </div>
+
+            <div className="dispatch-runbook" aria-label={`${target.name} deploy runbook`}>
+              <div className="panel-heading">
+                <ClipboardCheck size={17} />
+                <h3>cPanel Deploy Runbook</h3>
+              </div>
+              {runbook ? (
+                <>
+                  <div className="dispatch-signal-grid">
+                    <div>
+                      <strong>Order {runbook.deployOrder}</strong>
+                      <span>{runbook.siteName}</span>
+                    </div>
+                    <div>
+                      <strong>{runbook.artifacts.length}</strong>
+                      <span>Expected artifacts</span>
+                    </div>
+                    <div>
+                      <strong>{runbook.preservePaths.length}</strong>
+                      <span>Preserve paths</span>
+                    </div>
+                    <div>
+                      <strong>{runbook.verificationChecks.length}</strong>
+                      <span>Verification checks</span>
+                    </div>
+                  </div>
+                  <p>{runbook.summary}</p>
+
+                  <div className="dispatch-runbook-grid">
+                    <div>
+                      <strong>Artifacts</strong>
+                      <ul className="dispatch-list">
+                        {runbook.artifacts.map((artifact) => (
+                          <li key={artifact.id}>
+                            {artifact.filename} {'->'} {artifact.targetPath} ({artifact.role})
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <strong>Preserve/create on server</strong>
+                      {runbook.preservePaths.length > 0 ? (
+                        <ul className="dispatch-list">
+                          {runbook.preservePaths.map((path) => (
+                            <li key={path.id}>
+                              {path.path}
+                              {path.temporary ? ' (temporary)' : ''}: {path.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="empty-state">No special preserve paths recorded.</p>
+                      )}
+                    </div>
+                    <div>
+                      <strong>Verification checks</strong>
+                      <ul className="dispatch-list">
+                        {runbook.verificationChecks.map((check) => (
+                          <li key={check.id}>
+                            {check.method} {check.urlPath} {'->'} {check.expectedStatuses.join('/')}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <strong>Deploy notes</strong>
+                      <ul className="dispatch-list">
+                        {[...runbook.notes, ...runbook.manualDeployNotes].map((note) => (
+                          <li key={note}>{note}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="empty-state">
+                  No deploy runbook is configured for this target yet.
+                </p>
+              )}
             </div>
 
             <div className="dispatch-preflight" aria-label={`${target.name} preflight`}>

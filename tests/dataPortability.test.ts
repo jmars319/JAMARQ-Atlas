@@ -91,7 +91,7 @@ describe('data portability', () => {
     expect(serialized).not.toContain('GITHUB_TOKEN')
     expect(serialized).not.toContain('GH_TOKEN')
     expect(serialized).not.toContain('localStorage')
-    expect(serialized).not.toContain('secret')
+    expect(serialized).not.toMatch(/password|token=|secret=|api[_-]?key=/i)
   })
 
   it('builds a Markdown inventory report with counts and guardrails', () => {

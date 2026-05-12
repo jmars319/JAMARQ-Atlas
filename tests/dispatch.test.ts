@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { DeploymentTarget, DispatchReadiness } from '../src/domain/dispatch'
+import { getRunbookForTarget, type DeploymentTarget, type DispatchReadiness } from '../src/domain/dispatch'
+import { seedDispatchState } from '../src/data/seedDispatch'
 import {
   createDefaultAutomationReadiness,
   createDispatchAutomationDryRunPlan,
@@ -214,6 +215,8 @@ describe('dispatch readiness', () => {
       readiness: [repoReadiness],
       preflightRuns: [],
       automationReadiness: [],
+      runbooks: [],
+      orderGroups: [],
     }
 
     if (!record) {
@@ -279,6 +282,8 @@ describe('dispatch readiness', () => {
       readiness: [readiness],
       preflightRuns: [],
       automationReadiness: [],
+      runbooks: [],
+      orderGroups: [],
     }
     const before = JSON.stringify(dispatch)
 
@@ -319,6 +324,8 @@ describe('dispatch readiness', () => {
       readiness: [readiness],
       preflightRuns: [],
       automationReadiness: [automation],
+      runbooks: [],
+      orderGroups: [],
     }
     const before = JSON.stringify(dispatch)
     const plan = createDispatchAutomationDryRunPlan({
@@ -330,5 +337,52 @@ describe('dispatch readiness', () => {
     expect(plan.steps.every((step) => step.message.includes('No SSH'))).toBe(true)
     expect(plan.steps.some((step) => step.requiresConfirmation)).toBe(true)
     expect(JSON.stringify(dispatch)).toBe(before)
+  })
+
+  it('seeds cPanel deploy runbooks for the current five-site deploy queue', () => {
+    const queue = seedDispatchState.orderGroups.find(
+      (group) => group.id === 'current-cpanel-sites',
+    )
+
+    expect(queue?.runbookIds).toEqual([
+      'mms-cpanel-runbook',
+      'mmh-cpanel-runbook',
+      'surplus-cpanel-runbook',
+      'trbg-cpanel-runbook',
+      'bow-wow-cpanel-runbook',
+    ])
+    expect(seedDispatchState.runbooks).toHaveLength(5)
+    expect(
+      seedDispatchState.targets.every((target) =>
+        target.id === 'jamarq-website-production' ||
+        target.id === 'tenra-public-site-production' ||
+        Boolean(getRunbookForTarget(seedDispatchState, target.id)),
+      ),
+    ).toBe(true)
+  })
+
+  it('captures MMS config transition and Bow Wow placeholder-only posture', () => {
+    const mms = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
+    const bowWow = getRunbookForTarget(seedDispatchState, 'bow-wow-production')
+
+    expect(mms?.preservePaths.some((path) => path.path === '/api/.env')).toBe(true)
+    expect(mms?.preservePaths.some((path) => path.path === '/api/config.php' && path.temporary)).toBe(
+      true,
+    )
+    expect(bowWow?.artifacts).toEqual([
+      expect.objectContaining({
+        filename: 'deploy-placeholder.zip',
+        role: 'placeholder',
+      }),
+    ])
+    expect(bowWow?.manualDeployNotes.join(' ')).toContain('upload only deploy-placeholder.zip')
+  })
+
+  it('does not create deployment records or change status from runbook data', () => {
+    const beforeRecordCount = seedDispatchState.records.length
+    const bowWowTarget = seedDispatchState.targets.find((candidate) => candidate.id === 'bow-wow-production')
+
+    expect(seedDispatchState.records).toHaveLength(beforeRecordCount)
+    expect(bowWowTarget?.status).toBe('verification')
   })
 })
