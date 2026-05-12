@@ -1,0 +1,35 @@
+# Atlas Calibration
+
+Calibration is a Settings surface for replacing placeholder operational values with real, non-secret context.
+
+## What It Scans
+
+- Dispatch target hosts, users, paths, public URLs, database names, and health URLs.
+- Backup notes and rollback references.
+- Future automation rollback requirements.
+- Client Systems projects that still need Dispatch targets.
+- Projects with no GitHub repository binding.
+- Projects missing a manual `lastVerified` date.
+
+## What It Can Edit
+
+Calibration can edit selected Dispatch target fields:
+
+- Remote host.
+- Remote user.
+- Remote frontend/backend paths.
+- Public URL.
+- Health check URLs.
+- Non-secret database name.
+
+Those edits update Dispatch target storage only. They do not change Atlas project status, Dispatch readiness, deployment records, verification stamps, GitHub bindings, Planning, Writing, or Reports.
+
+## Secret Rule
+
+Atlas must not store credentials in browser state. Calibration rejects credential-shaped values such as passwords, tokens, API keys, private keys, and secrets.
+
+If a credential needs to be referenced operationally, use a non-secret label such as `godaddy-mmh-production` in notes or future credential-reference fields.
+
+## Guardrails
+
+Calibration is not verification and not deployment automation. It may identify unresolved placeholders, but a human must still confirm hosts, paths, backups, rollback posture, and deployment order.

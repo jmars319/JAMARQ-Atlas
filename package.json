@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:unit": "vitest run tests/automationSignals.test.ts tests/dataPortability.test.ts tests/dispatch.test.ts tests/githubIntegration.test.ts tests/planning.test.ts tests/reports.test.ts tests/repoBinding.test.ts tests/settings.test.ts tests/sync.test.ts tests/timeline.test.ts tests/verification.test.ts tests/writing.test.ts"
+    "test:unit": "vitest run tests/automationSignals.test.ts tests/calibration.test.ts tests/dataPortability.test.ts tests/dispatch.test.ts tests/githubIntegration.test.ts tests/planning.test.ts tests/reports.test.ts tests/repoBinding.test.ts tests/settings.test.ts tests/sync.test.ts tests/timeline.test.ts tests/verification.test.ts tests/writing.test.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

@@ -14,7 +14,7 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import type { Workspace } from '../domain/atlas'
-import type { DispatchState } from '../domain/dispatch'
+import type { DeploymentTarget, DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
 import type { AtlasConnectionCard, AtlasSettingsState } from '../domain/settings'
@@ -34,6 +34,13 @@ import {
   pushHostedSyncSnapshot,
   type HostedSyncStatus,
 } from '../services/hostedSync'
+import {
+  CALIBRATION_CATEGORIES,
+  canStoreCalibrationValue,
+  scanAtlasCalibration,
+  type CalibrationCategory,
+  type CalibrationIssue,
+} from '../services/calibration'
 import { buildStaticConnectionCards } from '../services/settings'
 import {
   canApplySyncRestore,
@@ -66,6 +73,7 @@ interface SettingsCenterProps {
   onSettingsChange: (
     update: Partial<Pick<AtlasSettingsState, 'deviceLabel' | 'operatorLabel' | 'notes'>>,
   ) => void
+  onDispatchTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
   onCreateSnapshot: (label: string, note: string) => void
   onDeleteSnapshot: (snapshotId: string) => void
   onRestoreSnapshot: (stores: AtlasSyncCoreStores) => void
@@ -248,6 +256,73 @@ function SnapshotSummary({
   )
 }
 
+function issueCountLabel(count: number) {
+  return count === 1 ? '1 unresolved item' : `${count} unresolved items`
+}
+
+function CalibrationField({
+  issue,
+  onTargetChange,
+  onRejectValue,
+}: {
+  issue: CalibrationIssue
+  onTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
+  onRejectValue: (message: string) => void
+}) {
+  if (!issue.editable || !issue.targetId) {
+    return (
+      <div className="settings-calibration-value">
+        <span>{issue.value || 'Needs real value'}</span>
+      </div>
+    )
+  }
+
+  function commitValue(value: string) {
+    if (!issue.targetId) {
+      return
+    }
+
+    const storageCheck = canStoreCalibrationValue(value)
+
+    if (!storageCheck.ok) {
+      onRejectValue(storageCheck.message)
+      return
+    }
+
+    if (issue.field === 'healthCheckUrls') {
+      onTargetChange(issue.targetId, {
+        healthCheckUrls: value
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean),
+      })
+      return
+    }
+
+    onTargetChange(issue.targetId, { [issue.field]: value } as Partial<DeploymentTarget>)
+  }
+
+  if (issue.field === 'healthCheckUrls') {
+    return (
+      <label className="field field-full">
+        <span>{issue.label}</span>
+        <textarea
+          value={issue.value}
+          rows={3}
+          onChange={(event) => commitValue(event.target.value)}
+        />
+      </label>
+    )
+  }
+
+  return (
+    <label className="field field-full">
+      <span>{issue.label}</span>
+      <input value={issue.value} onChange={(event) => commitValue(event.target.value)} />
+    </label>
+  )
+}
+
 async function requestGithubStatus(signal?: AbortSignal) {
   const response = await fetch('/api/github/status', { signal })
 
@@ -267,6 +342,7 @@ export function SettingsCenter({
   reports,
   sync,
   onSettingsChange,
+  onDispatchTargetChange,
   onCreateSnapshot,
   onDeleteSnapshot,
   onRestoreSnapshot,
@@ -298,6 +374,8 @@ export function SettingsCenter({
   const [pendingRemoteDeleteId, setPendingRemoteDeleteId] = useState('')
   const [remoteSnapshotLimit, setRemoteSnapshotLimit] = useState(REMOTE_SYNC_SNAPSHOT_LIMIT)
   const [syncMessage, setSyncMessage] = useState('')
+  const [calibrationFilter, setCalibrationFilter] = useState<CalibrationCategory | 'all'>('all')
+  const [calibrationMessage, setCalibrationMessage] = useState('')
 
   async function loadGithubStatus() {
     setLoadingGithub(true)
@@ -465,6 +543,17 @@ export function SettingsCenter({
       writingProviderError,
       writingProviderStatus,
     ],
+  )
+  const calibrationIssues = useMemo(
+    () => scanAtlasCalibration(workspace, dispatch),
+    [dispatch, workspace],
+  )
+  const filteredCalibrationIssues = useMemo(
+    () =>
+      calibrationFilter === 'all'
+        ? calibrationIssues
+        : calibrationIssues.filter((issue) => issue.category === calibrationFilter),
+    [calibrationFilter, calibrationIssues],
   )
   const currentStores = useMemo(
     () => ({ workspace, dispatch, writing, planning, reports }),
@@ -794,6 +883,90 @@ export function SettingsCenter({
               <ConnectionCard key={card.id} card={card} />
             ))}
           </div>
+        </section>
+
+        <section className="settings-panel" aria-label="Atlas calibration checks">
+          <div className="panel-heading settings-panel-heading-row">
+            <div>
+              <ShieldCheck size={17} />
+              <h2>Calibration Checks</h2>
+            </div>
+            <span className="resource-pill state-warning">
+              {issueCountLabel(filteredCalibrationIssues.length)}
+            </span>
+          </div>
+          <p className="empty-state">
+            Replace placeholders with real non-secret operational values. Credentials stay outside
+            Atlas; store only labels such as godaddy-mmh-production in notes when needed.
+          </p>
+          <div className="settings-form-grid">
+            <label className="field">
+              <span>Calibration filter</span>
+              <select
+                aria-label="Calibration filter"
+                value={calibrationFilter}
+                onChange={(event) =>
+                  setCalibrationFilter(event.target.value as CalibrationCategory | 'all')
+                }
+              >
+                {CALIBRATION_CATEGORIES.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="settings-snapshot-summary">
+              <strong>Placeholder scan</strong>
+              <span>{issueCountLabel(calibrationIssues.length)} across Workspace and Dispatch</span>
+              <span>Secret-shaped values are rejected from calibration edits</span>
+            </div>
+          </div>
+
+          {filteredCalibrationIssues.length > 0 ? (
+            <div className="settings-calibration-list">
+              {filteredCalibrationIssues.slice(0, 40).map((issue) => (
+                <article key={issue.id} className="settings-calibration-card">
+                  <div>
+                    <div className="settings-card-heading">
+                      <h3>{issue.label}</h3>
+                      <span className="resource-pill state-warning">
+                        {issue.severity === 'needs-real-value' ? 'Needs real value' : 'Warning'}
+                      </span>
+                    </div>
+                    <p>{issue.message}</p>
+                    <div className="resource-meta">
+                      <span>{issue.projectName}</span>
+                      {issue.targetName ? <span>{issue.targetName}</span> : null}
+                      <span>{issue.category}</span>
+                      <span>{issue.field}</span>
+                    </div>
+                  </div>
+                  <CalibrationField
+                    issue={issue}
+                    onTargetChange={(targetId, update) => {
+                      onDispatchTargetChange(targetId, update)
+                      setCalibrationMessage('Calibration field updated locally.')
+                    }}
+                    onRejectValue={setCalibrationMessage}
+                  />
+                </article>
+              ))}
+              {filteredCalibrationIssues.length > 40 ? (
+                <p className="empty-state">
+                  Showing the first 40 unresolved items. Narrow the filter for the rest.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="empty-state">
+              No calibration gaps match this filter. This does not verify credentials or server
+              access.
+            </p>
+          )}
+          {calibrationMessage ? (
+            <p className="data-action-message">{calibrationMessage}</p>
+          ) : null}
         </section>
 
         <section className="settings-panel">

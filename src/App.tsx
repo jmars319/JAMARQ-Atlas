@@ -545,6 +545,7 @@ function App() {
             reports={reports}
             sync={sync}
             onSettingsChange={updateLocalSettings}
+            onDispatchTargetChange={handleDispatchTargetChange}
             onCreateSnapshot={handleCreateSnapshot}
             onDeleteSnapshot={removeSnapshot}
             onRestoreSnapshot={handleRestoreSnapshot}

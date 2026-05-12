@@ -17,14 +17,14 @@ The app has these main surfaces:
 - Writing Workbench: local draft packets and reviewable operational writing.
 - Reports: local Markdown packet assembly from approved Writing and operational context.
 - Data Center: local backup export, restore preview, and typed-confirmation restore.
-- Settings & Connections: local workspace identity and integration-readiness status.
+- Settings & Connections: local workspace identity, calibration checks, and integration-readiness status.
 - Sync Snapshots: manual local snapshots and optional Supabase hosted snapshots.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
 
 ## Timeline Model
 
-Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight evidence, Writing audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
+Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight evidence, Writing audit events, Planning records, Report audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
 
 Timeline supports filtering by project, section, source, type, date range, and search. It does not mutate Workspace, Dispatch, Writing, Sync, Settings, GitHub bindings, verification, readiness, or project status.
 
@@ -162,6 +162,14 @@ GitHub Intake persists only Atlas decisions: repository bindings and explicitly 
 The GitHub tab includes a selected-repo deep dive over these same live resources. Deep-dive data is fetched on demand and remains advisory.
 
 GitHub data does not create or update Planning records. Repo history may be useful context for a human planning session, but the current Planning Center remains explicit and manual-only.
+
+## Calibration Model
+
+Calibration lives inside Settings and scans Workspace plus Dispatch for unresolved placeholder values. It surfaces missing or placeholder domains, hosts, paths, repo bindings, health URLs, backup notes, rollback notes, client labels, and verification gaps.
+
+Calibration can edit selected non-secret Dispatch target fields such as host, user, paths, public URL, health check URLs, and database name. It rejects credential-shaped values and never stores GitHub tokens, API keys, passwords, or deployment credentials.
+
+Calibration does not verify access, change status, change readiness, create deployment records, or make decisions. It is a cleanup queue for human-confirmed operational data.
 
 ## AI Boundary
 

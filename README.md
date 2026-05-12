@@ -24,7 +24,7 @@ The dashboard currently supports:
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Reports for assembling local Markdown update packets from approved Writing drafts and operational context.
 - Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
-- Settings & Connections Center for local workspace labels and integration-readiness status without storing secrets.
+- Settings & Connections Center for local workspace labels, calibration checks, and integration-readiness status without storing secrets.
 - Manual local Sync snapshots and optional Supabase hosted snapshot push/pull.
 
 No hosted production URL is configured yet. Run the app locally until a deployment target is intentionally added.
@@ -42,7 +42,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Dispatch automation readiness helpers and no-op dry-run planning.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
-- Versioned local backup/export helpers for Workspace, Dispatch, Writing, Settings, and Sync data.
+- Versioned local backup/export helpers for Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync data.
 - Local settings storage for device/operator labels and connection-readiness surfaces.
 - Local sync snapshot storage and optional Supabase hosted sync bridge.
 - Unit and Playwright smoke tests for the main operator flows.
@@ -62,6 +62,12 @@ Current Timeline sources:
 - GitHub activity already present in Atlas activity records.
 
 Timeline rows can be filtered by project, section, source, type, date range, and search. Project detail pages include a compact timeline for the selected project. Timeline does not change status, verification, readiness, Writing state, GitHub bindings, Sync state, or any operational decision.
+
+## Calibration
+
+Settings includes Calibration Checks for unresolved placeholders across Workspace and Dispatch. It flags placeholder hosts, paths, domains, health URLs, backup notes, rollback notes, missing repo bindings, and verification gaps.
+
+Calibration can edit non-secret Dispatch target fields, but it rejects credential-shaped values. Store credential references only as labels; never store passwords, tokens, API keys, or private keys in Atlas browser state.
 
 ## Planning Center
 

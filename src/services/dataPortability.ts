@@ -24,6 +24,7 @@ import { normalizeSettingsState } from './settings'
 import { normalizeSyncState } from './syncSnapshots'
 
 export const RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
+const BACKUP_NORMALIZATION_FALLBACK_DATE = new Date('1970-01-01T00:00:00.000Z')
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -182,7 +183,7 @@ export function normalizeBackupStores(value: unknown): {
 
   try {
     workspace = normalizeWorkspaceVerificationCadence(value.workspace as Workspace)
-    dispatch = normalizeDispatchState(value.dispatch ?? {})
+    dispatch = normalizeDispatchState(value.dispatch ?? {}, BACKUP_NORMALIZATION_FALLBACK_DATE)
     writing = normalizeWritingState(value.writing ?? {})
     planning = normalizePlanningState(value.planning ?? {})
     reports = normalizeReportsState(value.reports ?? {})
