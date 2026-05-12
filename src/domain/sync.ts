@@ -1,8 +1,10 @@
 import type { Workspace } from './atlas'
 import type { DispatchState } from './dispatch'
+import type { AtlasPlanningState } from './planning'
+import type { ReportsState } from './reports'
 import type { WritingWorkbenchState } from './writing'
 
-export const ATLAS_SYNC_SCHEMA_VERSION = 1
+export const ATLAS_SYNC_SCHEMA_VERSION = 2
 
 export type AtlasSyncSchemaVersion = typeof ATLAS_SYNC_SCHEMA_VERSION
 export type AtlasSyncProviderId = 'local' | 'supabase'
@@ -13,6 +15,8 @@ export interface AtlasSyncCoreStores {
   workspace: Workspace
   dispatch: DispatchState
   writing: WritingWorkbenchState
+  planning: AtlasPlanningState
+  reports: ReportsState
 }
 
 export interface AtlasSyncStoreSummary {
@@ -35,6 +39,21 @@ export interface AtlasSyncStoreSummary {
     approvedDrafts: number
     exportedDrafts: number
     archivedDrafts: number
+  }
+  planning: {
+    objectives: number
+    milestones: number
+    workSessions: number
+    notes: number
+    active: number
+    planned: number
+    waiting: number
+  }
+  reports: {
+    packets: number
+    auditEvents: number
+    exportedPackets: number
+    archivedPackets: number
   }
 }
 

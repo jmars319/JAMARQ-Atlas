@@ -10,12 +10,16 @@ import {
 } from '../domain/dataPortability'
 import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
+import type { AtlasPlanningState } from '../domain/planning'
+import type { ReportsState } from '../domain/reports'
 import type { AtlasSettingsState } from '../domain/settings'
 import type { AtlasSyncState } from '../domain/sync'
 import type { WritingWorkbenchState } from '../domain/writing'
 import { normalizeWorkspaceVerificationCadence } from './verification'
 import { normalizeDispatchState } from './dispatchStorage'
 import { normalizeWritingState } from './aiWritingAssistant'
+import { normalizePlanningState, summarizePlanningState } from './planning'
+import { normalizeReportsState } from './reports'
 import { normalizeSettingsState } from './settings'
 import { normalizeSyncState } from './syncSnapshots'
 
@@ -60,6 +64,22 @@ function collectWritingSummary(writing: WritingWorkbenchState) {
   }
 }
 
+function collectPlanningSummary(planning: AtlasPlanningState) {
+  return summarizePlanningState(planning)
+}
+
+function collectReportsSummary(reports: ReportsState) {
+  return {
+    packets: reports.packets.length,
+    auditEvents: reports.packets.reduce(
+      (total, packet) => total + packet.auditEvents.length,
+      0,
+    ),
+    exportedPackets: reports.packets.filter((packet) => packet.status === 'exported').length,
+    archivedPackets: reports.packets.filter((packet) => packet.status === 'archived').length,
+  }
+}
+
 function collectSettingsSummary(settings: AtlasSettingsState) {
   return {
     configured: settings.deviceLabel ? 1 : 0,
@@ -79,6 +99,8 @@ export function summarizeAtlasStores(stores: AtlasBackupStores): AtlasBackupStor
     workspace: collectWorkspaceSummary(stores.workspace),
     dispatch: collectDispatchSummary(stores.dispatch),
     writing: collectWritingSummary(stores.writing),
+    planning: collectPlanningSummary(stores.planning),
+    reports: collectReportsSummary(stores.reports),
     settings: collectSettingsSummary(stores.settings),
     sync: collectSyncSummary(stores.sync),
   }
@@ -118,6 +140,20 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
+  if (!value.planning) {
+    warnings.push({
+      type: 'missing-planning',
+      message: 'Backup is missing Planning state; an empty Planning store will be restored.',
+    })
+  }
+
+  if (!value.reports) {
+    warnings.push({
+      type: 'missing-reports',
+      message: 'Backup is missing Reports state; an empty Reports store will be restored.',
+    })
+  }
+
   if (!value.settings) {
     warnings.push({
       type: 'missing-settings',
@@ -139,6 +175,8 @@ export function normalizeBackupStores(value: unknown): {
   let workspace: Workspace
   let dispatch: DispatchState
   let writing: WritingWorkbenchState
+  let planning: AtlasPlanningState
+  let reports: ReportsState
   let settings: AtlasSettingsState
   let sync: AtlasSyncState
 
@@ -146,6 +184,8 @@ export function normalizeBackupStores(value: unknown): {
     workspace = normalizeWorkspaceVerificationCadence(value.workspace as Workspace)
     dispatch = normalizeDispatchState(value.dispatch ?? {})
     writing = normalizeWritingState(value.writing ?? {})
+    planning = normalizePlanningState(value.planning ?? {})
+    reports = normalizeReportsState(value.reports ?? {})
     settings = normalizeSettingsState(value.settings ?? {})
     sync = normalizeSyncState(value.sync ?? {})
   } catch {
@@ -170,6 +210,20 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
+  if (!isRecord(value.planning)) {
+    warnings.push({
+      type: 'legacy-normalized',
+      message: 'Planning state was normalized for the current backup schema.',
+    })
+  }
+
+  if (!isRecord(value.reports) || !Array.isArray(value.reports.packets)) {
+    warnings.push({
+      type: 'legacy-normalized',
+      message: 'Reports state was normalized for the current backup schema.',
+    })
+  }
+
   if (!isRecord(value.settings) || typeof value.settings.deviceLabel !== 'string') {
     warnings.push({
       type: 'legacy-normalized',
@@ -184,7 +238,7 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
-  const stores = { workspace, dispatch, writing, settings, sync }
+  const stores = { workspace, dispatch, writing, planning, reports, settings, sync }
   const summary = summarizeAtlasStores(stores)
 
   if (summary.workspace.projects === 0) {
@@ -241,7 +295,11 @@ export function validateAtlasBackupEnvelope(value: unknown): AtlasBackupValidati
     errors.push('Backup kind is not jamarq-atlas-backup.')
   }
 
-  if (value.schemaVersion !== 1 && value.schemaVersion !== ATLAS_BACKUP_SCHEMA_VERSION) {
+  if (
+    value.schemaVersion !== 1 &&
+    value.schemaVersion !== 2 &&
+    value.schemaVersion !== ATLAS_BACKUP_SCHEMA_VERSION
+  ) {
     errors.push(`Unsupported backup schema version: ${String(value.schemaVersion)}.`)
   }
 
@@ -294,7 +352,7 @@ export function createRestorePreview(
 }
 
 export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing, settings, sync } = envelope.summary
+  const { workspace, dispatch, writing, planning, reports, settings, sync } = envelope.summary
 
   return `# JAMARQ Atlas Backup Report
 
@@ -308,13 +366,15 @@ Schema: ${envelope.schemaVersion}
 - Activity events: ${workspace.activityEvents}
 - Dispatch: ${dispatch.targets} targets, ${dispatch.records} records, ${dispatch.readinessEntries} readiness entries, ${dispatch.preflightRuns} preflight runs
 - Writing: ${writing.drafts} drafts, ${writing.reviewEvents} review events, ${writing.approvedDrafts} approved, ${writing.exportedDrafts} exported, ${writing.archivedDrafts} archived
+- Planning: ${planning.objectives} objectives, ${planning.milestones} milestones, ${planning.workSessions} work sessions, ${planning.notes} notes
+- Reports: ${reports.packets} packets, ${reports.auditEvents} audit events, ${reports.exportedPackets} exported, ${reports.archivedPackets} archived
 - Settings: ${settings.configured} local settings store
 - Sync: ${sync.snapshots} local snapshots, provider configured: ${sync.providerConfigured ? 'yes' : 'no'}
 
 ## Restore Rules
 
 - Restore is previewed before it replaces local Atlas data.
-- Restore replaces Workspace, Dispatch, Writing, Settings, and Sync stores together.
+- Restore replaces Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync stores together.
 - Restore does not merge records.
 - Restore requires typed human confirmation.
 - Reset seed remains separate from restore.
@@ -335,9 +395,9 @@ Schema: ${envelope.schemaVersion}
 }
 
 export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing, sync } = envelope.summary
+  const { workspace, dispatch, writing, planning, reports, sync } = envelope.summary
 
-  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${writing.drafts} writing drafts, ${sync.snapshots} sync snapshots.`
+  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${sync.snapshots} sync snapshots.`
 }
 
 export function canApplyAtlasRestore(confirmation: string) {

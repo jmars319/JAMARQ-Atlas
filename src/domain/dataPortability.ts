@@ -1,18 +1,22 @@
 import type { Workspace } from './atlas'
 import type { DispatchState } from './dispatch'
+import type { AtlasPlanningState } from './planning'
+import type { ReportsState } from './reports'
 import type { AtlasSettingsState } from './settings'
 import type { AtlasSyncState } from './sync'
 import type { WritingWorkbenchState } from './writing'
 
 export const ATLAS_BACKUP_KIND = 'jamarq-atlas-backup'
-export const ATLAS_BACKUP_SCHEMA_VERSION = 2
+export const ATLAS_BACKUP_SCHEMA_VERSION = 3
 
-export type AtlasBackupSchemaVersion = 1 | typeof ATLAS_BACKUP_SCHEMA_VERSION
+export type AtlasBackupSchemaVersion = 1 | 2 | typeof ATLAS_BACKUP_SCHEMA_VERSION
 
 export interface AtlasBackupStores {
   workspace: Workspace
   dispatch: DispatchState
   writing: WritingWorkbenchState
+  planning: AtlasPlanningState
+  reports: ReportsState
   settings: AtlasSettingsState
   sync: AtlasSyncState
 }
@@ -38,6 +42,21 @@ export interface AtlasBackupStoreSummary {
     exportedDrafts: number
     archivedDrafts: number
   }
+  planning: {
+    objectives: number
+    milestones: number
+    workSessions: number
+    notes: number
+    active: number
+    planned: number
+    waiting: number
+  }
+  reports: {
+    packets: number
+    auditEvents: number
+    exportedPackets: number
+    archivedPackets: number
+  }
   settings: {
     configured: number
     hasOperatorLabel: number
@@ -61,6 +80,8 @@ export type AtlasRestoreWarningType =
   | 'empty-store'
   | 'missing-writing'
   | 'missing-dispatch'
+  | 'missing-planning'
+  | 'missing-reports'
   | 'missing-settings'
   | 'missing-sync'
   | 'legacy-normalized'

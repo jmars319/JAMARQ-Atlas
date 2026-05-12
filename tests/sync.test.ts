@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { seedDispatchState } from '../src/data/seedDispatch'
 import { seedWorkspace } from '../src/data/seedWorkspace'
+import { emptyPlanningStore } from '../src/services/planning'
+import { emptyReportsStore } from '../src/services/reports'
 import { emptySettingsState } from '../src/services/settings'
 import {
   canApplySyncRestore,
@@ -24,10 +26,14 @@ import {
 } from '../server/syncApi'
 
 const now = new Date('2026-05-10T12:00:00Z')
+const planning = emptyPlanningStore(now)
+const reports = emptyReportsStore(now)
 const stores = {
   workspace: seedWorkspace,
   dispatch: seedDispatchState,
   writing: { drafts: [] },
+  planning,
+  reports,
 }
 
 function collectKeys(value: unknown): string[] {
@@ -46,12 +52,12 @@ describe('sync snapshots', () => {
   it('normalizes missing sync state into local-only defaults', () => {
     const sync = normalizeSyncState(null, now)
 
-    expect(sync.schemaVersion).toBe(1)
+    expect(sync.schemaVersion).toBe(2)
     expect(sync.provider.status).toBe('local-only')
     expect(sync.snapshots).toEqual([])
   })
 
-  it('creates manual snapshots from Workspace, Dispatch, and Writing stores only', () => {
+  it('creates manual snapshots from Workspace, Dispatch, Writing, Planning, and Reports stores only', () => {
     const snapshot = createSyncSnapshot({
       stores,
       settings: emptySettingsState(now),
@@ -66,7 +72,15 @@ describe('sync snapshots', () => {
     expect(snapshot.summary.workspace.projects).toBeGreaterThan(0)
     expect(snapshot.summary.dispatch.targets).toBeGreaterThan(0)
     expect(snapshot.summary.writing.drafts).toBe(0)
-    expect(Object.keys(snapshot.stores)).toEqual(['workspace', 'dispatch', 'writing'])
+    expect(snapshot.summary.planning.objectives).toBe(0)
+    expect(snapshot.summary.reports.packets).toBe(0)
+    expect(Object.keys(snapshot.stores)).toEqual([
+      'workspace',
+      'dispatch',
+      'writing',
+      'planning',
+      'reports',
+    ])
     expect(serialized).not.toContain('jamarq-atlas.settings')
     expect(serialized).not.toContain('jamarq-atlas.sync')
     expect(collectKeys(snapshot).join(' ')).not.toMatch(/token|secret|password|credential/i)
@@ -119,6 +133,8 @@ describe('sync snapshots', () => {
         workspace: { ...seedWorkspace, sections: [] },
         dispatch: { ...seedDispatchState, targets: [] },
         writing: { drafts: [] },
+        planning,
+        reports,
       },
       label: 'Smaller state',
       note: '',
@@ -155,7 +171,7 @@ describe('sync snapshots', () => {
     expect(response.configured).toBe(false)
   })
 
-  it('builds Supabase push rows from Workspace, Dispatch, and Writing only', () => {
+  it('builds Supabase push rows from Workspace, Dispatch, Writing, Planning, and Reports only', () => {
     const snapshot = createSyncSnapshot({
       stores,
       settings: emptySettingsState(now),
@@ -168,7 +184,13 @@ describe('sync snapshots', () => {
 
     expect(row.workspace_id).toBe('atlas-test')
     expect(row.snapshot_id).toBe(snapshot.id)
-    expect(Object.keys(row.stores)).toEqual(['workspace', 'dispatch', 'writing'])
+    expect(Object.keys(row.stores)).toEqual([
+      'workspace',
+      'dispatch',
+      'writing',
+      'planning',
+      'reports',
+    ])
     expect(collectKeys(row).join(' ')).not.toMatch(/token|secret|password|credential/i)
   })
 

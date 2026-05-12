@@ -13,6 +13,8 @@ Timeline derives evidence from:
 - Dispatch deployment records.
 - Dispatch preflight runs.
 - Writing review/audit events.
+- Planning objectives, milestones, work sessions, and notes.
+- Report packet audit events.
 - Local Sync snapshots.
 - Loaded remote Sync snapshot metadata.
 - Hosted Sync push/pull timestamps.

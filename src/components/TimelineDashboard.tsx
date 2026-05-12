@@ -11,6 +11,8 @@ const sourceOptions: Array<TimelineEventSource | 'all'> = [
   'verification',
   'dispatch',
   'writing',
+  'planning',
+  'reports',
   'sync',
   'github',
 ]
@@ -22,6 +24,8 @@ const typeOptions: Array<TimelineEventType | 'all'> = [
   'deployment',
   'preflight',
   'writing',
+  'planning',
+  'report',
   'sync',
   'github',
 ]

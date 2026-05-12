@@ -1,5 +1,7 @@
 import type { ProjectRecord } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
+import type { AtlasPlanningState, PlanningItem } from '../domain/planning'
+import type { ReportsState } from '../domain/reports'
 import type { AtlasSyncState } from '../domain/sync'
 import type { TimelineEvent, TimelineEventSource, TimelineEventType, TimelineFilters } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
@@ -81,15 +83,27 @@ function withProject(
   }
 }
 
+function planningOccurredAt(item: PlanningItem) {
+  if (item.kind === 'work-session' && item.completedAt) {
+    return item.completedAt
+  }
+
+  return item.updatedAt || item.createdAt
+}
+
 export function deriveTimelineEvents({
   projectRecords,
   dispatch,
   writing,
+  planning,
+  reports,
   sync,
 }: {
   projectRecords: ProjectRecord[]
   dispatch: DispatchState
   writing: WritingWorkbenchState
+  planning: AtlasPlanningState
+  reports: ReportsState
   sync: AtlasSyncState
 }): TimelineEvent[] {
   const workspaceEvents = projectRecords.flatMap((record) =>
@@ -155,6 +169,42 @@ export function deriveTimelineEvents({
     ),
   )
 
+  const planningItems: PlanningItem[] = [
+    ...planning.objectives,
+    ...planning.milestones,
+    ...planning.workSessions,
+    ...planning.notes,
+  ]
+  const planningEvents = planningItems.map((item) =>
+    withProject(projectRecords, item.projectId, {
+      id: `planning-${item.id}`,
+      source: 'planning',
+      type: 'planning',
+      tone: item.status === 'done' ? 'success' : item.status === 'waiting' ? 'warning' : 'info',
+      title: `${item.kind}: ${item.title}`,
+      detail: item.detail || ('body' in item ? item.body : ''),
+      occurredAt: planningOccurredAt(item),
+      projectId: item.projectId,
+      meta: [item.kind, item.status],
+    }),
+  )
+
+  const reportEvents = reports.packets.flatMap((packet) =>
+    packet.auditEvents.map((event) =>
+      withProject(projectRecords, packet.projectIds.length === 1 ? packet.projectIds[0] : null, {
+        id: `report-${packet.id}-${event.id}`,
+        source: 'reports',
+        type: 'report',
+        tone: event.type === 'markdown-exported' ? 'success' : 'info',
+        title: `${packet.title}: ${event.type}`,
+        detail: event.detail,
+        occurredAt: event.occurredAt,
+        projectId: packet.projectIds.length === 1 ? packet.projectIds[0] : null,
+        meta: [packet.type, packet.status, `${packet.projectIds.length} projects`],
+      }),
+    ),
+  )
+
   const syncEvents: TimelineEvent[] = [
     ...sync.snapshots.map((snapshot) =>
       withProject(projectRecords, null, {
@@ -216,9 +266,15 @@ export function deriveTimelineEvents({
     )
   }
 
-  return [...workspaceEvents, ...deploymentEvents, ...preflightEvents, ...writingEvents, ...syncEvents].sort(
-    (left, right) => right.occurredAt.localeCompare(left.occurredAt),
-  )
+  return [
+    ...workspaceEvents,
+    ...deploymentEvents,
+    ...preflightEvents,
+    ...writingEvents,
+    ...planningEvents,
+    ...reportEvents,
+    ...syncEvents,
+  ].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
 }
 
 function dateRangeCutoff(dateRange: TimelineFilters['dateRange'], now = new Date()) {

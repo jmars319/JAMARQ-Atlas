@@ -112,12 +112,14 @@ function App() {
   } = useLocalWriting()
   const {
     planning,
+    setPlanning,
     createItem: createPlanningItem,
     updateItem: updatePlanningItem,
     deleteItem: deletePlanningItem,
   } = useLocalPlanning()
   const {
     reports,
+    setReports,
     addPacket: addReportPacket,
     updatePacketMarkdown: updateReportPacketMarkdown,
     recordCopied: recordReportCopied,
@@ -126,8 +128,8 @@ function App() {
   } = useLocalReports()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
   const timelineEvents = useMemo(
-    () => deriveTimelineEvents({ projectRecords, dispatch, writing, sync }),
-    [dispatch, projectRecords, sync, writing],
+    () => deriveTimelineEvents({ projectRecords, dispatch, writing, planning, reports, sync }),
+    [dispatch, planning, projectRecords, reports, sync, writing],
   )
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -275,6 +277,8 @@ function App() {
     setWorkspace(stores.workspace)
     setDispatch(stores.dispatch)
     setWriting(stores.writing)
+    setPlanning(stores.planning)
+    setReports(stores.reports)
     setSettings(stores.settings)
     setSync(stores.sync)
     setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
@@ -284,7 +288,7 @@ function App() {
   function handleCreateSnapshot(label: string, note: string) {
     addSnapshot(
       createSyncSnapshot({
-        stores: { workspace, dispatch, writing },
+        stores: { workspace, dispatch, writing, planning, reports },
         settings,
         sync,
         label,
@@ -297,6 +301,8 @@ function App() {
     setWorkspace(stores.workspace)
     setDispatch(stores.dispatch)
     setWriting(stores.writing)
+    setPlanning(stores.planning)
+    setReports(stores.reports)
     setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
     setSelectedWritingDraftId('')
   }
@@ -523,6 +529,8 @@ function App() {
             workspace={workspace}
             dispatch={dispatch}
             writing={writing}
+            planning={planning}
+            reports={reports}
             settings={settings}
             sync={sync}
             onRestoreStores={handleRestoreStores}
@@ -533,6 +541,8 @@ function App() {
             workspace={workspace}
             dispatch={dispatch}
             writing={writing}
+            planning={planning}
+            reports={reports}
             sync={sync}
             onSettingsChange={updateLocalSettings}
             onCreateSnapshot={handleCreateSnapshot}

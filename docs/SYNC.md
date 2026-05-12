@@ -29,6 +29,8 @@ Snapshots include normalized copies of:
 - Workspace
 - Dispatch
 - Writing
+- Planning
+- Reports
 
 Snapshots do not include:
 
@@ -45,7 +47,7 @@ This avoids recursive snapshots and keeps future hosted sync focused on Atlas op
 
 ## Restore Behavior
 
-Snapshot restore is preview-first and full-replace for Workspace, Dispatch, and Writing only.
+Snapshot restore is preview-first and full-replace for Workspace, Dispatch, Writing, Planning, and Reports only.
 
 Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
@@ -54,7 +56,7 @@ Snapshot restore does not change Settings, Sync provider configuration, or snaps
 Restore previews warn when:
 
 - Incoming stores are empty.
-- Incoming snapshots have fewer projects, Dispatch targets, or Writing drafts than current local data.
+- Incoming snapshots have fewer projects, Dispatch targets, Writing drafts, Planning records, or Report packets than current local data.
 - Incoming fingerprints match current local stores.
 - Remote metadata suggests older snapshots may exist outside the latest loaded set.
 
@@ -74,7 +76,7 @@ The service role key stays server-side. Browser state stores only provider statu
 
 This is not live sync. Push creates a snapshot. Pull lists snapshots. Restore is preview-first and full-replace after typing `RESTORE ATLAS`.
 
-Remote delete removes one snapshot from the hosted snapshot log after explicit confirmation in Settings. It does not delete local snapshots or change Workspace, Dispatch, or Writing stores.
+Remote delete removes one snapshot from the hosted snapshot log after explicit confirmation in Settings. It does not delete local snapshots or change Workspace, Dispatch, Writing, Planning, or Reports stores.
 
 ## Guardrails
 

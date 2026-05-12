@@ -16,6 +16,8 @@ import {
 } from '../domain/sync'
 import { normalizeWritingState } from './aiWritingAssistant'
 import { normalizeDispatchState } from './dispatchStorage'
+import { normalizePlanningState, summarizePlanningState } from './planning'
+import { normalizeReportsState } from './reports'
 import { normalizeWorkspaceVerificationCadence } from './verification'
 
 export const SYNC_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
@@ -50,6 +52,73 @@ function emptySyncSummary(): AtlasSyncStoreSummary {
       approvedDrafts: 0,
       exportedDrafts: 0,
       archivedDrafts: 0,
+    },
+    planning: {
+      objectives: 0,
+      milestones: 0,
+      workSessions: 0,
+      notes: 0,
+      active: 0,
+      planned: 0,
+      waiting: 0,
+    },
+    reports: {
+      packets: 0,
+      auditEvents: 0,
+      exportedPackets: 0,
+      archivedPackets: 0,
+    },
+  }
+}
+
+function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
+  const defaults = emptySyncSummary()
+
+  if (!isRecord(value)) {
+    return defaults
+  }
+
+  const workspace = isRecord(value.workspace) ? value.workspace : {}
+  const dispatch = isRecord(value.dispatch) ? value.dispatch : {}
+  const writing = isRecord(value.writing) ? value.writing : {}
+  const planning = isRecord(value.planning) ? value.planning : {}
+  const reports = isRecord(value.reports) ? value.reports : {}
+
+  return {
+    workspace: {
+      sections: Number(workspace.sections) || 0,
+      groups: Number(workspace.groups) || 0,
+      projects: Number(workspace.projects) || 0,
+      repositoryBindings: Number(workspace.repositoryBindings) || 0,
+      activityEvents: Number(workspace.activityEvents) || 0,
+    },
+    dispatch: {
+      targets: Number(dispatch.targets) || 0,
+      records: Number(dispatch.records) || 0,
+      readinessEntries: Number(dispatch.readinessEntries) || 0,
+      preflightRuns: Number(dispatch.preflightRuns) || 0,
+    },
+    writing: {
+      drafts: Number(writing.drafts) || 0,
+      reviewEvents: Number(writing.reviewEvents) || 0,
+      approvedDrafts: Number(writing.approvedDrafts) || 0,
+      exportedDrafts: Number(writing.exportedDrafts) || 0,
+      archivedDrafts: Number(writing.archivedDrafts) || 0,
+    },
+    planning: {
+      objectives: Number(planning.objectives) || 0,
+      milestones: Number(planning.milestones) || 0,
+      workSessions: Number(planning.workSessions) || 0,
+      notes: Number(planning.notes) || 0,
+      active: Number(planning.active) || 0,
+      planned: Number(planning.planned) || 0,
+      waiting: Number(planning.waiting) || 0,
+    },
+    reports: {
+      packets: Number(reports.packets) || 0,
+      auditEvents: Number(reports.auditEvents) || 0,
+      exportedPackets: Number(reports.exportedPackets) || 0,
+      archivedPackets: Number(reports.archivedPackets) || 0,
     },
   }
 }
@@ -123,6 +192,16 @@ export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStore
       exportedDrafts: stores.writing.drafts.filter((draft) => draft.status === 'exported').length,
       archivedDrafts: stores.writing.drafts.filter((draft) => draft.status === 'archived').length,
     },
+    planning: summarizePlanningState(stores.planning),
+    reports: {
+      packets: stores.reports.packets.length,
+      auditEvents: stores.reports.packets.reduce(
+        (total, packet) => total + packet.auditEvents.length,
+        0,
+      ),
+      exportedPackets: stores.reports.packets.filter((packet) => packet.status === 'exported').length,
+      archivedPackets: stores.reports.packets.filter((packet) => packet.status === 'archived').length,
+    },
   }
 }
 
@@ -139,6 +218,8 @@ export function normalizeSyncStores(value: unknown): AtlasSyncCoreStores {
     workspace: normalizeWorkspaceVerificationCadence(value.workspace as Workspace),
     dispatch: normalizeDispatchState(value.dispatch ?? {}),
     writing: normalizeWritingState(value.writing ?? {}),
+    planning: normalizePlanningState(value.planning ?? {}),
+    reports: normalizeReportsState(value.reports ?? {}),
   }
 }
 
@@ -318,7 +399,7 @@ export function normalizeRemoteSyncSnapshot(value: unknown): AtlasRemoteSyncSnap
     deviceId: readString(value.deviceId) || 'unknown-device',
     deviceLabel: readString(value.deviceLabel) || 'Unknown device',
     fingerprint: readString(value.fingerprint),
-    summary: isRecord(value.summary) ? (value.summary as unknown as AtlasSyncStoreSummary) : emptySyncSummary(),
+    summary: normalizeSyncSummary(value.summary),
   }
 }
 
@@ -443,6 +524,16 @@ export function createSyncRestorePreview(
     warnings.push('Incoming snapshot contains no Writing drafts.')
   }
 
+  if (
+    incomingSummary.planning.objectives +
+      incomingSummary.planning.milestones +
+      incomingSummary.planning.workSessions +
+      incomingSummary.planning.notes ===
+    0
+  ) {
+    warnings.push('Incoming snapshot contains no Planning records.')
+  }
+
   if (currentFingerprint === incomingFingerprint) {
     warnings.push('Incoming snapshot fingerprint matches current local stores.')
   }
@@ -457,6 +548,10 @@ export function createSyncRestorePreview(
 
   if (incomingSummary.writing.drafts < currentSummary.writing.drafts) {
     warnings.push('Incoming snapshot has fewer Writing drafts than current local data.')
+  }
+
+  if (incomingSummary.reports.packets < currentSummary.reports.packets) {
+    warnings.push('Incoming snapshot has fewer Report packets than current local data.')
   }
 
   return {
@@ -505,6 +600,27 @@ function countDrops(
     )
   }
 
+  const currentPlanning =
+    currentSummary.planning.objectives +
+    currentSummary.planning.milestones +
+    currentSummary.planning.workSessions +
+    currentSummary.planning.notes
+  const incomingPlanning =
+    incomingSummary.planning.objectives +
+    incomingSummary.planning.milestones +
+    incomingSummary.planning.workSessions +
+    incomingSummary.planning.notes
+
+  if (incomingPlanning < currentPlanning) {
+    drops.push(`Planning records drop from ${currentPlanning} to ${incomingPlanning}.`)
+  }
+
+  if (incomingSummary.reports.packets < currentSummary.reports.packets) {
+    drops.push(
+      `Report packets drop from ${currentSummary.reports.packets} to ${incomingSummary.reports.packets}.`,
+    )
+  }
+
   return drops
 }
 
@@ -535,6 +651,18 @@ export function compareSyncSnapshot(
       `Preflight runs: local ${currentSummary.dispatch.preflightRuns}, snapshot ${snapshot.summary.dispatch.preflightRuns}`,
       `Writing drafts: local ${currentSummary.writing.drafts}, snapshot ${snapshot.summary.writing.drafts}`,
       `Writing review events: local ${currentSummary.writing.reviewEvents}, snapshot ${snapshot.summary.writing.reviewEvents}`,
+      `Planning records: local ${
+        currentSummary.planning.objectives +
+        currentSummary.planning.milestones +
+        currentSummary.planning.workSessions +
+        currentSummary.planning.notes
+      }, snapshot ${
+        snapshot.summary.planning.objectives +
+        snapshot.summary.planning.milestones +
+        snapshot.summary.planning.workSessions +
+        snapshot.summary.planning.notes
+      }`,
+      `Report packets: local ${currentSummary.reports.packets}, snapshot ${snapshot.summary.reports.packets}`,
     ],
   }
 }

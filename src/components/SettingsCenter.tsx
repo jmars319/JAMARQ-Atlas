@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
+import type { AtlasPlanningState } from '../domain/planning'
+import type { ReportsState } from '../domain/reports'
 import type { AtlasConnectionCard, AtlasSettingsState } from '../domain/settings'
 import type {
   AtlasRemoteSyncSnapshot,
@@ -58,6 +60,8 @@ interface SettingsCenterProps {
   workspace: Workspace
   dispatch: DispatchState
   writing: WritingWorkbenchState
+  planning: AtlasPlanningState
+  reports: ReportsState
   sync: AtlasSyncState
   onSettingsChange: (
     update: Partial<Pick<AtlasSettingsState, 'deviceLabel' | 'operatorLabel' | 'notes'>>,
@@ -222,11 +226,15 @@ function SnapshotSummary({
   projects,
   targets,
   drafts,
+  planningRecords,
+  reportPackets,
 }: {
   title: string
   projects: number
   targets: number
   drafts: number
+  planningRecords: number
+  reportPackets: number
 }) {
   return (
     <div className="settings-snapshot-summary">
@@ -234,6 +242,8 @@ function SnapshotSummary({
       <span>{projects} projects</span>
       <span>{targets} Dispatch targets</span>
       <span>{drafts} Writing drafts</span>
+      <span>{planningRecords} Planning records</span>
+      <span>{reportPackets} Report packets</span>
     </div>
   )
 }
@@ -253,6 +263,8 @@ export function SettingsCenter({
   workspace,
   dispatch,
   writing,
+  planning,
+  reports,
   sync,
   onSettingsChange,
   onCreateSnapshot,
@@ -455,8 +467,8 @@ export function SettingsCenter({
     ],
   )
   const currentStores = useMemo(
-    () => ({ workspace, dispatch, writing }),
-    [dispatch, workspace, writing],
+    () => ({ workspace, dispatch, writing, planning, reports }),
+    [dispatch, planning, reports, workspace, writing],
   )
   const selectedSnapshot =
     sync.snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? sync.snapshots[0]
@@ -505,7 +517,9 @@ export function SettingsCenter({
 
     onRestoreSnapshot(restorePreview.normalizedStores)
     setSnapshotConfirmation('')
-    setSyncMessage('Snapshot restored locally. Workspace, Dispatch, and Writing stores were replaced.')
+    setSyncMessage(
+      'Snapshot restored locally. Workspace, Dispatch, Writing, Planning, and Reports stores were replaced.',
+    )
   }
 
   function handleDeleteSnapshot(snapshotId: string) {
@@ -862,12 +876,26 @@ export function SettingsCenter({
                       projects={restorePreview.currentSummary.workspace.projects}
                       targets={restorePreview.currentSummary.dispatch.targets}
                       drafts={restorePreview.currentSummary.writing.drafts}
+                      planningRecords={
+                        restorePreview.currentSummary.planning.objectives +
+                        restorePreview.currentSummary.planning.milestones +
+                        restorePreview.currentSummary.planning.workSessions +
+                        restorePreview.currentSummary.planning.notes
+                      }
+                      reportPackets={restorePreview.currentSummary.reports.packets}
                     />
                     <SnapshotSummary
                       title="Selected snapshot"
                       projects={restorePreview.incomingSummary.workspace.projects}
                       targets={restorePreview.incomingSummary.dispatch.targets}
                       drafts={restorePreview.incomingSummary.writing.drafts}
+                      planningRecords={
+                        restorePreview.incomingSummary.planning.objectives +
+                        restorePreview.incomingSummary.planning.milestones +
+                        restorePreview.incomingSummary.planning.workSessions +
+                        restorePreview.incomingSummary.planning.notes
+                      }
+                      reportPackets={restorePreview.incomingSummary.reports.packets}
                     />
                   </div>
                   {restorePreview.warnings.length > 0 ? (
@@ -1084,12 +1112,26 @@ export function SettingsCenter({
                       projects={remoteRestorePreview.currentSummary.workspace.projects}
                       targets={remoteRestorePreview.currentSummary.dispatch.targets}
                       drafts={remoteRestorePreview.currentSummary.writing.drafts}
+                      planningRecords={
+                        remoteRestorePreview.currentSummary.planning.objectives +
+                        remoteRestorePreview.currentSummary.planning.milestones +
+                        remoteRestorePreview.currentSummary.planning.workSessions +
+                        remoteRestorePreview.currentSummary.planning.notes
+                      }
+                      reportPackets={remoteRestorePreview.currentSummary.reports.packets}
                     />
                     <SnapshotSummary
                       title="Remote snapshot"
                       projects={remoteRestorePreview.incomingSummary.workspace.projects}
                       targets={remoteRestorePreview.incomingSummary.dispatch.targets}
                       drafts={remoteRestorePreview.incomingSummary.writing.drafts}
+                      planningRecords={
+                        remoteRestorePreview.incomingSummary.planning.objectives +
+                        remoteRestorePreview.incomingSummary.planning.milestones +
+                        remoteRestorePreview.incomingSummary.planning.workSessions +
+                        remoteRestorePreview.incomingSummary.planning.notes
+                      }
+                      reportPackets={remoteRestorePreview.incomingSummary.reports.packets}
                     />
                   </div>
                   {remoteRestorePreview.warnings.length > 0 ? (

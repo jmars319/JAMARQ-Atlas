@@ -2,10 +2,51 @@ import { describe, expect, it } from 'vitest'
 import { seedDispatchState } from '../src/data/seedDispatch'
 import { seedWorkspace } from '../src/data/seedWorkspace'
 import { flattenProjects } from '../src/domain/atlas'
+import { addPlanningItem, createPlanningItem, emptyPlanningStore } from '../src/services/planning'
+import { emptyReportsStore } from '../src/services/reports'
 import { emptySyncState } from '../src/services/syncSnapshots'
 import { deriveTimelineEvents, filterTimelineEvents } from '../src/services/timeline'
 
 const projectRecords = flattenProjects(seedWorkspace)
+const planning = addPlanningItem(
+  emptyPlanningStore(new Date('2026-05-10T09:00:00Z')),
+  createPlanningItem({
+    kind: 'objective',
+    projectId: 'vaexcore-studio',
+    title: 'Timeline planning objective',
+    detail: 'Planning evidence for the derived ledger.',
+    status: 'active',
+    now: new Date('2026-05-10T10:00:00Z'),
+  }),
+  new Date('2026-05-10T10:00:00Z'),
+)
+const reports = {
+  ...emptyReportsStore(new Date('2026-05-10T09:00:00Z')),
+  packets: [
+    {
+      id: 'report-1',
+      type: 'client-update-packet' as const,
+      title: 'Timeline report packet',
+      status: 'exported' as const,
+      projectIds: ['vaexcore-studio'],
+      writingDraftIds: [],
+      markdown: 'Report',
+      sourceSummary: [],
+      contextWarnings: [],
+      auditEvents: [
+        {
+          id: 'report-1-exported',
+          type: 'markdown-exported' as const,
+          occurredAt: '2026-05-10T14:00:00Z',
+          detail: 'Report exported locally.',
+        },
+      ],
+      createdAt: '2026-05-10T13:30:00Z',
+      updatedAt: '2026-05-10T14:00:00Z',
+      exportedAt: '2026-05-10T14:00:00Z',
+    },
+  ],
+}
 const writing = {
   drafts: [
     {
@@ -107,11 +148,28 @@ describe('timeline evidence ledger', () => {
               exportedDrafts: 0,
               archivedDrafts: 0,
             },
+            planning: {
+              objectives: 0,
+              milestones: 0,
+              workSessions: 0,
+              notes: 0,
+              active: 0,
+              planned: 0,
+              waiting: 0,
+            },
+            reports: {
+              packets: 0,
+              auditEvents: 0,
+              exportedPackets: 0,
+              archivedPackets: 0,
+            },
           },
           stores: {
             workspace: seedWorkspace,
             dispatch: seedDispatchState,
             writing: { drafts: [] },
+            planning,
+            reports,
           },
         },
       ],
@@ -120,12 +178,16 @@ describe('timeline evidence ledger', () => {
       projectRecords,
       dispatch: seedDispatchState,
       writing,
+      planning,
+      reports,
       sync,
     })
 
-    expect(events[0].source).toBe('sync')
+    expect(events[0].source).toBe('reports')
     expect(events.some((event) => event.source === 'dispatch')).toBe(true)
     expect(events.some((event) => event.source === 'writing')).toBe(true)
+    expect(events.some((event) => event.source === 'planning')).toBe(true)
+    expect(events.some((event) => event.source === 'reports')).toBe(true)
     expect(events.some((event) => event.projectId === 'vaexcore-studio')).toBe(true)
   })
 
@@ -134,6 +196,8 @@ describe('timeline evidence ledger', () => {
       projectRecords,
       dispatch: seedDispatchState,
       writing,
+      planning,
+      reports,
       sync: emptySyncState(new Date('2026-05-10T09:00:00Z')),
     })
 
@@ -158,5 +222,27 @@ describe('timeline evidence ledger', () => {
         query: 'baseline',
       }, new Date('2026-05-11T12:00:00Z')).length,
     ).toBeGreaterThan(0)
+
+    expect(
+      filterTimelineEvents(events, {
+        projectId: 'vaexcore-studio',
+        sectionId: 'all',
+        source: 'planning',
+        type: 'planning',
+        dateRange: '30d',
+        query: 'objective',
+      }, new Date('2026-05-11T12:00:00Z')),
+    ).toHaveLength(1)
+
+    expect(
+      filterTimelineEvents(events, {
+        projectId: 'vaexcore-studio',
+        sectionId: 'all',
+        source: 'reports',
+        type: 'report',
+        dateRange: '30d',
+        query: 'exported',
+      }, new Date('2026-05-11T12:00:00Z')),
+    ).toHaveLength(1)
   })
 })

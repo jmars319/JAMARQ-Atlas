@@ -3,6 +3,8 @@ export type TimelineEventSource =
   | 'verification'
   | 'dispatch'
   | 'writing'
+  | 'planning'
+  | 'reports'
   | 'sync'
   | 'github'
 
@@ -12,6 +14,8 @@ export type TimelineEventType =
   | 'deployment'
   | 'preflight'
   | 'writing'
+  | 'planning'
+  | 'report'
   | 'sync'
   | 'github'
 
