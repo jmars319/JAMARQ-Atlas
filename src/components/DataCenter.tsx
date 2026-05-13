@@ -29,6 +29,7 @@ import {
   RESTORE_CONFIRMATION_PHRASE,
   summarizeAtlasStores,
 } from '../services/dataPortability'
+import { createDataIntegrityDiagnostics } from '../services/dataIntegrity'
 
 interface DataCenterProps {
   workspace: Workspace
@@ -171,6 +172,19 @@ export function DataCenter({
   const envelope = useMemo(() => createAtlasBackupEnvelope(stores), [stores])
   const summary = useMemo(() => summarizeAtlasStores(stores), [stores])
   const diagnostics = useMemo(() => createAtlasStoreDiagnostics(stores), [stores])
+  const integrityDiagnostics = useMemo(
+    () =>
+      createDataIntegrityDiagnostics({
+        workspace,
+        dispatch,
+        writing,
+        planning,
+        reports,
+        review,
+        calibration,
+      }),
+    [calibration, dispatch, planning, reports, review, workspace, writing],
+  )
   const restoreReady = preview !== null && canApplyAtlasRestore(confirmation)
 
   function exportJson() {
@@ -439,6 +453,55 @@ export function DataCenter({
                 <small>{diagnostic.repairHint}</small>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section className="data-panel">
+          <div className="panel-heading">
+            <ShieldCheck size={17} />
+            <h2>Data Integrity Diagnostics</h2>
+          </div>
+          <div className="data-diagnostics-grid" aria-label="Data integrity diagnostics">
+            {integrityDiagnostics.length === 0 ? (
+              <article className="data-diagnostic-card data-diagnostic-ok">
+                <div className="data-diagnostic-heading">
+                  <strong>Reference integrity</strong>
+                  <span>suggestion-only</span>
+                </div>
+                <p>No broken cross-store references detected.</p>
+                <span className="resource-pill">No repair warning</span>
+                <small>Diagnostics do not mutate or repair local state automatically.</small>
+              </article>
+            ) : (
+              integrityDiagnostics.map((diagnostic) => (
+                <article
+                  key={diagnostic.id}
+                  className={`data-diagnostic-card data-diagnostic-${
+                    diagnostic.severity === 'danger'
+                      ? 'danger'
+                      : diagnostic.severity === 'warning'
+                        ? 'warning'
+                        : 'ok'
+                  }`}
+                >
+                  <div className="data-diagnostic-heading">
+                    <strong>{diagnostic.label}</strong>
+                    <span>{diagnostic.storeId}</span>
+                  </div>
+                  <p>{diagnostic.detail}</p>
+                  <span>{diagnostic.affectedCount} affected reference(s)</span>
+                  <details className="data-diagnostic-details">
+                    <summary>Reference IDs</summary>
+                    <ul>
+                      {diagnostic.affectedIds.slice(0, 12).map((id) => (
+                        <li key={id}>{id}</li>
+                      ))}
+                    </ul>
+                  </details>
+                  <small>{diagnostic.repairSuggestion}</small>
+                </article>
+              ))
+            )}
           </div>
         </section>
 
