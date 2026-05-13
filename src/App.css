@@ -1330,6 +1330,7 @@ h3 {
 .dispatch-summary-card,
 .dispatch-readiness,
 .dispatch-preflight,
+.dispatch-closeout,
 .dispatch-automation,
 .dispatch-deploy-session,
 .dispatch-dry-run,
@@ -1497,6 +1498,7 @@ h3 {
 .dispatch-readiness,
 .dispatch-preflight,
 .dispatch-queue,
+.dispatch-closeout,
 .dispatch-automation,
 .dispatch-deploy-session,
 .dispatch-dry-run {
@@ -1530,12 +1532,28 @@ h3 {
 }
 
 .dispatch-queue-heading,
-.dispatch-queue-actions {
+.dispatch-queue-actions,
+.dispatch-queue-closeout {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: flex-start;
   justify-content: space-between;
+}
+
+.dispatch-queue-closeout {
+  align-items: center;
+  border: 1px solid rgba(9, 166, 214, 0.22);
+  background: rgba(9, 166, 214, 0.06);
+  padding: 8px;
+}
+
+.dispatch-queue-closeout p,
+.dispatch-muted-note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .dispatch-queue-heading strong {
@@ -1593,7 +1611,8 @@ h3 {
 
 .queue-passing,
 .queue-ready-for-manual-upload,
-.queue-recorded {
+.queue-recorded,
+.queue-closeout-ready {
   background: rgba(128, 213, 138, 0.14);
   color: var(--success);
 }
@@ -1601,7 +1620,10 @@ h3 {
 .queue-warning,
 .queue-needs-artifacts,
 .queue-needs-evidence,
+.queue-needs-manual-record,
+.queue-needs-follow-up,
 .queue-session-active,
+.queue-not-started,
 .queue-not-configured,
 .queue-missing,
 .queue-skipped {

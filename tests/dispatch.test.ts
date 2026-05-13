@@ -39,6 +39,7 @@ import {
   MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
   recordManualDeploymentFromSession,
   startDeploySession,
+  updateDeploySession,
   updateDeploySessionStep,
 } from '../src/services/deploySessions'
 import {
@@ -55,8 +56,9 @@ import {
 import { flattenProjects } from '../src/domain/atlas'
 import { seedWorkspace } from '../src/data/seedWorkspace'
 import { deriveDispatchQueueItems } from '../src/services/dispatchQueue'
+import { deriveDispatchCloseoutForTarget } from '../src/services/dispatchCloseout'
 import { emptyPlanningStore } from '../src/services/planning'
-import { createReportPacket } from '../src/services/reports'
+import { addReportPacket, createReportPacket, emptyReportsStore } from '../src/services/reports'
 
 function createZipFile(name: string, entries: string[]) {
   const encoder = new TextEncoder()
@@ -191,6 +193,30 @@ function inspectRequiredRunbookArtifacts(state: DispatchState, runbookId: string
             warnings: [],
           })
         : current,
+    state,
+  )
+}
+
+function completeDeploySessionSteps(state: DispatchState, sessionId: string) {
+  const session = state.deploySessions.find((candidate) => candidate.id === sessionId)
+
+  if (!session) {
+    throw new Error(`Expected session ${sessionId}`)
+  }
+
+  return session.steps.reduce(
+    (current, step, index) =>
+      updateDeploySessionStep(
+        current,
+        sessionId,
+        step.id,
+        {
+          status: 'confirmed',
+          notes: `Confirmed ${step.kind}.`,
+          evidence: `evidence-${step.kind}`,
+        },
+        new Date(`2026-05-10T12:${String(10 + index).padStart(2, '0')}:00Z`),
+      ),
     state,
   )
 }
@@ -669,6 +695,140 @@ describe('dispatch readiness', () => {
     expect(readyItem.hostStatus.label).toContain('sftp-readonly')
     expect(missingHostItem.state).toBe('needs-evidence')
     expect(missingHostItem.warnings.join(' ')).toContain('not configured')
+  })
+
+  it('derives closeout analytics without mutating dispatch or report state', () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
+    const target = seedDispatchState.targets.find(
+      (candidate) => candidate.id === 'midway-mobile-storage-production',
+    )
+
+    if (!runbook || !target) {
+      throw new Error('Expected MMS runbook and target')
+    }
+
+    const reports = emptyReportsStore(new Date('2026-05-10T12:00:00Z'))
+    const dispatchBefore = JSON.stringify(seedDispatchState)
+    const reportsBefore = JSON.stringify(reports)
+    const summary = deriveDispatchCloseoutForTarget({
+      dispatch: seedDispatchState,
+      reports,
+      target,
+      runbook,
+    })
+
+    expect(summary.state).toBe('not-started')
+    expect(summary.requirements.map((requirement) => requirement.id)).toContain('report-packet')
+    expect(JSON.stringify(seedDispatchState)).toBe(dispatchBefore)
+    expect(JSON.stringify(reports)).toBe(reportsBefore)
+  })
+
+  it('derives closeout states for active, completed, and failed-evidence sessions', () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
+    const target = seedDispatchState.targets.find(
+      (candidate) => candidate.id === 'midway-mobile-storage-production',
+    )
+
+    if (!runbook || !target) {
+      throw new Error('Expected MMS runbook and target')
+    }
+
+    const artifactReady = inspectRequiredRunbookArtifacts(seedDispatchState, runbook.id)
+    const withEvidence = addDispatchVerificationEvidenceRun(
+      addDispatchHostEvidenceRun(
+        artifactReady,
+        hostEvidenceRun(runbook.projectId, runbook.targetId),
+      ),
+      verificationEvidenceRun(runbook.projectId, runbook.targetId, runbook.id),
+    )
+    const active = startDeploySession(withEvidence, runbook.id, new Date('2026-05-10T12:00:00Z'))
+    const activeSummary = deriveDispatchCloseoutForTarget({ dispatch: active, target })
+    const completed = completeDeploySessionSteps(active, active.deploySessions[0].id)
+    const completedSummary = deriveDispatchCloseoutForTarget({
+      dispatch: completed,
+      target,
+    })
+    const failedActive = startDeploySession(
+      artifactReady,
+      runbook.id,
+      new Date('2026-05-10T12:00:00Z'),
+    )
+    const failedEvidence = addDispatchHostEvidenceRun(
+      completeDeploySessionSteps(failedActive, failedActive.deploySessions[0].id),
+      hostEvidenceRun(runbook.projectId, runbook.targetId, 'failed'),
+    )
+    const failedSummary = deriveDispatchCloseoutForTarget({
+      dispatch: addDispatchVerificationEvidenceRun(
+        failedEvidence,
+        verificationEvidenceRun(runbook.projectId, runbook.targetId, runbook.id),
+      ),
+      target,
+    })
+
+    expect(activeSummary.state).toBe('session-active')
+    expect(completedSummary.state).toBe('needs-manual-record')
+    expect(failedSummary.state).toBe('needs-evidence')
+  })
+
+  it('derives closeout-ready when manual record, evidence, references, and report packet exist', () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
+    const target = seedDispatchState.targets.find(
+      (candidate) => candidate.id === 'midway-mobile-storage-production',
+    )
+
+    if (!runbook || !target) {
+      throw new Error('Expected MMS runbook and target')
+    }
+
+    const withEvidence = addDispatchVerificationEvidenceRun(
+      addDispatchHostEvidenceRun(
+        inspectRequiredRunbookArtifacts(seedDispatchState, runbook.id),
+        hostEvidenceRun(runbook.projectId, runbook.targetId),
+      ),
+      verificationEvidenceRun(runbook.projectId, runbook.targetId, runbook.id),
+    )
+    const active = startDeploySession(withEvidence, runbook.id, new Date('2026-05-10T12:00:00Z'))
+    const completed = completeDeploySessionSteps(active, active.deploySessions[0].id)
+    const withReferences = updateDeploySession(
+      completed,
+      completed.deploySessions[0].id,
+      {
+        rollbackRef: 'rollback-mms-2026-05-10',
+        databaseBackupRef: 'backup-mms-2026-05-10',
+      },
+      new Date('2026-05-10T12:30:00Z'),
+    )
+    const recorded = recordManualDeploymentFromSession(
+      withReferences,
+      withReferences.deploySessions[0].id,
+      MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
+      new Date('2026-05-10T12:35:00Z'),
+    )
+    const packet = createReportPacket({
+      type: 'post-deploy-verification-packet',
+      projectRecords,
+      dispatch: recorded.state,
+      reports: emptyReportsStore(new Date('2026-05-10T12:00:00Z')),
+      planning: emptyPlanningStore(new Date('2026-05-10T12:00:00Z')),
+      writingDrafts: [],
+      projectIds: [runbook.projectId],
+      writingDraftIds: [],
+      now: new Date('2026-05-10T12:40:00Z'),
+    })
+    const reports = addReportPacket(
+      emptyReportsStore(new Date('2026-05-10T12:00:00Z')),
+      packet,
+      new Date('2026-05-10T12:40:00Z'),
+    )
+    const summary = deriveDispatchCloseoutForTarget({
+      dispatch: recorded.state,
+      reports,
+      target,
+    })
+
+    expect(summary.state).toBe('closeout-ready')
+    expect(summary.latestManualDeploymentRecordId).toBe(recorded.recordId)
+    expect(summary.latestReportPacketId).toBe(packet.id)
   })
 
   it('creates deployment readiness report packets from queue scope without mutating sources', () => {

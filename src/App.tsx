@@ -318,6 +318,7 @@ function App() {
       type: 'deployment-readiness-packet',
       projectRecords,
       dispatch,
+      reports,
       planning,
       writingDrafts: writing.drafts,
       projectIds: [projectId],
@@ -677,6 +678,7 @@ function App() {
         ) : (
           <DispatchDashboard
             dispatch={dispatch}
+            reports={reports}
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
             onSelectProject={selectProject}
@@ -700,6 +702,7 @@ function App() {
             record={selectedRecord}
             dispatch={dispatch}
             planning={planning}
+            reports={reports}
             writingDrafts={writing.drafts}
             timelineEvents={timelineEvents.filter(
               (event) => event.projectId === selectedRecord.project.id,

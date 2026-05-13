@@ -1,4 +1,12 @@
-import { DatabaseBackup, ExternalLink, RefreshCw, Rocket, Server, ShieldAlert } from 'lucide-react'
+import {
+  ClipboardCheck,
+  DatabaseBackup,
+  ExternalLink,
+  RefreshCw,
+  Rocket,
+  Server,
+  ShieldAlert,
+} from 'lucide-react'
 import { useMemo } from 'react'
 import type { ProjectRecord } from '../domain/atlas'
 import { formatDateLabel, formatDateTimeLabel } from '../domain/atlas'
@@ -24,9 +32,12 @@ import { evaluateDispatchReadiness } from '../services/dispatchReadiness'
 import { deriveDispatchQueueItems } from '../services/dispatchQueue'
 import { DispatchQueueCommandCenter } from './DispatchQueueCommandCenter'
 import type { DeploymentArtifact } from '../domain/dispatch'
+import type { ReportsState } from '../domain/reports'
+import { closeoutStateLabels, deriveDispatchCloseoutSummaries } from '../services/dispatchCloseout'
 
 interface DispatchDashboardProps {
   dispatch: DispatchState
+  reports: ReportsState
   projectRecords: ProjectRecord[]
   selectedProjectId: string
   onSelectProject: (projectId: string) => void
@@ -54,6 +65,7 @@ function projectName(projectRecords: ProjectRecord[], projectId: string) {
 
 export function DispatchDashboard({
   dispatch,
+  reports,
   projectRecords,
   selectedProjectId,
   onSelectProject,
@@ -72,8 +84,12 @@ export function DispatchDashboard({
 }: DispatchDashboardProps) {
   const configuredTargets = dispatch.targets.length
   const queueItems = useMemo(
-    () => deriveDispatchQueueItems({ dispatch, projectRecords }),
-    [dispatch, projectRecords],
+    () => deriveDispatchQueueItems({ dispatch, projectRecords, reports }),
+    [dispatch, projectRecords, reports],
+  )
+  const closeoutSummaries = useMemo(
+    () => deriveDispatchCloseoutSummaries({ dispatch, reports }),
+    [dispatch, reports],
   )
   const cpanelTargets = dispatch.targets.filter((target) =>
     ['cpanel', 'godaddy-cpanel'].includes(target.hostType),
@@ -92,6 +108,19 @@ export function DispatchDashboard({
     .slice()
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, 5)
+  const queueCloseouts = queueItems.map((item) => item.closeout)
+  const closeoutReadyCount = queueCloseouts.filter(
+    (summary) => summary.state === 'closeout-ready',
+  ).length
+  const needsEvidenceCount = queueCloseouts.filter(
+    (summary) => summary.state === 'needs-evidence',
+  ).length
+  const needsManualRecordCount = queueCloseouts.filter(
+    (summary) => summary.state === 'needs-manual-record',
+  ).length
+  const needsFollowUpCount = queueCloseouts.filter(
+    (summary) => summary.state === 'needs-follow-up',
+  ).length
 
   return (
     <section className="dispatch-dashboard" aria-labelledby="dispatch-title">
@@ -125,8 +154,42 @@ export function DispatchDashboard({
             <strong>{activeSessions.length}</strong>
             <span>Sessions</span>
           </div>
+          <div>
+            <ClipboardCheck size={16} />
+            <strong>{closeoutReadyCount}</strong>
+            <span>Closeout</span>
+          </div>
         </div>
       </div>
+
+      <section className="dispatch-preflight" aria-label="Dispatch closeout analytics">
+        <div className="panel-heading">
+          <ClipboardCheck size={17} />
+          <h2>Closeout Analytics</h2>
+        </div>
+        <div className="dispatch-signal-grid">
+          <div>
+            <strong>{closeoutReadyCount}</strong>
+            <span>{closeoutStateLabels['closeout-ready']}</span>
+          </div>
+          <div>
+            <strong>{needsEvidenceCount}</strong>
+            <span>{closeoutStateLabels['needs-evidence']}</span>
+          </div>
+          <div>
+            <strong>{needsManualRecordCount}</strong>
+            <span>{closeoutStateLabels['needs-manual-record']}</span>
+          </div>
+          <div>
+            <strong>{needsFollowUpCount}</strong>
+            <span>{closeoutStateLabels['needs-follow-up']}</span>
+          </div>
+        </div>
+        <p className="dispatch-muted-note">
+          Derived from {closeoutSummaries.length} Dispatch target(s). Closeout analytics are
+          advisory and do not change status, readiness, verification, or report state.
+        </p>
+      </section>
 
       <DispatchQueueCommandCenter
         items={queueItems}

@@ -131,6 +131,7 @@ Primary concepts:
 - Dispatch deploy session
 - Dispatch deploy session step/event
 - Derived Dispatch queue item
+- Derived Dispatch closeout summary
 - Deployment runner phase
 - Deployment runner result
 
@@ -147,6 +148,8 @@ Dispatch stores host evidence and runbook verification evidence as short local h
 The Dispatch Queue Command Center derives ordered rows from the current cPanel `DeploymentOrderGroup`. It summarizes artifact inspection, preflight, host evidence, verification evidence, deploy-session state, and manual deployment records without persisting a separate queue store. Queue actions reuse existing read-only evidence services and report packet creation; they do not deploy, decide readiness, or mutate source-of-truth fields.
 
 Dispatch Deploy Sessions are stored under the Dispatch key as manual evidence workflows tied to cPanel runbooks. They guide a human through preflight review, artifact inspection, preserve/create paths, backup readiness, outside-Atlas upload notes, verification checks, operator notes, and wrap-up. Creating a deployment record from a session requires the exact typed confirmation `RECORD MANUAL DEPLOYMENT`, and the record states that Atlas did not perform the deployment. Sessions do not change Atlas status, Dispatch readiness, Verification, Planning, GitHub bindings, Writing, or Reports automatically.
+
+Dispatch Closeout Analytics is derived, not stored. It combines runbook artifact inspection, deploy-session steps, host evidence, runbook verification evidence, manual deployment records, backup/rollback references, and related deployment report packets into advisory states such as `not-started`, `session-active`, `needs-evidence`, `needs-manual-record`, `needs-follow-up`, and `closeout-ready`. These labels are review aids only; they do not deploy, verify, publish, complete, or mutate any source-of-truth store.
 
 Dispatch Automation Readiness is advisory documentation for future automation. It stores per-target runbook notes, required confirmations, checklist items, artifact expectations, backup requirements, rollback requirements, and dry-run notes. The dry-run planner returns no-op phase output only and does not execute deployment commands.
 
@@ -271,7 +274,7 @@ Supported packet types:
 - Client site update packet
 - Internal deploy handoff packet
 
-Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, stored host evidence, runbook verification evidence, deploy-session evidence, manual deployment record references, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
+Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session evidence, manual deployment record references, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
 
 Reports do not fetch full GitHub history and do not write externally. Copy and Markdown download are browser-local actions. Exporting a packet does not mean anything was sent, published, deployed, shipped, or verified.
 

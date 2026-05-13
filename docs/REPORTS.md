@@ -24,6 +24,7 @@ Report packets can include:
 - Verification due state.
 - Dispatch target count and warning/blocker posture.
 - cPanel runbook summaries, artifact readiness, preserve paths, and verification checks.
+- Dispatch closeout analytics for deployment packet types.
 - Stored host evidence and runbook verification evidence.
 - Deploy-session linked evidence and manual deployment record references.
 - Planning records linked to included projects.
@@ -45,6 +46,8 @@ Stored data includes:
 Reports do not mutate Workspace, Dispatch, Writing, Planning, Verification, GitHub bindings, Settings, or Sync stores.
 
 Dispatch evidence in reports is copied from existing local evidence history. Report creation does not run checks, attach evidence to sessions, create deployment records, or mark anything verified.
+
+Deployment report packet types also include Dispatch closeout analytics when a project has Dispatch targets. Closeout sections summarize derived state, requirements, latest evidence IDs, manual deployment record references, and related report packet presence. This is copied context only; it does not update closeout state or prove that anything was deployed, sent, verified, or completed.
 
 The Dispatch Queue Command Center can create a deployment-readiness packet for one queued cPanel project. That action only assembles local Markdown from the selected project scope and switches the UI to Reports. It does not send, approve, deploy, verify, or change Dispatch state.
 

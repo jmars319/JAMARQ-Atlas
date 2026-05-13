@@ -202,6 +202,7 @@ export function ReportsCenter({
       type: packetType,
       projectRecords,
       dispatch,
+      reports,
       planning,
       writingDrafts: writing.drafts,
       projectIds: scope === 'all' ? [] : [scope],

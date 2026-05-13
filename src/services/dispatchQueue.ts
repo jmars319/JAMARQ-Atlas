@@ -17,6 +17,11 @@ import {
   getLatestVerificationEvidenceRun,
   getTargetDeploySessions,
 } from '../domain/dispatch'
+import type { ReportsState } from '../domain/reports'
+import {
+  deriveDispatchCloseoutForTarget,
+  type DispatchCloseoutSummary,
+} from './dispatchCloseout'
 
 export const CPANEL_QUEUE_GROUP_ID = 'current-cpanel-sites'
 
@@ -53,6 +58,7 @@ export interface DispatchQueueItem {
   activeSession?: DispatchDeploySession
   latestSession?: DispatchDeploySession
   latestManualDeploymentRecord?: DeploymentRecord
+  closeout: DispatchCloseoutSummary
   state: DispatchQueueState
   warnings: string[]
 }
@@ -226,10 +232,12 @@ function warningLines(signals: DispatchQueueSignal[]) {
 export function deriveDispatchQueueItems({
   dispatch,
   projectRecords,
+  reports,
   groupId = CPANEL_QUEUE_GROUP_ID,
 }: {
   dispatch: DispatchState
   projectRecords: ProjectRecord[]
+  reports?: ReportsState
   groupId?: string
 }): DispatchQueueItem[] {
   const group = dispatch.orderGroups.find((candidate) => candidate.id === groupId)
@@ -261,6 +269,12 @@ export function deriveDispatchQueueItems({
     const preflightStatus = summarizePreflight(latestPreflight)
     const hostStatus = summarizeHost(latestHostEvidence)
     const verificationStatus = summarizeVerification(latestVerificationEvidence)
+    const closeout = deriveDispatchCloseoutForTarget({
+      dispatch,
+      reports,
+      target,
+      runbook,
+    })
     const state = queueState({
       artifactStatus,
       preflightStatus,
@@ -285,13 +299,14 @@ export function deriveDispatchQueueItems({
         activeSession,
         latestSession: sessions[0],
         latestManualDeploymentRecord: manualRecord,
+        closeout,
         state,
         warnings: warningLines([
           artifactStatus,
           preflightStatus,
           hostStatus,
           verificationStatus,
-        ]),
+        ]).concat(closeout.warnings.slice(0, 2)),
       },
     ]
   })

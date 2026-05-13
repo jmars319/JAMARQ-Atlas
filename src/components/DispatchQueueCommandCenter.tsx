@@ -17,6 +17,7 @@ import type {
   DispatchQueueSignalStatus,
   DispatchQueueState,
 } from '../services/dispatchQueue'
+import { closeoutStateLabels } from '../services/dispatchCloseout'
 
 interface DispatchQueueCommandCenterProps {
   items: DispatchQueueItem[]
@@ -47,7 +48,7 @@ const queueStateLabels: Record<DispatchQueueState, string> = {
   recorded: 'Recorded',
 }
 
-function statusClass(status: DispatchQueueSignalStatus | DispatchQueueState) {
+function statusClass(status: DispatchQueueSignalStatus | DispatchQueueState | string) {
   return status.replace(/[^a-z0-9]+/gi, '-')
 }
 
@@ -161,6 +162,13 @@ export function DispatchQueueCommandCenter({
                 <span className={`queue-chip queue-${statusClass(item.state)}`}>
                   {queueStateLabels[item.state]}
                 </span>
+              </div>
+
+              <div className="dispatch-queue-closeout">
+                <span className={`queue-chip queue-${statusClass(item.closeout.state)}`}>
+                  Closeout: {closeoutStateLabels[item.closeout.state]}
+                </span>
+                <p>{item.closeout.detail}</p>
               </div>
 
               <div className="dispatch-queue-signals">

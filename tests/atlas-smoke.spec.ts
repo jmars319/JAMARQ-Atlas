@@ -312,6 +312,8 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await page.getByRole('button', { name: 'Dispatch' }).click()
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
+  await expect(page.getByLabel('Dispatch closeout analytics')).toBeVisible()
+  await expect(page.getByLabel('Dispatch closeout analytics')).toContainText('Closeout ready')
   const queue = page.getByLabel('Dispatch queue command center')
   await expect(queue).toBeVisible()
   await expect(queue).toContainText('#1 / Midway Mobile Storage')
@@ -640,11 +642,15 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     .filter({ hasText: 'Midway Mobile Storage' })
   await mmsQueueSessionItem.getByRole('button', { name: 'Start session' }).click()
   await expect(mmsQueueSessionItem).toContainText('Session active')
+  await expect(mmsQueueSessionItem).toContainText('Closeout: Session active')
   await mmsQueueSessionItem.getByRole('button', { name: 'Resume session' }).click()
   await mmsQueueSessionItem.getByRole('button', { name: 'Open project' }).click()
   const mmsDetail = page.locator('.project-detail')
   const mmsSessions = mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')
   await expect(mmsSessions).toContainText('Outside-Atlas upload completed')
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production closeout review')).toContainText(
+    'Closeout Review',
+  )
 
   const sessionSteps = [
     'Read-only preflight reviewed',
@@ -727,6 +733,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   )
   await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')).toContainText(
     'verification evidence',
+  )
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production closeout review')).toContainText(
+    'manual-deployment',
   )
 
   await page.getByRole('button', { name: 'Board', exact: true }).click()
@@ -844,6 +853,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await page.getByLabel('Report type').selectOption('deployment-readiness-packet')
   await page.getByLabel('Report project').selectOption('midway-mobile-storage-site')
   await page.getByRole('button', { name: 'Create report packet' }).click()
+  await expect(reportMarkdownField).toHaveValue(/Dispatch Closeout Analytics/)
   await expect(reportMarkdownField).toHaveValue(/Stored Dispatch Evidence/)
   await expect(reportMarkdownField).toHaveValue(/host-evidence-/)
   await expect(reportMarkdownField).toHaveValue(/verification-evidence-/)

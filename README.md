@@ -23,6 +23,7 @@ The dashboard currently supports:
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - cPanel deploy runbooks for the current five-site deploy queue, including artifacts, preserve paths, and verification checks.
 - Dispatch Queue Command Center for the ordered cPanel workflow, local artifact inspection, read-only evidence sweeps, session launch/resume, and readiness report creation.
+- Dispatch closeout analytics derived from evidence, sessions, manual deployment records, and report packets.
 - Dispatch evidence archive for persisted host-preflight and runbook verification check history.
 - Guided Dispatch deploy sessions for manual cPanel upload evidence, step notes, and explicit human-confirmed deployment records.
 - Read-only Dispatch host boundary checks for optional server-side TCP, local-mirror, and SFTP inspection evidence without exposing credentials or attempting writes.
@@ -50,6 +51,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Optional read-only host boundary API under `/api/dispatch/host-status` and `/api/dispatch/host-preflight`.
 - Dispatch automation readiness helpers and no-op dry-run planning.
 - Dispatch deploy session helpers for manual session steps, evidence capture, and typed-confirmation deployment records.
+- Dispatch closeout helpers that derive advisory closeout posture without storing a new source of truth.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
 - Versioned local backup/export helpers for Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync data.
@@ -221,6 +223,8 @@ The optional Host Inspector can use server-side `ATLAS_HOST_PREFLIGHT_CONFIG` en
 
 The Dispatch Queue Command Center derives one ordered row per current cPanel runbook. It summarizes artifact inspection, latest preflight, latest host evidence, latest runbook verification evidence, deploy-session state, and manual deployment records. It can run read-only evidence checks and create local readiness report packets, but it does not persist a separate queue store or make shipping decisions.
 
+Dispatch Closeout Analytics derives a review posture from runbook artifact inspection, deploy-session steps, latest host evidence, latest runbook verification evidence, manual deployment records, backup/rollback references, and related deployment report packets. Closeout states such as `not-started`, `session-active`, `needs-evidence`, `needs-manual-record`, `needs-follow-up`, and `closeout-ready` are advisory labels only. They do not deploy, verify, publish, mark readiness, or change any Atlas/Dispatch source-of-truth field.
+
 Deploy Sessions sit between runbooks and deployment records. A session guides a human through preflight review, artifact inspection, preserve/create path checks, backup readiness, an outside-Atlas upload note, verification checks, operator notes, and wrap-up. Atlas does not perform the upload. Recording the final deployment requires typing `RECORD MANUAL DEPLOYMENT`, and the resulting record states that Atlas did not deploy, upload, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch databases.
 
 Active deploy sessions can explicitly attach the latest host or verification evidence to session notes. Attachment only updates the selected session evidence text. It does not mark anything deployed, ready, stable, or verified.
@@ -349,7 +353,7 @@ Supported packet types:
 - Client site update packet
 - Internal deploy handoff packet
 
-Report packets can include project manual status, verification state, Dispatch posture, cPanel runbooks, stored host evidence, runbook verification evidence, deploy-session notes, manual deployment record references, Planning records, repository bindings, and GitHub warnings captured inside selected Writing drafts. Reports are stored separately under `jamarq-atlas.reports.v1`.
+Report packets can include project manual status, verification state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session notes, manual deployment record references, Planning records, repository bindings, and GitHub warnings captured inside selected Writing drafts. Reports are stored separately under `jamarq-atlas.reports.v1`.
 
 Report actions are local-only:
 
@@ -485,6 +489,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/reports.ts` builds report packet Markdown, normalizes Reports storage, and records report-only audit events.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
+- `src/services/dispatchCloseout.ts` derives Dispatch closeout analytics from existing evidence, sessions, deployment records, and Reports state.
 - `src/services/dispatchPreflight.ts` assembles read-only preflight evidence without mutating status or readiness.
 - `src/services/dispatchEvidence.ts` normalizes and stores host/runbook verification evidence histories.
 - `src/services/dispatchHealthChecks.ts` calls the local read-only Dispatch health API.
@@ -559,6 +564,7 @@ Dispatch activity is advisory:
 - Readiness does not change Atlas status.
 - Preflight evidence does not change Atlas or Dispatch status.
 - Host and runbook verification evidence does not mean Atlas deployed, verified, uploaded, or changed production.
+- Closeout analytics are derived labels only and do not prove Atlas deployed, verified, published, or completed anything.
 - Automation readiness and dry-run plans do not change Atlas or Dispatch status.
 - Health checks do not mark a project stable.
 - Backup warnings do not change priority.

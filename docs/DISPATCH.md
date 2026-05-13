@@ -14,6 +14,7 @@ Dispatch currently supports:
 - Public URLs and health check URLs
 - cPanel deploy runbooks
 - Dispatch Queue Command Center
+- Dispatch closeout analytics
 - Guided manual deploy sessions
 - Expected deploy artifacts
 - Preserve/create-on-server path checklists
@@ -128,6 +129,23 @@ Queue rows can:
 - Open the project detail panel for full editing.
 
 Queue states such as `needs-artifacts`, `needs-evidence`, `session-active`, `ready-for-manual-upload`, and `recorded` are advisory summaries only. They do not change Atlas project status, Dispatch target status, readiness, verification, Planning, GitHub bindings, Writing, Reports, Settings, or Sync automatically.
+
+## Closeout Analytics
+
+Closeout Analytics is a derived Dispatch layer. It reads existing runbooks, artifact inspection metadata, deploy sessions, host evidence, runbook verification evidence, manual deployment records, backup/rollback references, and related deployment report packets.
+
+Closeout states include:
+
+- `not-started`
+- `session-active`
+- `needs-evidence`
+- `needs-manual-record`
+- `needs-follow-up`
+- `closeout-ready`
+
+These states are labels for human review. They are not stored as operational truth and do not prove that Atlas deployed, verified, published, or completed anything. Closeout analytics do not create deployment records, mark verification, update readiness, change target status, or mutate Workspace, Planning, GitHub, Writing, Reports, Settings, or Sync state.
+
+The Dispatch dashboard shows queue-level closeout counts, queue rows show compact closeout chips, and project Dispatch panels show a Closeout Review with requirements and evidence signals.
 
 ## Deploy Sessions
 

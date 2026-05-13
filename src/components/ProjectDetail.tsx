@@ -35,6 +35,7 @@ import type {
   DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
+import type { ReportsState } from '../domain/reports'
 import type { TimelineEvent } from '../domain/timeline'
 import { getLatestDeploymentRecord } from '../domain/dispatch'
 import {
@@ -55,6 +56,7 @@ interface ProjectDetailProps {
   record: ProjectRecord
   dispatch: DispatchState
   planning: PlanningState
+  reports: ReportsState
   writingDrafts: WritingDraft[]
   timelineEvents: TimelineEvent[]
   onManualChange: (manual: Partial<ManualOperationalState>) => void
@@ -154,6 +156,7 @@ export function ProjectDetail({
   record,
   dispatch,
   planning,
+  reports,
   writingDrafts,
   timelineEvents,
   onManualChange,
@@ -326,6 +329,7 @@ export function ProjectDetail({
         <DispatchPanel
           record={record}
           dispatch={dispatch}
+          reports={reports}
           onTargetChange={onDispatchTargetChange}
           onReadinessChange={onDispatchReadinessChange}
           onAutomationReadinessChange={onDispatchAutomationReadinessChange}

@@ -15,6 +15,11 @@ import {
   type ReportsState,
 } from '../domain/reports'
 import type { WritingDraft } from '../domain/writing'
+import {
+  closeoutStateLabels,
+  deriveDispatchCloseoutForTarget,
+  isDeploymentReportType,
+} from './dispatchCloseout'
 import { getPlanningForProject } from './planning'
 import { evaluateVerification } from './verification'
 
@@ -23,12 +28,14 @@ export const reportGuardrails = [
   'Export does not mean anything was sent, published, deployed, shipped, or verified.',
   'Reports must not change Atlas project status, risk, roadmap, verification, Dispatch readiness, GitHub bindings, Planning records, or Writing drafts.',
   'GitHub, Dispatch, Verification, Planning, and Writing context remains advisory.',
+  'Closeout analytics are derived evidence only and do not prove Atlas deployed, verified, published, or completed anything.',
 ]
 
 interface ReportContextInput {
   type: ReportPacketType
   projectRecords: ProjectRecord[]
   dispatch: DispatchState
+  reports?: ReportsState
   planning: PlanningState
   writingDrafts: WritingDraft[]
   projectIds: string[]
@@ -491,6 +498,48 @@ function buildStoredDispatchEvidenceSection(records: ProjectRecord[], dispatch: 
   ].join('\n')
 }
 
+function buildDispatchCloseoutSection(
+  records: ProjectRecord[],
+  dispatch: DispatchState,
+  reports: ReportsState,
+) {
+  const projectIds = new Set(records.map((record) => record.project.id))
+  const targets = dispatch.targets.filter((target) => projectIds.has(target.projectId))
+
+  if (targets.length === 0) {
+    return '_No Dispatch targets are included in this report scope._'
+  }
+
+  return targets
+    .map((target) => {
+      const summary = deriveDispatchCloseoutForTarget({ dispatch, reports, target })
+
+      return [
+        `### ${target.name}`,
+        '',
+        `- Closeout state: ${closeoutStateLabels[summary.state]}`,
+        `- Detail: ${summary.detail}`,
+        `- Manual deployment record: ${summary.latestManualDeploymentRecordId ?? 'not recorded'}`,
+        `- Host evidence: ${summary.latestHostEvidenceId ?? 'not captured'}`,
+        `- Verification evidence: ${summary.latestVerificationEvidenceId ?? 'not captured'}`,
+        `- Related deployment report packet: ${summary.latestReportPacketId ?? 'not assembled'}`,
+        '',
+        'Closeout requirements:',
+        list(
+          summary.requirements.map(
+            (requirement) =>
+              `${requirement.status}: ${requirement.label} - ${requirement.detail}`,
+          ),
+          'No closeout requirements derived.',
+        ),
+        '',
+        'Closeout warnings:',
+        list(summary.warnings, 'No closeout warnings derived.'),
+      ].join('\n')
+    })
+    .join('\n\n')
+}
+
 function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
   const repositoryLines = records.flatMap((record) =>
     record.project.repositories.map((repo) => `- ${record.project.name}: ${repo.owner}/${repo.name}`),
@@ -516,6 +565,7 @@ export function buildReportMarkdown({
   type,
   records,
   dispatch,
+  reports = emptyReportsState,
   planning,
   writingDrafts,
   now = new Date(),
@@ -523,6 +573,7 @@ export function buildReportMarkdown({
   type: ReportPacketType
   records: ProjectRecord[]
   dispatch: DispatchState
+  reports?: ReportsState
   planning: PlanningState
   writingDrafts: WritingDraft[]
   now?: Date
@@ -559,6 +610,14 @@ export function buildReportMarkdown({
     '',
     buildDeploySessionSection(records, dispatch),
     '',
+    ...(isDeploymentReportType(type)
+      ? [
+          '## Dispatch Closeout Analytics',
+          '',
+          buildDispatchCloseoutSection(records, dispatch, reports),
+          '',
+        ]
+      : []),
     '## Stored Dispatch Evidence',
     '',
     buildStoredDispatchEvidenceSection(records, dispatch),
@@ -574,6 +633,7 @@ export function createReportPacket({
   type,
   projectRecords,
   dispatch,
+  reports = emptyReportsState,
   planning,
   writingDrafts,
   projectIds,
@@ -607,6 +667,7 @@ export function createReportPacket({
       type,
       records,
       dispatch,
+      reports,
       planning,
       writingDrafts: selectedDrafts,
       now,
