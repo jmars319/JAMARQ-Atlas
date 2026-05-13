@@ -1565,8 +1565,8 @@ export function SettingsCenter({
                     <strong>
                       Row {row.index}: {row.kind || 'unknown'}
                     </strong>
-                    {row.errors.map((error) => (
-                      <span key={error}>Rejected: {error}</span>
+                    {row.errors.map((error, index) => (
+                      <span key={`${row.index}-${index}-${error}`}>Rejected: {error}</span>
                     ))}
                   </article>
                 ))}
@@ -1574,8 +1574,8 @@ export function SettingsCenter({
                   <div className="data-warning">
                     <strong>Import warnings</strong>
                     <ul>
-                      {calibrationImportPreview.warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
+                      {calibrationImportPreview.warnings.map((warning, index) => (
+                        <li key={`${index}-${warning}`}>{warning}</li>
                       ))}
                     </ul>
                   </div>
