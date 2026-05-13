@@ -6,6 +6,7 @@ import {
   applyCalibrationImportPreview,
   calibrationValueToTargetUpdate,
   canStoreCalibrationValue,
+  createCalibrationReadinessReport,
   emptyCalibrationState,
   isPlaceholderValue,
   normalizeCalibrationState,
@@ -231,6 +232,17 @@ describe('Atlas calibration checks', () => {
 
     expect(preview.acceptedRows).toHaveLength(2)
     expect(preview.rejectedRows).toHaveLength(1)
+    expect(preview.kindSummaries.find((summary) => summary.kind === 'dispatch-target')).toMatchObject({
+      accepted: 1,
+      rejected: 1,
+    })
+    expect(preview.acceptedRows[0].changeDetails[0]).toEqual(
+      expect.objectContaining({
+        field: 'remoteHost',
+        before: expect.any(String),
+        after: 'mmh-prod.examplehost.com',
+      }),
+    )
     expect(preview.rejectedRows[0].errors.join(' ')).toContain('Secret-shaped values')
 
     const result = applyCalibrationImportPreview({
@@ -249,6 +261,106 @@ describe('Atlas calibration checks', () => {
     expect(target?.healthCheckUrls).toContain('https://midwaymusichall.com/api/health')
     expect(result.calibration.credentialReferences[0].label).toBe('godaddy-mmh-production')
     expect(result.calibration.auditEvents.some((event) => event.type === 'import-apply')).toBe(true)
+  })
+
+  it('parses CSV imports with quoted commas, empty fields, and multiline health URLs', () => {
+    const csv = [
+      'kind,targetId,remoteHost,remoteUser,remoteBackendPath,publicUrl,healthCheckUrls,credentialRef,label,provider,purpose,notes',
+      '"dispatch-target","midway-music-hall-production","mmh-prod.examplehost.com","deploy,user","/home/mmh/public_html/api","https://midwaymusichall.com","https://midwaymusichall.com/',
+      'https://midwaymusichall.com/api/health","godaddy-mmh-production","","","",""',
+      '"credential-reference","","","","","","","","godaddy-mmh-production","GoDaddy, cPanel","Production host access label","Reference location note"',
+    ].join('\n')
+    const preview = parseCalibrationImportPreview(csv, seedWorkspace, seedDispatchState)
+
+    expect(preview.acceptedRows).toHaveLength(2)
+    expect(preview.rejectedRows).toHaveLength(0)
+    expect(preview.acceptedRows[0].data.remoteUser).toBe('deploy,user')
+    expect(preview.acceptedRows[0].data.healthCheckUrls).toContain('/api/health')
+    expect(preview.acceptedRows[1].data.provider).toBe('GoDaddy, cPanel')
+  })
+
+  it('reports duplicate import warnings before apply', () => {
+    const savedReference = upsertCredentialReference(emptyCalibrationState(), {
+      label: 'godaddy-mmh-production',
+      provider: 'GoDaddy',
+      purpose: 'Production host access label',
+    })
+    expect(savedReference.ok).toBe(true)
+    const calibration = savedReference.ok ? savedReference.state : emptyCalibrationState()
+    const preview = parseCalibrationImportPreview(
+      JSON.stringify({
+        rows: [
+          {
+            kind: 'credential-reference',
+            label: 'godaddy-mmh-production',
+          },
+          {
+            kind: 'credential-reference',
+            label: 'godaddy-mmh-production',
+          },
+          {
+            kind: 'dispatch-target',
+            targetId: 'midway-music-hall-production',
+            remoteHost: 'mmh-prod.examplehost.com',
+          },
+          {
+            kind: 'dispatch-target',
+            targetId: 'midway-music-hall-production',
+            remoteBackendPath: '/home/mmh/public_html/api',
+          },
+        ],
+      }),
+      seedWorkspace,
+      seedDispatchState,
+      calibration,
+    )
+
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('already exists'),
+        expect.stringContaining('Duplicate credential reference label'),
+        expect.stringContaining('Duplicate dispatch target row'),
+      ]),
+    )
+  })
+
+  it('summarizes calibration readiness from issues, progress, registry, and import warnings', () => {
+    const issue = scanAtlasCalibration(seedWorkspace, seedDispatchState).find(
+      (candidate) => candidate.field === 'remoteHost',
+    )!
+    const calibration = updateCalibrationFieldProgress(
+      emptyCalibrationState(),
+      issue,
+      'verified',
+      'Confirmed.',
+      'operator',
+      new Date('2026-05-11T12:00:00Z'),
+    )
+    const preview = parseCalibrationImportPreview(
+      JSON.stringify({
+        rows: [
+          {
+            kind: 'dispatch-target',
+            targetId: 'midway-music-hall-production',
+            publicUrl: 'midwaymusichall.com',
+          },
+        ],
+      }),
+      seedWorkspace,
+      seedDispatchState,
+    )
+    const report = createCalibrationReadinessReport({
+      issues: scanAtlasCalibration(seedWorkspace, seedDispatchState, [], []),
+      calibration,
+      importPreview: preview,
+    })
+
+    expect(report.unresolved).toBeGreaterThan(0)
+    expect(report.verified).toBe(1)
+    expect(report.importWarnings).toBeGreaterThan(0)
+    expect(report.unregisteredCredentialRefs).toBeGreaterThan(0)
+    expect(report.topAffectedItems.length).toBeGreaterThan(0)
+    expect(report.latestAuditEvents[0].type).toBe('field-progress')
   })
 
   it('reports URL, path, repo, and database quality warnings', () => {

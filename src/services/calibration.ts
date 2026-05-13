@@ -661,6 +661,59 @@ export function summarizeCalibrationState(state: AtlasCalibrationState) {
   }
 }
 
+export function createCalibrationReadinessReport({
+  issues,
+  calibration,
+  importPreview = null,
+}: {
+  issues: CalibrationIssue[]
+  calibration: AtlasCalibrationState
+  importPreview?: CalibrationImportPreview | null
+}): CalibrationReadinessReport {
+  const summary = summarizeCalibrationState(calibration)
+  const affected = new Map<string, CalibrationReadinessAffectedItem>()
+
+  for (const issue of issues) {
+    const key = issue.targetId ?? issue.projectId ?? issue.id
+    const label = issue.targetName
+      ? `${issue.projectName} / ${issue.targetName}`
+      : issue.projectName
+    const current = affected.get(key) ?? {
+      label,
+      projectId: issue.projectId,
+      targetId: issue.targetId,
+      count: 0,
+    }
+
+    current.count += 1
+    affected.set(key, current)
+  }
+
+  return {
+    unresolved: issues.length,
+    needsValue: summary.needsValue,
+    entered: summary.entered,
+    verified: summary.verified,
+    deferred: summary.deferred,
+    credentialReferences: summary.credentialReferences,
+    unregisteredCredentialRefs: issues.filter((issue) => issue.field === 'credentialRef-registry')
+      .length,
+    importWarnings:
+      (importPreview?.warnings.length ?? 0) +
+      (importPreview?.acceptedRows.reduce((total, row) => total + row.warnings.length, 0) ?? 0),
+    categoryCounts: CALIBRATION_CATEGORIES.filter(
+      (category): category is { id: CalibrationCategory; label: string } => category.id !== 'all',
+    ).map((category) => ({
+        category: category.id,
+        count: issues.filter((issue) => issue.category === category.id).length,
+      })),
+    topAffectedItems: Array.from(affected.values())
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
+      .slice(0, 5),
+    latestAuditEvents: calibration.auditEvents.slice(0, 5),
+  }
+}
+
 function createAuditEvent({
   type,
   summary,
@@ -886,6 +939,7 @@ export interface CalibrationImportAcceptedRow {
   kind: CalibrationImportRowKind
   identifier: string
   changes: string[]
+  changeDetails: CalibrationImportChange[]
   warnings: CalibrationQualityMessage[]
   data: Record<string, string>
 }
@@ -898,10 +952,46 @@ export interface CalibrationImportRejectedRow {
   data: Record<string, string>
 }
 
+export interface CalibrationImportChange {
+  field: string
+  before: string
+  after: string
+  summary: string
+}
+
+export interface CalibrationImportKindSummary {
+  kind: CalibrationImportRowKind | 'unknown'
+  accepted: number
+  rejected: number
+  warnings: number
+}
+
 export interface CalibrationImportPreview {
   acceptedRows: CalibrationImportAcceptedRow[]
   rejectedRows: CalibrationImportRejectedRow[]
   warnings: string[]
+  kindSummaries: CalibrationImportKindSummary[]
+}
+
+export interface CalibrationReadinessAffectedItem {
+  label: string
+  projectId: string | null
+  targetId: string | null
+  count: number
+}
+
+export interface CalibrationReadinessReport {
+  unresolved: number
+  needsValue: number
+  entered: number
+  verified: number
+  deferred: number
+  credentialReferences: number
+  unregisteredCredentialRefs: number
+  importWarnings: number
+  categoryCounts: Array<{ category: CalibrationCategory; count: number }>
+  topAffectedItems: CalibrationReadinessAffectedItem[]
+  latestAuditEvents: CalibrationAuditEvent[]
 }
 
 export function validateCalibrationDataQuality(
@@ -1017,14 +1107,28 @@ function normalizeImportKind(value: string): CalibrationImportRowKind | null {
   return null
 }
 
-function parseCsvLine(line: string) {
-  const cells: string[] = []
+function parseCsvTable(text: string) {
+  const rows: string[][] = []
+  let row: string[] = []
   let current = ''
   let inQuotes = false
 
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]
-    const nextChar = line[index + 1]
+  function pushCell() {
+    row.push(current.trim())
+    current = ''
+  }
+
+  function pushRow() {
+    pushCell()
+    if (row.some((cell) => cell.trim())) {
+      rows.push(row)
+    }
+    row = []
+  }
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    const nextChar = text[index + 1]
 
     if (char === '"' && inQuotes && nextChar === '"') {
       current += '"'
@@ -1038,33 +1142,38 @@ function parseCsvLine(line: string) {
     }
 
     if (char === ',' && !inQuotes) {
-      cells.push(current.trim())
-      current = ''
+      pushCell()
+      continue
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') {
+        index += 1
+      }
+      pushRow()
       continue
     }
 
     current += char
   }
 
-  cells.push(current.trim())
+  if (current || row.length > 0) {
+    pushRow()
+  }
 
-  return cells
+  return rows
 }
 
 function parseCsvRows(text: string): Record<string, string>[] {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
+  const table = parseCsvTable(text)
 
-  if (lines.length < 2) {
+  if (table.length < 2) {
     return []
   }
 
-  const headers = parseCsvLine(lines[0])
+  const headers = table[0]
 
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line)
+  return table.slice(1).map((values) => {
     return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']))
   })
 }
@@ -1109,10 +1218,131 @@ function collectRowWarnings(row: Record<string, string>) {
     .flatMap(([field, value]) => validateCalibrationDataQuality(field, value))
 }
 
+function createKindSummaries(
+  acceptedRows: CalibrationImportAcceptedRow[],
+  rejectedRows: CalibrationImportRejectedRow[],
+): CalibrationImportKindSummary[] {
+  const summaries = new Map<CalibrationImportKindSummary['kind'], CalibrationImportKindSummary>()
+
+  function ensure(kind: CalibrationImportKindSummary['kind']) {
+    const existing = summaries.get(kind)
+
+    if (existing) {
+      return existing
+    }
+
+    const summary = { kind, accepted: 0, rejected: 0, warnings: 0 }
+    summaries.set(kind, summary)
+    return summary
+  }
+
+  for (const row of acceptedRows) {
+    const summary = ensure(row.kind)
+    summary.accepted += 1
+    summary.warnings += row.warnings.length
+  }
+
+  for (const row of rejectedRows) {
+    const kind = normalizeImportKind(row.kind) ?? 'unknown'
+    const summary = ensure(kind)
+    summary.rejected += 1
+  }
+
+  return Array.from(summaries.values()).sort((left, right) =>
+    left.kind.localeCompare(right.kind),
+  )
+}
+
+function duplicateImportWarnings(
+  rows: Record<string, string>[],
+  records: ProjectRecord[],
+  calibration?: AtlasCalibrationState,
+) {
+  const warnings: string[] = []
+  const credentialRows = new Map<string, number[]>()
+  const targetRows = new Map<string, number[]>()
+  const repoRows = new Map<string, number[]>()
+  const existingCredentialLabels = new Set(
+    calibration?.credentialReferences.map((reference) => reference.label.toLowerCase()) ?? [],
+  )
+
+  rows.forEach((row, rowIndex) => {
+    const index = rowIndex + 1
+    const kind = normalizeImportKind(readString(row.kind).trim())
+
+    if (kind === 'credential-reference') {
+      const label = row.label?.trim().toLowerCase()
+      if (label) {
+        credentialRows.set(label, [...(credentialRows.get(label) ?? []), index])
+        if (existingCredentialLabels.has(label)) {
+          warnings.push(`Credential reference "${row.label}" already exists and will be updated.`)
+        }
+      }
+    }
+
+    if (kind === 'dispatch-target' && row.targetId?.trim()) {
+      targetRows.set(row.targetId, [...(targetRows.get(row.targetId) ?? []), index])
+    }
+
+    if (kind === 'repo-binding') {
+      const repository = parseRepositoryFullName(row.repository || row.repo || row.fullName || '')
+      if (row.projectId?.trim() && repository) {
+        const key = `${row.projectId.toLowerCase()}::${repository.owner.toLowerCase()}/${repository.name.toLowerCase()}`
+        repoRows.set(key, [...(repoRows.get(key) ?? []), index])
+        const record = records.find((candidate) => candidate.project.id === row.projectId)
+        if (
+          record?.project.repositories.some(
+            (repo) =>
+              repo.owner.toLowerCase() === repository.owner.toLowerCase() &&
+              repo.name.toLowerCase() === repository.name.toLowerCase(),
+          )
+        ) {
+          warnings.push(
+            `Repository ${repository.owner}/${repository.name} is already bound to ${record.project.name}.`,
+          )
+        }
+      }
+    }
+  })
+
+  for (const [label, indexes] of credentialRows) {
+    if (indexes.length > 1) {
+      warnings.push(
+        `Duplicate credential reference label "${label}" appears in rows ${indexes.join(', ')}.`,
+      )
+    }
+  }
+
+  for (const [targetId, indexes] of targetRows) {
+    if (indexes.length > 1) {
+      warnings.push(`Duplicate dispatch target row "${targetId}" appears in rows ${indexes.join(', ')}.`)
+    }
+  }
+
+  for (const [key, indexes] of repoRows) {
+    if (indexes.length > 1) {
+      const [, repository] = key.split('::')
+      warnings.push(`Duplicate repo binding "${repository}" appears in rows ${indexes.join(', ')}.`)
+    }
+  }
+
+  return warnings
+}
+
+function createImportChange(field: string, before: string, after: string): CalibrationImportChange {
+  return {
+    field,
+    before,
+    after,
+    summary: `${field}: ${before || '(empty)'} -> ${after || '(empty)'}`,
+  }
+}
+
 export function parseCalibrationImportPreview(
   text: string,
   workspace: Workspace,
   dispatch: DispatchState,
+  calibration?: AtlasCalibrationState,
 ): CalibrationImportPreview {
   let rows: Record<string, string>[]
 
@@ -1131,12 +1361,14 @@ export function parseCalibrationImportPreview(
         },
       ],
       warnings: [],
+      kindSummaries: [{ kind: 'unknown', accepted: 0, rejected: 1, warnings: 0 }],
     }
   }
 
   const records = flattenProjects(workspace)
   const acceptedRows: CalibrationImportAcceptedRow[] = []
   const rejectedRows: CalibrationImportRejectedRow[] = []
+  const importWarnings = duplicateImportWarnings(rows, records, calibration)
 
   rows.forEach((row, rowIndex) => {
     const index = rowIndex + 1
@@ -1159,6 +1391,7 @@ export function parseCalibrationImportPreview(
     }
 
     const changes: string[] = []
+    const changeDetails: CalibrationImportChange[] = []
 
     if (kind === 'dispatch-target') {
       const target = dispatch.targets.find((candidate) => candidate.id === row.targetId)
@@ -1167,7 +1400,11 @@ export function parseCalibrationImportPreview(
       } else {
         for (const field of DISPATCH_IMPORT_FIELDS) {
           if (row[field]?.trim()) {
-            changes.push(`${field}: ${valueLabel(target[field] as string | string[])} -> ${row[field]}`)
+            const before = valueLabel(target[field] as string | string[])
+            const change = createImportChange(field, before, row[field])
+
+            changeDetails.push(change)
+            changes.push(change.summary)
           }
         }
       }
@@ -1182,6 +1419,13 @@ export function parseCalibrationImportPreview(
       if (!repository) {
         errors.push('Repository must be owner/repo or a GitHub repository URL.')
       } else {
+        const change = createImportChange(
+          'repository',
+          project?.project.repositories.map((repo) => `${repo.owner}/${repo.name}`).join(', ') ?? '',
+          `${repository.owner}/${repository.name}`,
+        )
+
+        changeDetails.push(change)
         changes.push(`Bind ${repository.owner}/${repository.name} to ${row.projectId}.`)
       }
     }
@@ -1190,6 +1434,16 @@ export function parseCalibrationImportPreview(
       if (!row.label?.trim()) {
         errors.push('Credential reference label is required.')
       } else {
+        const existingReference = calibration?.credentialReferences.find(
+          (reference) => reference.label.toLowerCase() === row.label.toLowerCase(),
+        )
+        const change = createImportChange(
+          'credential-reference',
+          existingReference ? 'existing reference' : '',
+          row.label,
+        )
+
+        changeDetails.push(change)
         changes.push(`Save credential reference ${row.label}.`)
       }
     }
@@ -1210,15 +1464,22 @@ export function parseCalibrationImportPreview(
       kind,
       identifier,
       changes,
+      changeDetails,
       warnings: warnings.filter((warning) => warning.level === 'warning'),
       data: row,
     })
   })
 
+  const warnings = [
+    ...(rows.length === 0 ? ['Import file did not contain any rows.'] : []),
+    ...importWarnings,
+  ]
+
   return {
     acceptedRows,
     rejectedRows,
-    warnings: rows.length === 0 ? ['Import file did not contain any rows.'] : [],
+    warnings,
+    kindSummaries: createKindSummaries(acceptedRows, rejectedRows),
   }
 }
 

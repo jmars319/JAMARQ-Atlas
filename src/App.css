@@ -2548,9 +2548,11 @@ h3 {
 .settings-calibration-groups,
 .settings-bulk-calibration,
 .settings-calibration-summary,
+.settings-calibration-readiness,
 .settings-credential-registry,
 .settings-import-export,
 .settings-import-preview,
+.settings-readiness-list,
 .settings-audit-list {
   display: grid;
   gap: 8px;
@@ -2563,6 +2565,7 @@ h3 {
 .settings-calibration-summary div,
 .settings-credential-card,
 .settings-import-row,
+.settings-readiness-list,
 .settings-audit-list article {
   border: 1px solid var(--line);
   background: rgba(250, 250, 250, 0.02);
@@ -2575,6 +2578,10 @@ h3 {
 .settings-credential-card span,
 .settings-import-row strong,
 .settings-import-row span,
+.settings-readiness-list strong,
+.settings-readiness-list span,
+.settings-import-diff dt,
+.settings-import-diff dd,
 .settings-audit-list strong,
 .settings-audit-list span,
 .settings-audit-list p,
@@ -2588,15 +2595,46 @@ h3 {
   font-size: 1rem;
 }
 
+.settings-readiness-list strong {
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
 .settings-calibration-summary span,
 .settings-credential-card span,
 .settings-import-row span,
+.settings-readiness-list span,
+.settings-import-diff dd,
 .settings-audit-list span,
 .settings-audit-list p,
 .settings-subpanel-heading span {
   color: var(--text-muted);
   font-size: 0.74rem;
   line-height: 1.35;
+}
+
+.settings-import-diff {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.settings-import-diff div {
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.settings-import-diff dt {
+  color: var(--paper-white);
+  font-weight: 700;
+}
+
+.settings-import-diff dd {
+  display: grid;
+  gap: 2px;
+  margin: 0;
 }
 
 .settings-calibration-groups {

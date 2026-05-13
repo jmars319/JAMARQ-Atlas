@@ -55,6 +55,7 @@ import {
   calibrationValueToTargetUpdate,
   createCalibrationCsvTemplate,
   createCalibrationJsonTemplate,
+  createCalibrationReadinessReport,
   parseCalibrationImportPreview,
   scanAtlasCalibration,
   summarizeCalibrationState,
@@ -764,6 +765,15 @@ export function SettingsCenter({
     () => summarizeCalibrationState(calibration),
     [calibration],
   )
+  const calibrationReadinessReport = useMemo(
+    () =>
+      createCalibrationReadinessReport({
+        issues: calibrationIssues,
+        calibration,
+        importPreview: calibrationImportPreview,
+      }),
+    [calibration, calibrationImportPreview, calibrationIssues],
+  )
   const calibrationProgressByIssue = useMemo(
     () =>
       new Map(
@@ -923,7 +933,7 @@ export function SettingsCenter({
 
     try {
       const text = await file.text()
-      setCalibrationImportPreview(parseCalibrationImportPreview(text, workspace, dispatch))
+      setCalibrationImportPreview(parseCalibrationImportPreview(text, workspace, dispatch, calibration))
     } catch (error) {
       setCalibrationImportError(
         error instanceof Error ? error.message : 'Calibration import file could not be read.',
@@ -1286,6 +1296,44 @@ export function SettingsCenter({
               <span>Audit events</span>
             </div>
           </div>
+          <div className="settings-calibration-readiness" aria-label="Calibration readiness report">
+            <div className="settings-subpanel-heading">
+              <ClipboardList size={16} />
+              <strong>Readiness report</strong>
+              <span>Human-entered progress and import warnings only. This is not production verification.</span>
+            </div>
+            <div className="settings-preview-grid">
+              <div className="settings-snapshot-summary">
+                <strong>{calibrationReadinessReport.unresolved}</strong>
+                <span>Unresolved calibration rows</span>
+                <span>{calibrationReadinessReport.unregisteredCredentialRefs} unregistered credential refs</span>
+              </div>
+              <div className="settings-snapshot-summary">
+                <strong>{calibrationReadinessReport.verified}</strong>
+                <span>Verified progress records</span>
+                <span>
+                  {calibrationReadinessReport.entered} entered / {calibrationReadinessReport.deferred} deferred
+                </span>
+              </div>
+              <div className="settings-snapshot-summary">
+                <strong>{calibrationReadinessReport.importWarnings}</strong>
+                <span>Current import warnings</span>
+                <span>{calibrationReadinessReport.credentialReferences} credential references registered</span>
+              </div>
+            </div>
+            {calibrationReadinessReport.topAffectedItems.length > 0 ? (
+              <div className="settings-readiness-list">
+                <strong>Top affected targets/projects</strong>
+                {calibrationReadinessReport.topAffectedItems.map((item) => (
+                  <span key={`${item.targetId ?? item.projectId ?? item.label}`}>
+                    {item.label}: {item.count} item(s)
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">No unresolved calibration items are currently visible.</p>
+            )}
+          </div>
           <div className="settings-form-grid">
             <label className="field">
               <span>Calibration filter</span>
@@ -1473,14 +1521,38 @@ export function SettingsCenter({
                     <span>Secret-shaped failures are never applied</span>
                   </div>
                 </div>
+                {calibrationImportPreview.kindSummaries.length > 0 ? (
+                  <div className="settings-preview-grid" aria-label="Calibration import kind counts">
+                    {calibrationImportPreview.kindSummaries.map((summary) => (
+                      <div key={summary.kind} className="settings-snapshot-summary">
+                        <strong>{summary.kind}</strong>
+                        <span>{summary.accepted} accepted</span>
+                        <span>{summary.rejected} rejected</span>
+                        <span>{summary.warnings} warning(s)</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {calibrationImportPreview.acceptedRows.slice(0, 6).map((row) => (
                   <article key={`accepted-${row.index}`} className="settings-import-row">
                     <strong>
                       Row {row.index}: {row.kind}
                     </strong>
-                    {row.changes.map((change) => (
-                      <span key={change}>{change}</span>
-                    ))}
+                    {row.changeDetails.length > 0 ? (
+                      <dl className="settings-import-diff">
+                        {row.changeDetails.map((change) => (
+                          <div key={`${change.field}-${change.after}`}>
+                            <dt>{change.field}</dt>
+                            <dd>
+                              <span>Before: {change.before || '(empty)'}</span>
+                              <span>After: {change.after || '(empty)'}</span>
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : (
+                      row.changes.map((change) => <span key={change}>{change}</span>)
+                    )}
                     {row.warnings.map((warning, index) => (
                       <span key={`${warning.field}-${index}`} className="warning">
                         Warning: {warning.message}
