@@ -27,7 +27,9 @@ Connection cards are read-only status surfaces. They do not trigger GitHub write
 
 The Writing card reads `/api/writing/status`. Missing `OPENAI_API_KEY` is shown as a scoped missing state, while local draft packets remain available.
 
-The host boundary card reads `/api/dispatch/host-status`. Missing `ATLAS_HOST_PREFLIGHT_CONFIG` is shown as a scoped missing state. If configured, Atlas can run read-only host reachability and local-mirror path evidence from Dispatch while storing only credential reference labels in browser state.
+The host boundary card reads `/api/dispatch/host-status`. Missing `ATLAS_HOST_PREFLIGHT_CONFIG` is shown as a scoped missing state. If configured, Atlas can run read-only TCP, local-mirror, or SFTP inspection evidence from Dispatch while storing only credential reference labels in browser state.
+
+For SFTP inspection, `ATLAS_HOST_PREFLIGHT_CONFIG` must use env-var references such as `passwordEnvVar`, `privateKeyPathEnvVar`, and `passphraseEnvVar`. Settings may show configured target count, SFTP-enabled count, host, port, credential reference, and auth method, but it does not expose usernames, passwords, key paths, passphrases, or raw environment values.
 
 ## Sync Snapshots
 

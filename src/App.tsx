@@ -34,6 +34,7 @@ import {
   type VerificationCadence,
   type WorkStatus,
 } from './domain/atlas'
+import { getRunbookForTarget } from './domain/dispatch'
 import type {
   DeploymentTarget,
   DispatchAutomationReadiness,
@@ -62,6 +63,8 @@ import {
   unbindRepositoryFromProject,
 } from './services/repoBinding'
 import { runDispatchPreflight } from './services/dispatchPreflight'
+import { createHostEvidenceRun } from './services/dispatchEvidence'
+import { requestHostConnectionPreflight } from './services/hostConnection'
 import { createSyncSnapshot } from './services/syncSnapshots'
 import { deriveTimelineEvents } from './services/timeline'
 import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
@@ -155,6 +158,9 @@ function App() {
     useState<WritingTemplateId>('client-update')
   const [selectedWritingDraftId, setSelectedWritingDraftId] = useState('')
   const [preflightRunningTargetId, setPreflightRunningTargetId] = useState('')
+  const [hostInspectionRunningTargetIds, setHostInspectionRunningTargetIds] = useState<string[]>(
+    [],
+  )
   const selectedRecord =
     findProjectRecord(workspace, selectedProjectId) ?? projectRecords[0]
 
@@ -220,6 +226,41 @@ function App() {
     } finally {
       setPreflightRunningTargetId('')
     }
+  }
+
+  async function handleRunHostInspection(targetId: string) {
+    const target = dispatch.targets.find((candidate) => candidate.id === targetId)
+
+    if (!target) {
+      return
+    }
+
+    const runbook = getRunbookForTarget(dispatch, target.id)
+
+    setHostInspectionRunningTargetIds((current) =>
+      current.includes(targetId) ? current : [...current, targetId],
+    )
+
+    try {
+      const result = await requestHostConnectionPreflight({
+        target,
+        preservePaths: runbook?.preservePaths.map((preservePath) => preservePath.path) ?? [],
+      })
+      addHostEvidenceRun(
+        createHostEvidenceRun({
+          projectId: target.projectId,
+          result,
+        }),
+      )
+    } finally {
+      setHostInspectionRunningTargetIds((current) =>
+        current.filter((candidate) => candidate !== targetId),
+      )
+    }
+  }
+
+  async function handleRunHostInspections(targetIds: string[]) {
+    await Promise.all(targetIds.map((targetId) => handleRunHostInspection(targetId)))
   }
 
   function handleBindRepository(projectId: string, repository: GithubRepositorySummary) {
@@ -574,6 +615,8 @@ function App() {
             selectedProjectId={selectedRecord?.project.id ?? ''}
             onSelectProject={selectProject}
             onStartDeploySession={createDeploySession}
+            onRunHostInspections={handleRunHostInspections}
+            hostInspectionRunningTargetIds={hostInspectionRunningTargetIds}
           />
         )}
 

@@ -209,7 +209,9 @@ function buildHostConnectionCard(
     title: 'Read-Only Host Boundary',
     status: 'available',
     summary: 'Read-only host preflight config is available.',
-    detail: `${status.data?.configuredTargets.length ?? 0} targets configured. Atlas stores credential reference labels only.`,
+    detail: `${status.data?.configuredTargets.length ?? 0} targets configured; ${
+      status.data?.sftpEnabledCount ?? 0
+    } SFTP read-only. Atlas stores credential reference labels only.`,
   } satisfies AtlasConnectionCard
 }
 
@@ -632,9 +634,14 @@ export function SettingsCenter({
       writingProviderStatus,
     ],
   )
+  const configuredHostTargetIds = useMemo(
+    () =>
+      hostConnectionStatus?.data?.configuredTargets.map((target) => target.targetId) ?? [],
+    [hostConnectionStatus],
+  )
   const calibrationIssues = useMemo(
-    () => scanAtlasCalibration(workspace, dispatch),
-    [dispatch, workspace],
+    () => scanAtlasCalibration(workspace, dispatch, configuredHostTargetIds),
+    [configuredHostTargetIds, dispatch, workspace],
   )
   const filteredCalibrationIssues = useMemo(
     () =>

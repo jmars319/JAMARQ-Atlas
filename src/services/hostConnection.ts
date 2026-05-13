@@ -13,8 +13,12 @@ export interface HostConnectionStatusResponse {
       credentialRef: string
       host: string
       port: number
+      probeMode: 'tcp' | 'local-mirror' | 'sftp-readonly'
+      authMethod: 'none' | 'password-env' | 'private-key-env' | 'not-configured'
+      sftpEnabled: boolean
       hasLocalMirror: boolean
     }[]
+    sftpEnabledCount: number
     message: string
   } | null
   error: {
@@ -46,6 +50,7 @@ export async function requestHostConnectionPreflight({
     targetId: target.id,
     credentialRef: target.credentialRef,
     remoteHost: target.remoteHost,
+    remoteUser: target.remoteUser,
     remoteFrontendPath: target.remoteFrontendPath,
     remoteBackendPath: target.remoteBackendPath,
   })

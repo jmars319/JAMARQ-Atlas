@@ -10,6 +10,7 @@ Calibration is a Settings surface for replacing placeholder operational values w
 - Client Systems projects that still need Dispatch targets.
 - Projects with no GitHub repository binding.
 - Projects missing a manual `lastVerified` date.
+- Dispatch targets that have real host/path metadata but no matching server-side Host Inspector config entry.
 
 ## What It Can Edit
 
@@ -29,6 +30,8 @@ Those edits update Dispatch target storage only. They do not change Atlas projec
 Atlas must not store credentials in browser state. Calibration rejects credential-shaped values such as passwords, tokens, API keys, private keys, and secrets.
 
 If a credential needs to be referenced operationally, use a non-secret label such as `godaddy-mmh-production` in notes or future credential-reference fields.
+
+Host Inspector credentials must remain server-side. Calibration may flag that a target needs a matching `ATLAS_HOST_PREFLIGHT_CONFIG` entry, but it does not store SFTP passwords, private key paths, passphrases, or raw environment variables.
 
 ## Guardrails
 

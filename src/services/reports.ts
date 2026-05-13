@@ -473,7 +473,7 @@ function buildStoredDispatchEvidenceSection(records: ProjectRecord[], dispatch: 
         .slice(0, 8)
         .map(
           (run) =>
-            `${run.id}: ${run.status} at ${run.completedAt}; ${run.checks.length} checks; ${run.summary}`,
+            `${run.id}: ${run.status} / ${run.probeMode} / ${run.authMethod} at ${run.completedAt}; ${run.checks.length} checks; ${run.summary}`,
         ),
       'No stored host evidence in report scope.',
     ),

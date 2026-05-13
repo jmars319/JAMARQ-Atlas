@@ -24,7 +24,7 @@ The dashboard currently supports:
 - cPanel deploy runbooks for the current five-site deploy queue, including artifacts, preserve paths, and verification checks.
 - Dispatch evidence archive for persisted host-preflight and runbook verification check history.
 - Guided Dispatch deploy sessions for manual cPanel upload evidence, step notes, and explicit human-confirmed deployment records.
-- Read-only Dispatch host boundary checks for optional server-side host reachability and path evidence without exposing credentials or attempting writes.
+- Read-only Dispatch host boundary checks for optional server-side TCP, local-mirror, and SFTP inspection evidence without exposing credentials or attempting writes.
 - Dispatch write automation gate showing future required safeguards while keeping execution locked.
 - Dispatch automation readiness for runbook notes, confirmations, checklist posture, artifact expectations, backup requirements, rollback requirements, and no-op dry-run planning.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
@@ -100,7 +100,7 @@ Planning is manual-only. GitHub, Dispatch, Verification, Writing, and AI provide
 - Local storage for manual workspace edits and separate Dispatch state.
 - Local storage for Settings and manual Sync snapshots.
 - Server-side environment variables for GitHub tokens, optional Supabase sync credentials, and optional OpenAI provider credentials.
-- Optional server-side `ATLAS_HOST_PREFLIGHT_CONFIG` for read-only host boundary checks with credential reference labels only.
+- Optional server-side `ATLAS_HOST_PREFLIGHT_CONFIG` for read-only TCP/local-mirror/SFTP host boundary checks with credential reference labels only.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
 
 ## Quick Start
@@ -214,6 +214,8 @@ Preflight runs are stored under Dispatch state as evidence history only. They do
 
 Dispatch also persists host evidence from `/api/dispatch/host-preflight` and runbook verification evidence from cPanel checks such as `/`, `/api/health`, `/api/.env`, and `/api/logs/app.log`. Missing host configuration is stored as a scoped evidence result, not an app failure. Protected paths are expected to return `403` or `404`.
 
+The optional Host Inspector can use server-side `ATLAS_HOST_PREFLIGHT_CONFIG` entries for TCP, local-mirror, or `sftp-readonly` probes. SFTP mode uses env-var references such as `passwordEnvVar`, `privateKeyPathEnvVar`, and `passphraseEnvVar`; secret values are never stored in browser state or returned to the client. SFTP checks only connect, `stat` configured paths, and count top-level directory entries. Atlas does not read file contents, recursively list production folders, upload, delete, chmod, rename, run shell commands, or call cPanel write APIs.
+
 Deploy Sessions sit between runbooks and deployment records. A session guides a human through preflight review, artifact inspection, preserve/create path checks, backup readiness, an outside-Atlas upload note, verification checks, operator notes, and wrap-up. Atlas does not perform the upload. Recording the final deployment requires typing `RECORD MANUAL DEPLOYMENT`, and the resulting record states that Atlas did not deploy, upload, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch databases.
 
 Active deploy sessions can explicitly attach the latest host or verification evidence to session notes. Attachment only updates the selected session evidence text. It does not mark anything deployed, ready, stable, or verified.
@@ -232,7 +234,7 @@ Placeholder values are clearly marked and must be confirmed before any future au
 Dispatch intentionally does not automate:
 
 - Live deployment.
-- SSH/SFTP.
+- SSH/SFTP writes or shell commands.
 - cPanel or GoDaddy writes.
 - Production file overwrite.
 - Production database import, restore, or overwrite.
@@ -562,6 +564,7 @@ Dispatch safety rules:
 - Production file overwrites require a verified backup first.
 - phpMyAdmin should not be automated directly.
 - Future cPanel/GoDaddy support should prefer SSH/SFTP, `mysqldump`/`mysql`, and cPanel API where appropriate.
+- Current SFTP support is inspection-only: `stat`, top-level directory metadata, and connection/auth evidence.
 - No destructive operation exists in the current implementation.
 
 Data portability is local/manual:

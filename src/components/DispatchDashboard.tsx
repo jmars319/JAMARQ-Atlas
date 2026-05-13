@@ -1,4 +1,4 @@
-import { DatabaseBackup, ExternalLink, Rocket, ShieldAlert } from 'lucide-react'
+import { DatabaseBackup, ExternalLink, RefreshCw, Rocket, Server, ShieldAlert } from 'lucide-react'
 import type { ProjectRecord } from '../domain/atlas'
 import { formatDateLabel, formatDateTimeLabel } from '../domain/atlas'
 import {
@@ -27,6 +27,8 @@ interface DispatchDashboardProps {
   selectedProjectId: string
   onSelectProject: (projectId: string) => void
   onStartDeploySession: (runbookId: string) => void
+  onRunHostInspections: (targetIds: string[]) => Promise<void>
+  hostInspectionRunningTargetIds: string[]
 }
 
 function projectName(projectRecords: ProjectRecord[], projectId: string) {
@@ -39,8 +41,14 @@ export function DispatchDashboard({
   selectedProjectId,
   onSelectProject,
   onStartDeploySession,
+  onRunHostInspections,
+  hostInspectionRunningTargetIds,
 }: DispatchDashboardProps) {
   const configuredTargets = dispatch.targets.length
+  const cpanelTargets = dispatch.targets.filter((target) =>
+    ['cpanel', 'godaddy-cpanel'].includes(target.hostType),
+  )
+  const hostInspectionRunning = hostInspectionRunningTargetIds.length > 0
   const blockedTargets = dispatch.targets.filter((target) => {
     const readiness = findReadiness(dispatch, target.projectId, target.id)
     const latest = getLatestDeploymentRecord(dispatch, target.id)
@@ -135,6 +143,34 @@ export function DispatchDashboard({
         )}
       </section>
 
+      <section className="dispatch-preflight" aria-label="Host inspector queue">
+        <div className="panel-heading">
+          <Server size={17} />
+          <h2>Host Inspector</h2>
+        </div>
+        <div className="dispatch-signal-grid">
+          <div>
+            <strong>{cpanelTargets.length}</strong>
+            <span>cPanel targets in scope</span>
+          </div>
+          <div>
+            <strong>{dispatch.hostEvidenceRuns.length}</strong>
+            <span>Stored host evidence runs</span>
+          </div>
+        </div>
+        <div className="dispatch-preflight-actions">
+          <button
+            type="button"
+            disabled={hostInspectionRunning || cpanelTargets.length === 0}
+            onClick={() => onRunHostInspections(cpanelTargets.map((target) => target.id))}
+          >
+            <RefreshCw size={15} />
+            {hostInspectionRunning ? 'Inspecting hosts' : 'Run cPanel host inspections'}
+          </button>
+          <span>SFTP/local-mirror/TCP evidence only. No uploads, deletes, or writes.</span>
+        </div>
+      </section>
+
       <div className="dispatch-card-grid">
         {dispatch.targets.map((target) => {
           const readiness = findReadiness(dispatch, target.projectId, target.id)
@@ -218,7 +254,11 @@ export function DispatchDashboard({
                 </div>
                 <div>
                   <span>Host evidence</span>
-                  <strong>{latestHostEvidence?.status ?? 'None'}</strong>
+                  <strong>
+                    {latestHostEvidence
+                      ? `${latestHostEvidence.status} / ${latestHostEvidence.probeMode}`
+                      : 'None'}
+                  </strong>
                 </div>
                 <div>
                   <span>Verification evidence</span>

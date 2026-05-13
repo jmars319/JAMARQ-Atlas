@@ -248,6 +248,10 @@ export function DispatchPanel({
           'No host boundary evidence captured yet.'
         const hostEvidenceCredentialRef =
           hostPreflightResult?.credentialRef ?? latestHostEvidence?.credentialRef ?? ''
+        const hostEvidenceProbeMode =
+          hostPreflightResult?.probeMode ?? latestHostEvidence?.probeMode ?? 'tcp'
+        const hostEvidenceAuthMethod =
+          hostPreflightResult?.authMethod ?? latestHostEvidence?.authMethod ?? 'none'
         const sessionMessage =
           (activeDeploySession ? deploySessionMessages[activeDeploySession.id] : '') ||
           (latestDeploySession ? deploySessionMessages[latestDeploySession.id] : '')
@@ -998,6 +1002,14 @@ export function DispatchPanel({
                       <strong>{hostEvidenceCredentialRef || 'Not set'}</strong>
                       <span>Credential reference label</span>
                     </div>
+                    <div>
+                      <strong>{hostEvidenceProbeMode}</strong>
+                      <span>Read-only probe mode</span>
+                    </div>
+                    <div>
+                      <strong>{hostEvidenceAuthMethod}</strong>
+                      <span>Auth reference type</span>
+                    </div>
                   </div>
                   <ol className="resource-list">
                     {hostEvidenceChecks.map((check) => (
@@ -1021,6 +1033,17 @@ export function DispatchPanel({
                             <span>{check.type}</span>
                             {check.host ? <span>{check.host}</span> : null}
                             {check.path ? <span>{check.path}</span> : null}
+                            {check.probeMode ? <span>{check.probeMode}</span> : null}
+                            {check.authMethod ? <span>{check.authMethod}</span> : null}
+                            {typeof check.entryCount === 'number' ? (
+                              <span>{check.entryCount} entries</span>
+                            ) : null}
+                            {typeof check.fileCount === 'number' ? (
+                              <span>{check.fileCount} files</span>
+                            ) : null}
+                            {typeof check.directoryCount === 'number' ? (
+                              <span>{check.directoryCount} folders</span>
+                            ) : null}
                           </div>
                         </div>
                       </li>

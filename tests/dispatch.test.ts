@@ -890,6 +890,291 @@ describe('dispatch readiness', () => {
       ]),
     )
     expect(touchedPaths.every((checkPath) => checkPath.startsWith(root))).toBe(true)
+    expect(config.entries[0].probeMode).toBe('local-mirror')
+  })
+
+  it('accepts env-var SFTP credential references without returning secrets in status', () => {
+    const config = getHostConnectionConfig({
+      TARGET_SFTP_PASSWORD: 'never-return-this',
+      ATLAS_HOST_PREFLIGHT_CONFIG: JSON.stringify([
+        {
+          targetId: target.id,
+          credentialRef: target.credentialRef,
+          probeMode: 'sftp-readonly',
+          host: 'cpanel.example.test',
+          port: 22,
+          username: 'cpanel_user',
+          passwordEnvVar: 'TARGET_SFTP_PASSWORD',
+        },
+      ]),
+    })
+    const status = createHostConnectionStatus(config)
+    const serialized = JSON.stringify(status)
+
+    expect(status.configured).toBe(true)
+    expect(status.data.configuredTargets[0]).toMatchObject({
+      targetId: target.id,
+      credentialRef: target.credentialRef,
+      probeMode: 'sftp-readonly',
+      authMethod: 'password-env',
+      sftpEnabled: true,
+    })
+    expect(status.data.sftpEnabledCount).toBe(1)
+    expect(serialized).not.toContain('never-return-this')
+    expect(serialized).not.toContain('cpanel_user')
+    expect(serialized).not.toContain('TARGET_SFTP_PASSWORD')
+  })
+
+  it('stores missing SFTP env credentials as scoped host evidence without mutating posture', async () => {
+    const config = getHostConnectionConfig({
+      ATLAS_HOST_PREFLIGHT_CONFIG: JSON.stringify([
+        {
+          targetId: target.id,
+          credentialRef: target.credentialRef,
+          probeMode: 'sftp-readonly',
+          host: 'cpanel.example.test',
+          port: 22,
+          username: 'cpanel_user',
+          passwordEnvVar: 'TARGET_SFTP_PASSWORD',
+        },
+      ]),
+    })
+    const result = await runHostConnectionPreflight({
+      target: {
+        ...target,
+        remoteHost: 'cpanel.example.test',
+        remoteUser: 'cpanel_user',
+        remoteFrontendPath: '/home/cpanel_user/public_html',
+        remoteBackendPath: '/home/cpanel_user/public_html/api',
+      },
+      preservePaths: ['/api/.env'],
+      config,
+      now: new Date('2026-05-10T12:00:00Z'),
+      probeHost: async () => ({
+        ok: true,
+        message: 'Mock read-only TCP check passed.',
+      }),
+    })
+    const run = createHostEvidenceRun({
+      projectId: target.projectId,
+      result,
+      now: new Date('2026-05-10T12:01:00Z'),
+    })
+    const updated = addHostEvidenceRun(seedDispatchState, run)
+
+    expect(result.status).toBe('warning')
+    expect(result.probeMode).toBe('sftp-readonly')
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'sftp-connect',
+          status: 'not-configured',
+          authMethod: 'password-env',
+        }),
+      ]),
+    )
+    expect(updated.hostEvidenceRuns[0].probeMode).toBe('sftp-readonly')
+    expect(updated.targets).toBe(seedDispatchState.targets)
+    expect(updated.readiness).toBe(seedDispatchState.readiness)
+    expect(updated.records).toBe(seedDispatchState.records)
+    expect(updated.deploySessions).toBe(seedDispatchState.deploySessions)
+  })
+
+  it('runs mocked SFTP read-only stat and directory summary checks', async () => {
+    const statPaths: string[] = []
+    const listPaths: string[] = []
+    const connectOptions: Record<string, unknown>[] = []
+    const client = {
+      connect: vi.fn(async (options: Record<string, unknown>) => {
+        connectOptions.push(options)
+      }),
+      stat: vi.fn(async (remotePath: string) => {
+        statPaths.push(remotePath)
+        return {
+          isDirectory:
+            remotePath.endsWith('public_html') ||
+            remotePath.endsWith('/api') ||
+            remotePath.endsWith('/uploads'),
+          isFile:
+            !remotePath.endsWith('public_html') &&
+            !remotePath.endsWith('/api') &&
+            !remotePath.endsWith('/uploads'),
+        }
+      }),
+      list: vi.fn(async (remotePath: string) => {
+        listPaths.push(remotePath)
+        return [{ type: '-' }, { type: 'd' }, { type: 'l' }]
+      }),
+      end: vi.fn(async () => true),
+    }
+    const config = getHostConnectionConfig({
+      TARGET_SFTP_PASSWORD: 'never-return-this',
+      ATLAS_HOST_PREFLIGHT_CONFIG: JSON.stringify([
+        {
+          targetId: target.id,
+          credentialRef: target.credentialRef,
+          probeMode: 'sftp-readonly',
+          host: 'cpanel.example.test',
+          port: 22,
+          username: 'cpanel_user',
+          passwordEnvVar: 'TARGET_SFTP_PASSWORD',
+        },
+      ]),
+    })
+    const result = await runHostConnectionPreflight({
+      target: {
+        ...target,
+        remoteHost: 'cpanel.example.test',
+        remoteUser: 'cpanel_user',
+        remoteFrontendPath: '/home/cpanel_user/public_html',
+        remoteBackendPath: '/home/cpanel_user/public_html/api',
+      },
+      preservePaths: ['/api/.env', '/api/uploads'],
+      config,
+      env: { TARGET_SFTP_PASSWORD: 'never-return-this' },
+      now: new Date('2026-05-10T12:00:00Z'),
+      probeHost: async () => ({
+        ok: true,
+        message: 'Mock read-only TCP check passed.',
+      }),
+      createSftp: () => client,
+    })
+
+    expect(result.status).toBe('passing')
+    expect(result.authMethod).toBe('password-env')
+    expect(connectOptions[0]).toMatchObject({
+      host: 'cpanel.example.test',
+      port: 22,
+      username: 'cpanel_user',
+      password: 'never-return-this',
+    })
+    expect(statPaths).toEqual([
+      '/home/cpanel_user/public_html',
+      '/home/cpanel_user/public_html/api',
+      '/home/cpanel_user/public_html/api/.env',
+      '/home/cpanel_user/public_html/api/uploads',
+    ])
+    expect(listPaths).toEqual([
+      '/home/cpanel_user/public_html',
+      '/home/cpanel_user/public_html/api',
+      '/home/cpanel_user/public_html/api/uploads',
+    ])
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'sftp-connect', status: 'passing' }),
+        expect.objectContaining({
+          type: 'target-root',
+          status: 'passing',
+          entryCount: 3,
+          fileCount: 1,
+          directoryCount: 1,
+          symlinkCount: 1,
+        }),
+        expect.objectContaining({
+          type: 'preserve-path',
+          path: '/home/cpanel_user/public_html/api/.env',
+          status: 'passing',
+        }),
+      ]),
+    )
+    expect(client.end).toHaveBeenCalledTimes(1)
+  })
+
+  it('turns SFTP auth and path failures into evidence without throwing', async () => {
+    const config = getHostConnectionConfig({
+      TARGET_SFTP_PASSWORD: 'never-return-this',
+      ATLAS_HOST_PREFLIGHT_CONFIG: JSON.stringify([
+        {
+          targetId: target.id,
+          credentialRef: target.credentialRef,
+          probeMode: 'sftp-readonly',
+          host: 'cpanel.example.test',
+          username: 'cpanel_user',
+          passwordEnvVar: 'TARGET_SFTP_PASSWORD',
+        },
+      ]),
+    })
+    const authFailure = await runHostConnectionPreflight({
+      target: {
+        ...target,
+        remoteHost: 'cpanel.example.test',
+        remoteUser: 'cpanel_user',
+        remoteFrontendPath: '/home/cpanel_user/public_html',
+        remoteBackendPath: '/home/cpanel_user/public_html/api',
+      },
+      preservePaths: ['/api/.env'],
+      config,
+      env: { TARGET_SFTP_PASSWORD: 'never-return-this' },
+      now: new Date('2026-05-10T12:00:00Z'),
+      probeHost: async () => ({
+        ok: true,
+        message: 'Mock read-only TCP check passed.',
+      }),
+      createSftp: () => ({
+        connect: vi.fn(async () => {
+          throw new Error('Authentication failed.')
+        }),
+        stat: vi.fn(async () => ({ isDirectory: false, isFile: false })),
+        list: vi.fn(async () => []),
+        end: vi.fn(async () => true),
+      }),
+    })
+    const pathFailure = await runHostConnectionPreflight({
+      target: {
+        ...target,
+        remoteHost: 'cpanel.example.test',
+        remoteUser: 'cpanel_user',
+        remoteFrontendPath: '/home/cpanel_user/public_html',
+        remoteBackendPath: '/home/cpanel_user/public_html/api',
+      },
+      preservePaths: ['/api/.env'],
+      config,
+      env: { TARGET_SFTP_PASSWORD: 'never-return-this' },
+      now: new Date('2026-05-10T12:05:00Z'),
+      probeHost: async () => ({
+        ok: true,
+        message: 'Mock read-only TCP check passed.',
+      }),
+      createSftp: () => ({
+        connect: vi.fn(async () => undefined),
+        stat: vi.fn(async (remotePath: string) => {
+          if (remotePath.endsWith('/api')) {
+            throw new Error('No such file.')
+          }
+
+          return { isDirectory: true, isFile: false }
+        }),
+        list: vi.fn(async () => []),
+        end: vi.fn(async () => true),
+      }),
+    })
+
+    expect(authFailure.status).toBe('failed')
+    expect(authFailure.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'sftp-connect',
+          status: 'failed',
+          message: 'Authentication failed.',
+        }),
+      ]),
+    )
+    expect(pathFailure.status).toBe('failed')
+    expect(pathFailure.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'api-root',
+          status: 'failed',
+          message: 'No such file.',
+        }),
+      ]),
+    )
+  })
+
+  it('does not call SFTP write methods or shell execution from the host inspector', () => {
+    const source = readFileSync('server/dispatchApi.ts', 'utf8')
+
+    expect(source).not.toMatch(/\.(put|fastPut|delete|mkdir|rmdir|rename|chmod|exec)\s*\(/)
   })
 
   it('does not expose secret-shaped host config values in status responses', () => {

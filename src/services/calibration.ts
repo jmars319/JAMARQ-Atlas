@@ -139,7 +139,12 @@ function workspaceIssue({
   }
 }
 
-function scanTarget(records: ProjectRecord[], dispatch: DispatchState, target: DeploymentTarget) {
+function scanTarget(
+  records: ProjectRecord[],
+  dispatch: DispatchState,
+  target: DeploymentTarget,
+  configuredHostTargetIds?: Set<string>,
+) {
   const issues: CalibrationIssue[] = []
   const latestRecord = dispatch.records
     .filter((record) => record.targetId === target.id)
@@ -259,15 +264,43 @@ function scanTarget(records: ProjectRecord[], dispatch: DispatchState, target: D
     )
   }
 
+  if (
+    configuredHostTargetIds &&
+    !configuredHostTargetIds.has(target.id) &&
+    !isPlaceholderValue(target.remoteHost) &&
+    !isPlaceholderValue(target.remoteFrontendPath) &&
+    !isPlaceholderValue(target.remoteBackendPath)
+  ) {
+    issues.push(
+      dispatchIssue({
+        records,
+        target,
+        field: 'host-preflight-config',
+        label: 'Host preflight config',
+        value: target.credentialRef,
+        message:
+          'Target has real host/path metadata but no matching server-side host inspector config entry.',
+        editable: false,
+      }),
+    )
+  }
+
   return issues
 }
 
-export function scanAtlasCalibration(workspace: Workspace, dispatch: DispatchState) {
+export function scanAtlasCalibration(
+  workspace: Workspace,
+  dispatch: DispatchState,
+  configuredHostTargetIds?: string[],
+) {
   const records = flattenProjects(workspace)
   const issues: CalibrationIssue[] = []
+  const configuredHostTargets = configuredHostTargetIds
+    ? new Set(configuredHostTargetIds)
+    : undefined
 
   for (const target of dispatch.targets) {
-    issues.push(...scanTarget(records, dispatch, target))
+    issues.push(...scanTarget(records, dispatch, target, configuredHostTargets))
   }
 
   for (const record of records) {

@@ -153,6 +153,38 @@ export function deriveTimelineEvents({
     })
   })
 
+  const hostEvidenceEvents = dispatch.hostEvidenceRuns.map((run) => {
+    const target = dispatch.targets.find((candidate) => candidate.id === run.targetId)
+
+    return withProject(projectRecords, run.projectId, {
+      id: `dispatch-host-evidence-${run.id}`,
+      source: 'dispatch',
+      type: 'preflight',
+      tone: toneForDispatchStatus(run.status),
+      title: `Host evidence: ${target?.name ?? run.targetId}`,
+      detail: run.summary,
+      occurredAt: run.completedAt || run.startedAt,
+      projectId: run.projectId,
+      meta: [run.status, run.probeMode, run.authMethod, `${run.checks.length} checks`],
+    })
+  })
+
+  const verificationEvidenceEvents = dispatch.verificationEvidenceRuns.map((run) => {
+    const target = dispatch.targets.find((candidate) => candidate.id === run.targetId)
+
+    return withProject(projectRecords, run.projectId, {
+      id: `dispatch-verification-evidence-${run.id}`,
+      source: 'dispatch',
+      type: 'preflight',
+      tone: toneForDispatchStatus(run.status),
+      title: `Runbook verification: ${target?.name ?? run.targetId}`,
+      detail: run.summary,
+      occurredAt: run.completedAt || run.startedAt,
+      projectId: run.projectId,
+      meta: [run.status, `${run.checks.length} checks`],
+    })
+  })
+
   const writingEvents = writing.drafts.flatMap((draft) =>
     draft.reviewEvents.map((event) =>
       withProject(projectRecords, draft.projectId, {
@@ -270,6 +302,8 @@ export function deriveTimelineEvents({
     ...workspaceEvents,
     ...deploymentEvents,
     ...preflightEvents,
+    ...hostEvidenceEvents,
+    ...verificationEvidenceEvents,
     ...writingEvents,
     ...planningEvents,
     ...reportEvents,

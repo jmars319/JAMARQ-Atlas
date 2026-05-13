@@ -188,7 +188,31 @@ Server-side routes:
 - `GET /api/dispatch/host-status`
 - `GET /api/dispatch/host-preflight`
 
-Configuration is optional and server-side only through `ATLAS_HOST_PREFLIGHT_CONFIG`. Atlas stores only non-secret credential reference labels on deployment targets, such as `godaddy-mmh-production`. Passwords, tokens, private keys, and API keys must not be stored in browser local storage or returned through the API.
+Configuration is optional and server-side only through `ATLAS_HOST_PREFLIGHT_CONFIG`. Atlas stores only non-secret credential reference labels on deployment targets, such as `godaddy-mmh-production`. Passwords, tokens, private keys, passphrases, and API keys must not be stored in browser local storage or returned through the API.
+
+Supported probe modes:
+
+- `tcp`: checks host/port reachability only.
+- `local-mirror`: checks configured paths against a server-side read-only mirror directory.
+- `sftp-readonly`: connects over SFTP and performs read-only `stat` plus optional top-level directory metadata checks.
+
+SFTP config must reference secrets through environment variable names, never inline values:
+
+```json
+[
+  {
+    "targetId": "midway-music-hall-production",
+    "credentialRef": "godaddy-mmh-production",
+    "probeMode": "sftp-readonly",
+    "host": "example.com",
+    "port": 22,
+    "username": "cpanel_user",
+    "passwordEnvVar": "MMH_SFTP_PASSWORD"
+  }
+]
+```
+
+Private-key auth can use `privateKeyPathEnvVar` and optional `passphraseEnvVar`. Status responses may show target ID, host, port, credential reference, probe mode, and auth method. They must not return usernames, passwords, private key paths, passphrases, or raw env var values.
 
 When configured, the boundary can collect read-only evidence for:
 
@@ -196,8 +220,11 @@ When configured, the boundary can collect read-only evidence for:
 - Target root existence through an optional read-only local mirror.
 - `/api` existence through an optional read-only local mirror.
 - Preserve-path existence through an optional read-only local mirror.
+- SFTP read-only auth/connect evidence when env-var referenced credentials are available.
+- SFTP read-only `stat` checks for root, `/api`, and preserve paths.
+- Optional SFTP top-level directory counts only, with no file content and no recursive listing.
 
-When not configured, Dispatch shows a scoped missing-config state. Path checks are skipped unless a read-only mirror is configured; Atlas does not attempt SSH/SFTP, cPanel writes, writable checks, uploads, deletes, extraction, backups, restores, or rollbacks.
+When not configured, Dispatch shows a scoped missing-config state. Path checks are skipped unless a read-only mirror or SFTP read-only probe is configured. Atlas does not attempt SSH/SFTP writes, shell commands, cPanel writes, writable checks, uploads, deletes, extraction, backups, restores, or rollbacks.
 
 Host preflight results are persisted as host evidence history after each run, including missing-config results. This makes closeout/reporting possible without treating missing credentials as an application failure.
 

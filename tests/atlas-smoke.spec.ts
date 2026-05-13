@@ -377,6 +377,171 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     'Stored verification evidence',
   )
 
+  await page.route('**/api/dispatch/host-status', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        configured: true,
+        data: {
+          configured: true,
+          configuredTargets: [
+            {
+              targetId: 'midway-music-hall-production',
+              credentialRef: 'godaddy-mmh-production',
+              host: 'mmh.examplehost.test',
+              port: 22,
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              sftpEnabled: true,
+              hasLocalMirror: false,
+            },
+            {
+              targetId: 'midway-mobile-storage-production',
+              credentialRef: 'godaddy-mms-production',
+              host: 'mms.examplehost.test',
+              port: 22,
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              sftpEnabled: true,
+              hasLocalMirror: false,
+            },
+          ],
+          sftpEnabledCount: 2,
+          message: 'Read-only host preflight config is available. No write checks are attempted.',
+        },
+        error: null,
+      }),
+    })
+  })
+
+  await page.route('**/api/dispatch/host-preflight?**', async (route) => {
+    const url = new URL(route.request().url())
+    const targetId = url.searchParams.get('targetId') ?? 'unknown-target'
+    const credentialRef = url.searchParams.get('credentialRef') ?? 'unknown-credential'
+    const remoteFrontendPath =
+      url.searchParams.get('remoteFrontendPath') ?? '/home/example/public_html'
+    const remoteBackendPath =
+      url.searchParams.get('remoteBackendPath') ?? `${remoteFrontendPath}/api`
+    const preservePaths = url.searchParams.getAll('preservePath')
+    const checkedAt = new Date().toISOString()
+    const host = `${targetId}.examplehost.test`
+    const resolvePreservePath = (preservePath: string) =>
+      preservePath.startsWith('/api')
+        ? `${remoteBackendPath}${preservePath.replace(/^\/api/, '')}`
+        : `${remoteFrontendPath}/${preservePath.replace(/^\/+/, '')}`
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        result: {
+          targetId,
+          configured: true,
+          status: 'passing',
+          checkedAt,
+          credentialRef,
+          probeMode: 'sftp-readonly',
+          authMethod: 'password-env',
+          message: 'Read-only host preflight completed without warnings.',
+          warnings: [],
+          checks: [
+            {
+              id: `host-credential-${targetId}`,
+              type: 'credential-reference',
+              label: 'Credential reference',
+              status: 'passing',
+              checkedAt,
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              message: `Using non-secret credential reference ${credentialRef}.`,
+            },
+            {
+              id: `host-reachable-${targetId}`,
+              type: 'host-reachable',
+              label: 'Host reachable',
+              status: 'passing',
+              checkedAt,
+              host,
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              message: 'Host accepted TCP connection on port 22.',
+            },
+            {
+              id: `host-sftp-${targetId}`,
+              type: 'sftp-connect',
+              label: 'SFTP read-only auth',
+              status: 'passing',
+              checkedAt,
+              host,
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              message: 'SFTP read-only connection established. No write methods are used.',
+            },
+            {
+              id: `host-root-${targetId}`,
+              type: 'target-root',
+              label: 'Target root exists',
+              status: 'passing',
+              checkedAt,
+              path: remoteFrontendPath,
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              entryCount: 12,
+              fileCount: 8,
+              directoryCount: 4,
+              symlinkCount: 0,
+              message: 'SFTP read-only stat confirms directory exists; 12 top-level entries counted.',
+            },
+            {
+              id: `host-api-${targetId}`,
+              type: 'api-root',
+              label: '/api exists',
+              status: 'passing',
+              checkedAt,
+              path: remoteBackendPath,
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              entryCount: 6,
+              fileCount: 5,
+              directoryCount: 1,
+              symlinkCount: 0,
+              message: 'SFTP read-only stat confirms directory exists; 6 top-level entries counted.',
+            },
+            ...preservePaths.map((preservePath, index) => ({
+              id: `host-preserve-${targetId}-${index}`,
+              type: 'preserve-path',
+              label: `Preserve path ${preservePath}`,
+              status: 'passing',
+              checkedAt,
+              path: resolvePreservePath(preservePath),
+              probeMode: 'sftp-readonly',
+              authMethod: 'password-env',
+              message: 'SFTP read-only stat confirms path exists.',
+            })),
+          ],
+        },
+      }),
+    })
+  })
+
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click()
+  await expect(
+    page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
+  ).toContainText('Available')
+  await expect(
+    page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
+  ).toContainText('2 SFTP read-only')
+
+  await page.getByRole('button', { name: 'Dispatch' }).click()
+  await page.getByRole('button', { name: 'Run cPanel host inspections' }).click()
+  await expect(
+    page.locator('.dispatch-card').filter({ hasText: 'Midway Music Hall production' }),
+  ).toContainText('passing / sftp-readonly')
+  await expect(
+    page.locator('.dispatch-card').filter({ hasText: 'Midway Mobile Storage production' }),
+  ).toContainText('passing / sftp-readonly')
+
   await page.getByRole('button', { name: 'Dispatch' }).click()
   const mmsDispatchCard = page
     .locator('.dispatch-card')

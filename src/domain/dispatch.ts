@@ -274,9 +274,18 @@ export type HostConnectionCheckStatus =
   | 'failed'
   | 'skipped'
 
+export type HostConnectionProbeMode = 'tcp' | 'local-mirror' | 'sftp-readonly'
+
+export type HostConnectionAuthMethod =
+  | 'none'
+  | 'password-env'
+  | 'private-key-env'
+  | 'not-configured'
+
 export type HostConnectionCheckType =
   | 'credential-reference'
   | 'host-reachable'
+  | 'sftp-connect'
   | 'target-root'
   | 'api-root'
   | 'preserve-path'
@@ -290,6 +299,12 @@ export interface HostConnectionCheck {
   checkedAt: string
   path?: string
   host?: string
+  probeMode?: HostConnectionProbeMode
+  authMethod?: HostConnectionAuthMethod
+  entryCount?: number
+  fileCount?: number
+  directoryCount?: number
+  symlinkCount?: number
 }
 
 export interface HostConnectionPreflightResult {
@@ -298,6 +313,8 @@ export interface HostConnectionPreflightResult {
   status: HostConnectionCheckStatus
   checkedAt: string
   credentialRef: string
+  probeMode: HostConnectionProbeMode
+  authMethod: HostConnectionAuthMethod
   message: string
   checks: HostConnectionCheck[]
   warnings: string[]
@@ -317,6 +334,8 @@ export interface DispatchHostEvidenceRun {
   status: DispatchEvidenceStatus
   summary: string
   credentialRef: string
+  probeMode: HostConnectionProbeMode
+  authMethod: HostConnectionAuthMethod
   checks: HostConnectionCheck[]
   warnings: string[]
 }

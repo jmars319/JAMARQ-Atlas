@@ -39,6 +39,34 @@ describe('Atlas calibration checks', () => {
     expect(target.remoteBackendPath).toBe('/home/mmh/public_html/api')
   })
 
+  it('flags real host metadata with no matching host inspector config entry', () => {
+    const updated = replaceDeploymentTarget(seedDispatchState, 'midway-music-hall-production', {
+      remoteHost: 'mmh-prod.examplehost.com',
+      remoteFrontendPath: '/home/mmh/public_html',
+      remoteBackendPath: '/home/mmh/public_html/api',
+    })
+    const missingIssues = scanAtlasCalibration(seedWorkspace, updated, [])
+    const configuredIssues = scanAtlasCalibration(seedWorkspace, updated, [
+      'midway-music-hall-production',
+    ])
+
+    expect(missingIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetId: 'midway-music-hall-production',
+          field: 'host-preflight-config',
+        }),
+      ]),
+    )
+    expect(
+      configuredIssues.some(
+        (issue) =>
+          issue.targetId === 'midway-music-hall-production' &&
+          issue.field === 'host-preflight-config',
+      ),
+    ).toBe(false)
+  })
+
   it('rejects credential-shaped calibration values', () => {
     expect(canStoreCalibrationValue('mmh-production-host').ok).toBe(true)
     expect(canStoreCalibrationValue('password=do-not-store').ok).toBe(false)

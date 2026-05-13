@@ -6,8 +6,10 @@ import type {
   DispatchVerificationEvidenceRun,
   HealthCheckStatus,
   HostConnectionCheck,
+  HostConnectionAuthMethod,
   HostConnectionCheckStatus,
   HostConnectionPreflightResult,
+  HostConnectionProbeMode,
 } from '../domain/dispatch'
 import type { DeploymentVerificationEvidence } from './deployPreflight'
 
@@ -57,6 +59,22 @@ function normalizeEvidenceStatus(value: unknown): DispatchEvidenceStatus {
     : 'skipped'
 }
 
+function normalizeProbeMode(value: unknown): HostConnectionProbeMode {
+  return ['tcp', 'local-mirror', 'sftp-readonly'].includes(String(value))
+    ? (value as HostConnectionProbeMode)
+    : 'tcp'
+}
+
+function normalizeAuthMethod(value: unknown): HostConnectionAuthMethod {
+  return ['none', 'password-env', 'private-key-env', 'not-configured'].includes(String(value))
+    ? (value as HostConnectionAuthMethod)
+    : 'none'
+}
+
+function readOptionalNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
 function normalizeHostCheck(value: unknown, now: Date): HostConnectionCheck | null {
   if (!isRecord(value)) {
     return null
@@ -78,6 +96,12 @@ function normalizeHostCheck(value: unknown, now: Date): HostConnectionCheck | nu
     checkedAt: safeDate(value.checkedAt, now),
     path: readString(value.path) || undefined,
     host: readString(value.host) || undefined,
+    probeMode: normalizeProbeMode(value.probeMode),
+    authMethod: normalizeAuthMethod(value.authMethod),
+    entryCount: readOptionalNumber(value.entryCount),
+    fileCount: readOptionalNumber(value.fileCount),
+    directoryCount: readOptionalNumber(value.directoryCount),
+    symlinkCount: readOptionalNumber(value.symlinkCount),
   }
 }
 
@@ -142,6 +166,8 @@ export function normalizeHostEvidenceRuns(value: unknown, now = new Date()) {
         status: normalizeEvidenceStatus(item.status),
         summary: readString(item.summary),
         credentialRef: readString(item.credentialRef),
+        probeMode: normalizeProbeMode(item.probeMode),
+        authMethod: normalizeAuthMethod(item.authMethod),
         checks: Array.isArray(item.checks)
           ? item.checks
               .map((check) => normalizeHostCheck(check, now))
@@ -249,6 +275,8 @@ export function createHostEvidenceRun({
     status: result.status,
     summary: result.message,
     credentialRef: result.credentialRef,
+    probeMode: result.probeMode,
+    authMethod: result.authMethod,
     checks: result.checks,
     warnings: result.warnings,
   }
