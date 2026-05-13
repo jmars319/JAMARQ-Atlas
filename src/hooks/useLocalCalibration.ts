@@ -4,6 +4,7 @@ import type {
   CalibrationCredentialReference,
   CalibrationFieldStatus,
 } from '../domain/calibration'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import type { CalibrationIssue } from '../services/calibration'
 import {
   deleteCredentialReference,
@@ -13,7 +14,7 @@ import {
   upsertCredentialReference,
 } from '../services/calibration'
 
-const STORAGE_KEY = 'jamarq-atlas.calibration.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.calibration.localStorageKey
 
 function readCalibration(): AtlasCalibrationState {
   try {

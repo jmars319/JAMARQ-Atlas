@@ -2994,6 +2994,43 @@ h3 {
   padding-left: 16px;
 }
 
+.data-diagnostic-details {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.025);
+  padding: 8px;
+}
+
+.data-diagnostic-details summary {
+  color: var(--paper-white);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.data-diagnostic-details dl {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.data-diagnostic-details div {
+  display: grid;
+  gap: 2px;
+}
+
+.data-diagnostic-details dt {
+  color: var(--text-soft);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.data-diagnostic-details dd {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
 .data-diagnostic-card small {
   color: var(--text-soft);
 }

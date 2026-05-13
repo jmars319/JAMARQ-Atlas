@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { WritingDraft, WritingWorkbenchState } from '../domain/writing'
 import { emptyWritingState } from '../domain/writing'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   applyWritingProviderSuggestion,
   approveWritingDraft,
@@ -15,7 +16,7 @@ import {
 } from '../services/aiWritingAssistant'
 import type { WritingProviderResult } from '../domain/writing'
 
-const STORAGE_KEY = 'jamarq-atlas.writing.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.writing.localStorageKey
 
 function readWriting(): WritingWorkbenchState {
   try {

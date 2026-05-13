@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { AtlasSettingsState } from '../domain/settings'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import { emptySettingsState, normalizeSettingsState, updateSettings } from '../services/settings'
 
-const STORAGE_KEY = 'jamarq-atlas.settings.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.settings.localStorageKey
 
 function readSettings(): AtlasSettingsState {
   try {

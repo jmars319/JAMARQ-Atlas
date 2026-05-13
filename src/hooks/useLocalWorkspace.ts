@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { seedWorkspace } from '../data/seedWorkspace'
 import type { Workspace } from '../domain/atlas'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import { normalizeWorkspaceVerificationCadence } from '../services/verification'
 
-const STORAGE_KEY = 'jamarq-atlas.workspace.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.workspace.localStorageKey
 
 function cloneSeedWorkspace(): Workspace {
   return normalizeWorkspaceVerificationCadence(

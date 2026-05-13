@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReviewNote, ReviewSavedFilter, ReviewSession, ReviewState } from '../domain/review'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addReviewNote,
   addReviewSession,
@@ -9,7 +10,7 @@ import {
   saveReviewFilter,
 } from '../services/review'
 
-const STORAGE_KEY = 'jamarq-atlas.review.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.review.localStorageKey
 
 function readReview(): ReviewState {
   try {

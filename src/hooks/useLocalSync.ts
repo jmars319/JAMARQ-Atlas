@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AtlasRemoteSyncSnapshot, AtlasSyncProviderState, AtlasSyncSnapshot, AtlasSyncState } from '../domain/sync'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addSyncSnapshot,
   deleteSyncSnapshot,
@@ -11,7 +12,7 @@ import {
   updateSyncProviderState,
 } from '../services/syncSnapshots'
 
-const STORAGE_KEY = 'jamarq-atlas.sync.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.sync.localStorageKey
 
 function readSync(): AtlasSyncState {
   try {

@@ -11,6 +11,7 @@ import type {
   DispatchState,
   DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addDispatchHostEvidenceRun,
   addDispatchPreflightRun,
@@ -30,7 +31,7 @@ import {
   updateDeploySessionStep,
 } from '../services/deploySessions'
 
-const STORAGE_KEY = 'jamarq-atlas.dispatch.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.dispatch.localStorageKey
 
 function cloneSeedDispatch(): DispatchState {
   return normalizeDispatchState(JSON.parse(JSON.stringify(seedDispatchState)))

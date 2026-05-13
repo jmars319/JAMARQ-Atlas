@@ -1,6 +1,10 @@
 import type { Workspace } from '../domain/atlas'
 import type { AtlasSettingsState } from '../domain/settings'
 import {
+  ATLAS_SYNC_SNAPSHOT_STORE_IDS,
+  getAtlasStoreDefinition,
+} from '../domain/storeRegistry'
+import {
   ATLAS_SYNC_SCHEMA_VERSION,
   type AtlasSyncCoreStores,
   type AtlasSyncProviderOperation,
@@ -25,6 +29,10 @@ import { normalizeWorkspaceVerificationCadence } from './verification'
 export const SYNC_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
 export const REMOTE_SYNC_SNAPSHOT_LIMIT = 50
 const SYNC_NORMALIZATION_FALLBACK_DATE = new Date('1970-01-01T00:00:00.000Z')
+
+export function getSyncSnapshotStoreDefinitions() {
+  return ATLAS_SYNC_SNAPSHOT_STORE_IDS.map((storeId) => getAtlasStoreDefinition(storeId))
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null

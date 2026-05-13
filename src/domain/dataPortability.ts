@@ -103,6 +103,11 @@ export interface AtlasStoreDiagnostic {
   id: string
   label: string
   schemaVersion: string
+  localStorageKey: string
+  backupIncluded: boolean
+  syncSnapshotIncluded: boolean
+  restoreBehavior: string
+  secretPolicy: string
   status: AtlasStoreDiagnosticStatus
   countSummary: string
   messages: string[]

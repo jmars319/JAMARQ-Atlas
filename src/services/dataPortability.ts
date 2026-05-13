@@ -12,18 +12,15 @@ import {
 } from '../domain/dataPortability'
 import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
+import type { AtlasPlanningState } from '../domain/planning'
 import {
-  ATLAS_PLANNING_SCHEMA_VERSION,
-  type AtlasPlanningState,
-} from '../domain/planning'
-import {
-  ATLAS_CALIBRATION_SCHEMA_VERSION,
   type AtlasCalibrationState,
 } from '../domain/calibration'
-import { ATLAS_REPORTS_SCHEMA_VERSION, type ReportsState } from '../domain/reports'
-import { ATLAS_REVIEW_SCHEMA_VERSION, type ReviewState } from '../domain/review'
-import { ATLAS_SETTINGS_SCHEMA_VERSION, type AtlasSettingsState } from '../domain/settings'
-import { ATLAS_SYNC_SCHEMA_VERSION, type AtlasSyncState } from '../domain/sync'
+import type { ReportsState } from '../domain/reports'
+import type { ReviewState } from '../domain/review'
+import type { AtlasSettingsState } from '../domain/settings'
+import type { AtlasSyncState } from '../domain/sync'
+import { getAtlasStoreDefinition, type AtlasStoreId } from '../domain/storeRegistry'
 import type { WritingWorkbenchState } from '../domain/writing'
 import { normalizeWorkspaceVerificationCadence } from './verification'
 import { normalizeDispatchState } from './dispatchStorage'
@@ -545,6 +542,21 @@ function diagnosticStatus(messages: string[], danger = false) {
   return messages.length > 0 ? ('warning' as const) : ('ok' as const)
 }
 
+function storeDiagnosticMetadata(id: AtlasStoreId) {
+  const definition = getAtlasStoreDefinition(id)
+
+  return {
+    id: definition.id,
+    label: definition.label,
+    schemaVersion: definition.schemaVersionLabel,
+    localStorageKey: definition.localStorageKey,
+    backupIncluded: definition.backupIncluded,
+    syncSnapshotIncluded: definition.syncSnapshotIncluded,
+    restoreBehavior: definition.restoreBehaviorLabel,
+    secretPolicy: definition.secretPolicy,
+  }
+}
+
 export function createAtlasStoreDiagnostics(
   stores: AtlasBackupStores,
 ): AtlasStoreDiagnostic[] {
@@ -563,9 +575,7 @@ export function createAtlasStoreDiagnostics(
       : []),
   ]
   diagnostics.push({
-    id: 'workspace',
-    label: 'Workspace',
-    schemaVersion: 'normalized workspace',
+    ...storeDiagnosticMetadata('workspace'),
     status: diagnosticStatus(workspaceMessages, summary.workspace.projects === 0),
     countSummary: `${summary.workspace.projects} projects / ${summary.workspace.repositoryBindings} repo bindings`,
     messages: workspaceMessages,
@@ -578,9 +588,7 @@ export function createAtlasStoreDiagnostics(
     ...(dispatchEvidence === 0 ? ['No Dispatch evidence has been captured yet.'] : []),
   ]
   diagnostics.push({
-    id: 'dispatch',
-    label: 'Dispatch',
-    schemaVersion: 'normalized dispatch v1',
+    ...storeDiagnosticMetadata('dispatch'),
     status: diagnosticStatus(dispatchMessages, summary.dispatch.targets === 0),
     countSummary: `${summary.dispatch.targets} targets / ${dispatchEvidence} evidence runs`,
     messages: dispatchMessages,
@@ -589,9 +597,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    id: 'writing',
-    label: 'Writing',
-    schemaVersion: 'normalized writing v1',
+    ...storeDiagnosticMetadata('writing'),
     status: 'ok',
     countSummary: `${summary.writing.drafts} drafts / ${summary.writing.reviewEvents} audit events`,
     messages:
@@ -602,9 +608,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    id: 'planning',
-    label: 'Planning',
-    schemaVersion: `v${ATLAS_PLANNING_SCHEMA_VERSION}`,
+    ...storeDiagnosticMetadata('planning'),
     status: 'ok',
     countSummary: `${planningRecords} planning records`,
     messages:
@@ -615,9 +619,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    id: 'reports',
-    label: 'Reports',
-    schemaVersion: `v${ATLAS_REPORTS_SCHEMA_VERSION}`,
+    ...storeDiagnosticMetadata('reports'),
     status: 'ok',
     countSummary: `${summary.reports.packets} packets / ${summary.reports.auditEvents} audit events`,
     messages:
@@ -628,9 +630,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    id: 'review',
-    label: 'Review',
-    schemaVersion: `v${ATLAS_REVIEW_SCHEMA_VERSION}`,
+    ...storeDiagnosticMetadata('review'),
     status: 'ok',
     countSummary: `${summary.review.sessions} sessions / ${summary.review.notes} notes`,
     messages:
@@ -641,9 +641,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    id: 'calibration',
-    label: 'Calibration',
-    schemaVersion: `v${ATLAS_CALIBRATION_SCHEMA_VERSION}`,
+    ...storeDiagnosticMetadata('calibration'),
     status: 'ok',
     countSummary: `${summary.calibration.progressRecords} progress records / ${summary.calibration.credentialReferences} credential references`,
     messages:
@@ -659,9 +657,7 @@ export function createAtlasStoreDiagnostics(
     ...(stores.settings.deviceLabel ? [] : ['Device label is not set.']),
   ]
   diagnostics.push({
-    id: 'settings',
-    label: 'Settings',
-    schemaVersion: `v${ATLAS_SETTINGS_SCHEMA_VERSION}`,
+    ...storeDiagnosticMetadata('settings'),
     status: diagnosticStatus(settingsMessages),
     countSummary: `${summary.settings.configured} device label / ${summary.settings.hasOperatorLabel} operator label`,
     messages: settingsMessages,
@@ -675,9 +671,7 @@ export function createAtlasStoreDiagnostics(
       : []),
   ]
   diagnostics.push({
-    id: 'sync',
-    label: 'Sync',
-    schemaVersion: `v${ATLAS_SYNC_SCHEMA_VERSION}`,
+    ...storeDiagnosticMetadata('sync'),
     status: diagnosticStatus(syncMessages, stores.sync.provider.status === 'error'),
     countSummary: `${summary.sync.snapshots} local snapshots / provider ${stores.sync.provider.status}`,
     messages: syncMessages,
@@ -689,6 +683,12 @@ export function createAtlasStoreDiagnostics(
     id: 'restore-compatibility',
     label: 'Restore Compatibility',
     schemaVersion: `backup v${ATLAS_BACKUP_SCHEMA_VERSION}`,
+    localStorageKey: 'backup envelope',
+    backupIncluded: false,
+    syncSnapshotIncluded: false,
+    restoreBehavior: 'Preview-first full replace after typed confirmation.',
+    secretPolicy:
+      'Backup validation does not read unknown localStorage keys or browser secrets.',
     status: 'ok',
     countSummary: 'accepts backup schemas v1-v5',
     messages: [

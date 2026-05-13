@@ -6,6 +6,7 @@ import type {
   PlanningState,
   PlanningStatus,
 } from '../domain/planning'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addPlanningItem,
   annotatePlanningItemFromRecord,
@@ -17,7 +18,7 @@ import {
   updatePlanningItem,
 } from '../services/planning'
 
-const STORAGE_KEY = 'jamarq-atlas.planning.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.planning.localStorageKey
 
 function readPlanning(): PlanningState {
   try {

@@ -206,8 +206,19 @@ describe('data portability', () => {
   it('creates local store diagnostics with schema versions and repair hints', () => {
     const diagnostics = createAtlasStoreDiagnostics(stores)
 
+    expect(diagnostics.find((item) => item.id === 'workspace')).toMatchObject({
+      localStorageKey: 'jamarq-atlas.workspace.v1',
+      backupIncluded: true,
+      syncSnapshotIncluded: true,
+    })
+    expect(diagnostics.find((item) => item.id === 'settings')).toMatchObject({
+      localStorageKey: 'jamarq-atlas.settings.v1',
+      backupIncluded: true,
+      syncSnapshotIncluded: false,
+    })
     expect(diagnostics.find((item) => item.id === 'restore-compatibility')).toMatchObject({
       schemaVersion: 'backup v5',
+      localStorageKey: 'backup envelope',
       status: 'ok',
     })
     expect(diagnostics.find((item) => item.id === 'planning')?.schemaVersion).toBe('v2')
@@ -215,6 +226,7 @@ describe('data portability', () => {
     expect(diagnostics.find((item) => item.id === 'review')?.schemaVersion).toBe('v2')
     expect(diagnostics.find((item) => item.id === 'calibration')?.schemaVersion).toBe('v1')
     expect(diagnostics.every((item) => item.repairHint.length > 0)).toBe(true)
+    expect(diagnostics.every((item) => item.secretPolicy.length > 0)).toBe(true)
   })
 
   it('requires exact typed confirmation before restore can apply', () => {

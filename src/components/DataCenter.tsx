@@ -402,6 +402,31 @@ export function DataCenter({
                   <span>{diagnostic.schemaVersion}</span>
                 </div>
                 <p>{diagnostic.countSummary}</p>
+                <details className="data-diagnostic-details">
+                  <summary>Store details</summary>
+                  <dl>
+                    <div>
+                      <dt>Storage key</dt>
+                      <dd>{diagnostic.localStorageKey}</dd>
+                    </div>
+                    <div>
+                      <dt>Backup</dt>
+                      <dd>{diagnostic.backupIncluded ? 'Included' : 'Not included'}</dd>
+                    </div>
+                    <div>
+                      <dt>Sync snapshot</dt>
+                      <dd>{diagnostic.syncSnapshotIncluded ? 'Included' : 'Not included'}</dd>
+                    </div>
+                    <div>
+                      <dt>Restore behavior</dt>
+                      <dd>{diagnostic.restoreBehavior}</dd>
+                    </div>
+                    <div>
+                      <dt>Secret policy</dt>
+                      <dd>{diagnostic.secretPolicy}</dd>
+                    </div>
+                  </dl>
+                </details>
                 {diagnostic.messages.length > 0 ? (
                   <ul>
                     {diagnostic.messages.map((item) => (

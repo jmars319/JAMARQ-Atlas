@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReportPacket, ReportsState } from '../domain/reports'
+import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addReportPacket,
   archiveReportPacket,
@@ -10,7 +11,7 @@ import {
   updateReportPacketMarkdown,
 } from '../services/reports'
 
-const STORAGE_KEY = 'jamarq-atlas.reports.v1'
+const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.reports.localStorageKey
 
 function readReports(): ReportsState {
   try {
