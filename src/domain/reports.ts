@@ -23,6 +23,26 @@ export const REPORT_PACKET_TYPES = [
     label: 'Project handoff packet',
     intent: 'Assemble project context for another operator or Codex session.',
   },
+  {
+    id: 'deployment-readiness-packet',
+    label: 'Deployment readiness packet',
+    intent: 'Assemble cPanel runbook, artifact, preserve-path, and readiness context.',
+  },
+  {
+    id: 'post-deploy-verification-packet',
+    label: 'Post-deploy verification packet',
+    intent: 'Assemble post-upload verification checks and operator notes.',
+  },
+  {
+    id: 'client-site-update-packet',
+    label: 'Client site update packet',
+    intent: 'Assemble a client-facing site update packet for human review.',
+  },
+  {
+    id: 'internal-deploy-handoff-packet',
+    label: 'Internal deploy handoff packet',
+    intent: 'Assemble internal deployment handoff context for another operator.',
+  },
 ] as const
 
 export type ReportPacketType = (typeof REPORT_PACKET_TYPES)[number]['id']

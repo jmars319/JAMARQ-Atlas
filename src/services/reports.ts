@@ -3,6 +3,7 @@ import { findReadiness, type DispatchState } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import {
   ATLAS_REPORTS_SCHEMA_VERSION,
+  REPORT_PACKET_TYPES,
   getReportPacketType,
   emptyReportsState,
   type ReportAuditEvent,
@@ -104,12 +105,7 @@ function readStatus(value: unknown): ReportPacketStatus {
 }
 
 function readPacketType(value: unknown): ReportPacketType {
-  return [
-    'client-update-packet',
-    'internal-weekly-packet',
-    'release-packet',
-    'project-handoff-packet',
-  ].includes(readString(value))
+  return REPORT_PACKET_TYPES.some((packetType) => packetType.id === readString(value))
     ? (value as ReportPacketType)
     : 'internal-weekly-packet'
 }
@@ -345,6 +341,60 @@ function buildDispatchSection(records: ProjectRecord[], dispatch: DispatchState)
   return list(lines, 'No Dispatch context available.')
 }
 
+function buildDeploymentRunbookSection(records: ProjectRecord[], dispatch: DispatchState) {
+  const projectIds = new Set(records.map((record) => record.project.id))
+  const runbooks = dispatch.runbooks
+    .filter((runbook) => projectIds.has(runbook.projectId))
+    .sort((left, right) => left.deployOrder - right.deployOrder)
+
+  if (runbooks.length === 0) {
+    return '_No deployment runbooks are included in this report scope._'
+  }
+
+  return runbooks
+    .map((runbook) =>
+      [
+        `### ${runbook.siteName} / order ${runbook.deployOrder}`,
+        '',
+        runbook.summary,
+        '',
+        'Artifacts:',
+        list(
+          runbook.artifacts.map(
+            (artifact) =>
+              `${artifact.filename} -> ${artifact.targetPath} (${artifact.role}); checksum ${
+                artifact.checksum || 'not inspected'
+              }`,
+          ),
+          'No artifacts recorded.',
+        ),
+        '',
+        'Preserve/create paths:',
+        list(
+          runbook.preservePaths.map(
+            (path) => `${path.path}${path.temporary ? ' (temporary)' : ''}: ${path.reason}`,
+          ),
+          'No special preserve paths recorded.',
+        ),
+        '',
+        'Verification checks:',
+        list(
+          runbook.verificationChecks.map(
+            (check) =>
+              `${check.method} ${check.urlPath}: expect ${check.expectedStatuses.join('/')} ${
+                check.protectedResource ? '(protected path)' : ''
+              }`,
+          ),
+          'No verification checks recorded.',
+        ),
+        '',
+        'Deploy notes:',
+        list([...runbook.notes, ...runbook.manualDeployNotes], 'No deploy notes recorded.'),
+      ].join('\n'),
+    )
+    .join('\n\n')
+}
+
 function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
   const repositoryLines = records.flatMap((record) =>
     record.project.repositories.map((repo) => `- ${record.project.name}: ${repo.owner}/${repo.name}`),
@@ -361,6 +411,7 @@ function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
     '',
     'GitHub health/deploy-delta summaries:',
     '- Live repo health summaries are available in GitHub and project detail views.',
+    '- Deployment report packets should treat commit deltas as review context, not readiness decisions.',
     '- Report packets store selected repository bindings and captured draft snippets only, not full live GitHub history.',
   ].join('\n')
 }
@@ -403,6 +454,10 @@ export function buildReportMarkdown({
     '## Dispatch Posture',
     '',
     buildDispatchSection(records, dispatch),
+    '',
+    '## Deployment Runbooks & Artifact Readiness',
+    '',
+    buildDeploymentRunbookSection(records, dispatch),
     '',
     '## GitHub Context',
     '',

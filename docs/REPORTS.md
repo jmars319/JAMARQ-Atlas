@@ -10,6 +10,10 @@ Supported report packet types:
 - Internal weekly packet
 - Release packet
 - Project handoff packet
+- Deployment readiness packet
+- Post-deploy verification packet
+- Client site update packet
+- Internal deploy handoff packet
 
 ## Included Context
 
@@ -19,8 +23,9 @@ Report packets can include:
 - Project manual status, next action, current risk, and last verified date.
 - Verification due state.
 - Dispatch target count and warning/blocker posture.
+- cPanel runbook summaries, artifact readiness, preserve paths, and verification checks.
 - Planning records linked to included projects.
-- Repository bindings and any GitHub context captured inside selected Writing drafts.
+- Repository bindings, GitHub health/deploy-delta summary references, and any GitHub context captured inside selected Writing drafts.
 
 Reports do not fetch or store full GitHub history. They use local Atlas data and short already-captured snippets.
 

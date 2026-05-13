@@ -25,6 +25,7 @@ The dashboard currently supports:
 - Dispatch automation readiness for runbook notes, confirmations, checklist posture, artifact expectations, backup requirements, rollback requirements, and no-op dry-run planning.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Reports for assembling local Markdown update packets from approved Writing drafts and operational context.
+- Deployment report packets for readiness, post-deploy verification, client site updates, and internal deploy handoffs.
 - Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
 - Settings & Connections Center for local workspace labels, calibration checks, and integration-readiness status without storing secrets.
 - Manual local Sync snapshots and optional Supabase hosted snapshot push/pull.

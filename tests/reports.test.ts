@@ -143,6 +143,28 @@ describe('report packet builder', () => {
     expect(packet.contextWarnings).toContain('No approved or exported Writing drafts are included.')
   })
 
+  it('creates deployment report packets with runbooks, artifacts, preserve paths, checks, and guardrails', () => {
+    const packet = createReportPacket({
+      type: 'deployment-readiness-packet',
+      projectRecords,
+      dispatch: seedDispatchState,
+      planning: emptyPlanningStore(now),
+      writingDrafts: [],
+      projectIds: ['midway-mobile-storage-site'],
+      writingDraftIds: [],
+      now,
+    })
+
+    expect(packet.markdown).toContain('Deployment Runbooks & Artifact Readiness')
+    expect(packet.markdown).toContain('frontend-deploy.zip')
+    expect(packet.markdown).toContain('backend-deploy.zip')
+    expect(packet.markdown).toContain('/api/.env')
+    expect(packet.markdown).toContain('/api/config.php (temporary)')
+    expect(packet.markdown).toContain('/api/.env: expect 403/404')
+    expect(packet.markdown).toContain('Export does not mean anything was sent')
+    expect(packet.auditEvents).toHaveLength(1)
+  })
+
   it('records copy/export/archive audit without mutating source stores', () => {
     const workspaceBefore = JSON.stringify(seedWorkspace)
     const writingBefore = JSON.stringify([approvedDraft])
