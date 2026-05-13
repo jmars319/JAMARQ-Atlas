@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { seedDispatchState } from '../data/seedDispatch'
 import type {
   DeploymentTarget,
+  DeploymentArtifact,
   DispatchAutomationReadiness,
   DispatchPreflightRun,
   DispatchReadiness,
@@ -10,6 +11,7 @@ import type {
 import {
   addDispatchPreflightRun,
   normalizeDispatchState,
+  replaceDeploymentArtifact,
   replaceDispatchAutomationReadiness,
 } from '../services/dispatchStorage'
 
@@ -108,6 +110,14 @@ export function useLocalDispatch() {
     )
   }
 
+  function updateDeploymentArtifact(
+    runbookId: string,
+    artifactId: string,
+    update: Partial<DeploymentArtifact>,
+  ) {
+    setDispatch((current) => replaceDeploymentArtifact(current, runbookId, artifactId, update))
+  }
+
   return {
     dispatch,
     setDispatch,
@@ -115,6 +125,7 @@ export function useLocalDispatch() {
     updateTarget,
     updateReadiness,
     updateAutomationReadiness,
+    updateDeploymentArtifact,
     addPreflightRun,
   }
 }

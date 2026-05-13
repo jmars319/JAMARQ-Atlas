@@ -83,6 +83,7 @@ function App() {
     updateTarget,
     updateReadiness,
     updateAutomationReadiness,
+    updateDeploymentArtifact,
     addPreflightRun,
   } = useLocalDispatch()
   const { settings, setSettings, updateLocalSettings } = useLocalSettings()
@@ -576,6 +577,7 @@ function App() {
             onDispatchTargetChange={handleDispatchTargetChange}
             onDispatchReadinessChange={handleDispatchReadinessChange}
             onDispatchAutomationReadinessChange={handleDispatchAutomationReadinessChange}
+            onDeploymentArtifactChange={updateDeploymentArtifact}
             onRunDispatchPreflight={handleRunDispatchPreflight}
             preflightRunningTargetId={preflightRunningTargetId}
             onRepositoryUnbind={handleUnbindRepository}

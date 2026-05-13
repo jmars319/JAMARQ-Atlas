@@ -22,6 +22,7 @@ import {
   getTargetRecords,
   type DispatchAutomationDryRunPlan,
   type DispatchAutomationReadiness,
+  type DeploymentArtifact,
   type DeploymentTarget,
   type DispatchReadiness,
   type DispatchState,
@@ -32,6 +33,11 @@ import {
   findAutomationReadiness,
 } from '../services/dispatchAutomation'
 import { evaluateDispatchReadiness } from '../services/dispatchReadiness'
+import {
+  inspectDeploymentArtifact,
+  runDeploymentVerificationChecks,
+  type DeploymentVerificationEvidence,
+} from '../services/deployPreflight'
 
 interface DispatchPanelProps {
   record: ProjectRecord
@@ -46,6 +52,11 @@ interface DispatchPanelProps {
     targetId: string,
     projectId: string,
     update: Partial<DispatchAutomationReadiness>,
+  ) => void
+  onDeploymentArtifactChange: (
+    runbookId: string,
+    artifactId: string,
+    update: Partial<DeploymentArtifact>,
   ) => void
   onRunPreflight: (targetId: string) => Promise<void>
   preflightRunningTargetId: string
@@ -76,10 +87,16 @@ export function DispatchPanel({
   onTargetChange,
   onReadinessChange,
   onAutomationReadinessChange,
+  onDeploymentArtifactChange,
   onRunPreflight,
   preflightRunningTargetId,
 }: DispatchPanelProps) {
   const [dryRunPlans, setDryRunPlans] = useState<Record<string, DispatchAutomationDryRunPlan>>({})
+  const [artifactMessages, setArtifactMessages] = useState<Record<string, string>>({})
+  const [verificationEvidence, setVerificationEvidence] = useState<
+    Record<string, DeploymentVerificationEvidence[]>
+  >({})
+  const [verificationRunningTargetId, setVerificationRunningTargetId] = useState('')
   const targets = dispatch.targets.filter((target) => target.projectId === record.project.id)
 
   if (targets.length === 0) {
@@ -113,6 +130,7 @@ export function DispatchPanel({
         )
         const automationEvaluation = evaluateAutomationReadiness(target, automationReadiness)
         const dryRunPlan = dryRunPlans[target.id]
+        const targetVerificationEvidence = verificationEvidence[target.id] ?? []
         const evaluation = evaluateDispatchReadiness({
           target,
           readiness,
@@ -207,7 +225,67 @@ export function DispatchPanel({
                       <ul className="dispatch-list">
                         {runbook.artifacts.map((artifact) => (
                           <li key={artifact.id}>
-                            {artifact.filename} {'->'} {artifact.targetPath} ({artifact.role})
+                            <div className="dispatch-artifact-line">
+                              <span>
+                                {artifact.filename} {'->'} {artifact.targetPath} ({artifact.role})
+                              </span>
+                              <label>
+                                <span className="sr-only">Inspect {artifact.filename}</span>
+                                <input
+                                  type="file"
+                                  accept=".zip,application/zip,application/x-zip-compressed"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0]
+                                    event.target.value = ''
+
+                                    if (!file) {
+                                      return
+                                    }
+
+                                    void inspectDeploymentArtifact(file, artifact).then(
+                                      (inspection) => {
+                                        onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                          checksum: inspection.checksum,
+                                          inspectedAt: inspection.inspectedAt,
+                                          warnings: inspection.warnings,
+                                          notes: [
+                                            ...artifact.notes.filter(
+                                              (note) => !note.startsWith('Inspected entries:'),
+                                            ),
+                                            `Inspected entries: ${
+                                              inspection.topLevelEntries.join(', ') || 'none'
+                                            }`,
+                                          ],
+                                        })
+                                        setArtifactMessages((current) => ({
+                                          ...current,
+                                          [artifact.id]:
+                                            inspection.warnings.length > 0
+                                              ? inspection.warnings.join(' ')
+                                              : 'Artifact inspected locally. No upload occurred.',
+                                        }))
+                                      },
+                                    )
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            {artifact.checksum ? (
+                              <div className="resource-meta">
+                                <span>{artifact.checksum.slice(0, 22)}...</span>
+                                <span>{formatDateTimeLabel(artifact.inspectedAt)}</span>
+                              </div>
+                            ) : null}
+                            {artifact.warnings.length > 0 ? (
+                              <ul className="dispatch-list dispatch-warning-list">
+                                {artifact.warnings.map((warning) => (
+                                  <li key={warning}>{warning}</li>
+                                ))}
+                              </ul>
+                            ) : null}
+                            {artifactMessages[artifact.id] ? (
+                              <p className="empty-state">{artifactMessages[artifact.id]}</p>
+                            ) : null}
                           </li>
                         ))}
                       </ul>
@@ -236,6 +314,70 @@ export function DispatchPanel({
                           </li>
                         ))}
                       </ul>
+                      <div className="dispatch-preflight-actions">
+                        <button
+                          type="button"
+                          disabled={verificationRunningTargetId === target.id}
+                          onClick={() => {
+                            setVerificationRunningTargetId(target.id)
+                            void runDeploymentVerificationChecks({
+                              target,
+                              checks: runbook.verificationChecks,
+                            })
+                              .then((evidence) =>
+                                setVerificationEvidence((current) => ({
+                                  ...current,
+                                  [target.id]: evidence,
+                                })),
+                              )
+                              .finally(() => setVerificationRunningTargetId(''))
+                          }}
+                        >
+                          <RefreshCw size={15} />
+                          {verificationRunningTargetId === target.id
+                            ? 'Checking'
+                            : 'Run read-only checks'}
+                        </button>
+                        <span>No upload, extraction, deletion, or server write.</span>
+                      </div>
+                      {targetVerificationEvidence.length > 0 ? (
+                        <ol className="resource-list">
+                          {targetVerificationEvidence.map((evidence) => (
+                            <li key={evidence.check.id}>
+                              <div className="resource-icon" aria-hidden="true">
+                                {evidence.passedExpectation ? (
+                                  <CheckCircle2 size={15} />
+                                ) : (
+                                  <AlertTriangle size={15} />
+                                )}
+                              </div>
+                              <div>
+                                <div className="resource-line">
+                                  <strong>{evidence.check.label}</strong>
+                                  <span
+                                    className={`resource-pill ${
+                                      evidence.passedExpectation
+                                        ? 'state-passing'
+                                        : 'state-warning'
+                                    }`}
+                                  >
+                                    {evidence.result.statusCode ?? 'No status'}
+                                  </span>
+                                </div>
+                                <p>{evidence.message}</p>
+                                <div className="resource-meta">
+                                  <span>{evidence.url}</span>
+                                  <span>
+                                    {evidence.check.protectedResource
+                                      ? 'protected path'
+                                      : 'public path'}
+                                  </span>
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
                     </div>
                     <div>
                       <strong>Deploy notes</strong>

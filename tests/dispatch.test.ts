@@ -11,8 +11,29 @@ import { probeHealthChecks } from '../src/services/dispatchHealthChecks'
 import { deploymentRunnerPhases, runDeploymentPhase, runDeploymentPlan } from '../src/services/dispatchRunner'
 import { buildTargetPreflightChecks, runDispatchPreflight } from '../src/services/dispatchPreflight'
 import { normalizeDispatchState } from '../src/services/dispatchStorage'
+import {
+  inspectDeploymentArtifact,
+  runDeploymentVerificationChecks,
+} from '../src/services/deployPreflight'
 import { flattenProjects } from '../src/domain/atlas'
 import { seedWorkspace } from '../src/data/seedWorkspace'
+
+function createZipFile(name: string, entries: string[]) {
+  const encoder = new TextEncoder()
+  const chunks: Uint8Array[] = []
+
+  for (const entry of entries) {
+    const encoded = encoder.encode(entry)
+    const chunk = new Uint8Array(46 + encoded.length)
+    const view = new DataView(chunk.buffer)
+    view.setUint32(0, 0x02014b50, true)
+    view.setUint16(28, encoded.length, true)
+    chunk.set(encoded, 46)
+    chunks.push(chunk)
+  }
+
+  return new File(chunks, name, { type: 'application/zip' })
+}
 
 const target: DeploymentTarget = {
   id: 'target-1',
@@ -384,5 +405,78 @@ describe('dispatch readiness', () => {
 
     expect(seedDispatchState.records).toHaveLength(beforeRecordCount)
     expect(bowWowTarget?.status).toBe('verification')
+  })
+
+  it('inspects deployment artifacts locally for filename, checksum, entries, and warnings', async () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-music-hall-production')
+    const artifact = runbook?.artifacts.find((candidate) => candidate.role === 'frontend')
+
+    if (!artifact) {
+      throw new Error('Expected frontend artifact')
+    }
+
+    const safe = await inspectDeploymentArtifact(
+      createZipFile('frontend-deploy.zip', ['index.html', 'assets/app.js']),
+      artifact,
+    )
+    const wrong = await inspectDeploymentArtifact(
+      createZipFile('wrong.zip', ['../danger.txt']),
+      artifact,
+    )
+
+    expect(safe.checksum).toMatch(/^sha256-/)
+    expect(safe.topLevelEntries).toContain('index.html')
+    expect(safe.warnings).toEqual([])
+    expect(wrong.warnings.join(' ')).toContain('Expected frontend-deploy.zip')
+    expect(wrong.warnings.join(' ')).toContain('Dangerous ZIP path')
+  })
+
+  it('evaluates protected path checks as expected 403/404 evidence', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'http://localhost')
+        const targetUrl = url.searchParams.get('url') ?? ''
+        const statusCode = targetUrl.endsWith('/api/.env') ? 403 : 200
+
+        return new Response(
+          JSON.stringify({
+            result: {
+              id: 'deploy-check',
+              url: targetUrl,
+              status: statusCode === 403 ? 'warning' : 'passing',
+              checkedAt: '2026-05-10T12:00:00Z',
+              statusCode,
+              message: `Health URL returned ${statusCode}.`,
+            },
+          }),
+          { status: 200 },
+        )
+      }),
+    )
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-music-hall-production')
+    const target = seedDispatchState.targets.find(
+      (candidate) => candidate.id === 'midway-music-hall-production',
+    )
+
+    if (!runbook || !target) {
+      throw new Error('Expected MMH runbook and target')
+    }
+
+    const evidence = await runDeploymentVerificationChecks({
+      target,
+      checks: runbook.verificationChecks.filter((check) =>
+        ['/', '/api/.env'].includes(check.urlPath),
+      ),
+    })
+
+    expect(evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          passedExpectation: true,
+          check: expect.objectContaining({ urlPath: '/api/.env', protectedResource: true }),
+        }),
+      ]),
+    )
   })
 })

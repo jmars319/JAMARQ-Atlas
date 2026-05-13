@@ -1,4 +1,5 @@
 import type {
+  DeploymentArtifact,
   DeploymentRecord,
   DeploymentRunbook,
   DeploymentTarget,
@@ -182,5 +183,26 @@ export function replaceDispatchAutomationReadiness(
           candidate.projectId === projectId && candidate.targetId === targetId ? next : candidate,
         )
       : [...state.automationReadiness, next],
+  }
+}
+
+export function replaceDeploymentArtifact(
+  state: DispatchState,
+  runbookId: string,
+  artifactId: string,
+  update: Partial<DeploymentArtifact>,
+): DispatchState {
+  return {
+    ...state,
+    runbooks: state.runbooks.map((runbook) =>
+      runbook.id === runbookId
+        ? {
+            ...runbook,
+            artifacts: runbook.artifacts.map((artifact) =>
+              artifact.id === artifactId ? { ...artifact, ...update } : artifact,
+            ),
+          }
+        : runbook,
+    ),
   }
 }

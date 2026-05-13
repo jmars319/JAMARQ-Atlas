@@ -44,6 +44,8 @@ Seed cPanel runbooks exist for the current five-site queue:
 
 These runbooks capture artifact filenames, upload targets, preserve paths, and post-upload checks. They do not upload, extract, delete, overwrite, or create deployment records.
 
+Artifact inspection is browser-local. Selecting a zip reads metadata from the local file, computes a checksum when the browser supports it, lists top-level ZIP entries, and flags wrong filenames, absolute paths, `..` traversal, or missing frontend/backend/placeholder indicators. Atlas stores only inspection metadata on the local runbook artifact; it does not upload the file.
+
 ## Data Boundary
 
 Dispatch state is separate from Atlas workspace state.
@@ -102,6 +104,8 @@ Dispatch Preflight is a read-only review aid. A preflight run can check:
 - Latest bound GitHub commit, workflow run, release, deployment, and check-run snippets when permissions allow.
 
 Health probing is local-server-side to avoid browser CORS limits. It supports only `http` and `https`, sends no credentials or request body, uses a timeout-bound `HEAD` request with safe `GET` fallback, and converts network failures into check results instead of app errors.
+
+Runbook verification checks can also probe the current public URL and protected paths such as `/api/.env` and `/api/logs/app.log`. Protected paths are expected to return `403` or `404`; those statuses are considered successful evidence for the protection check even though the underlying health probe classifies them as warnings.
 
 GitHub permission gaps are scoped to the affected check. Missing tokens, private repos, rate limits, and insufficient permissions produce warnings without breaking Dispatch, Atlas status editing, Verification, Writing, or GitHub Intake.
 

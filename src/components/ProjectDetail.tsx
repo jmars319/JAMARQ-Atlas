@@ -23,6 +23,7 @@ import {
   type VerificationCadence,
 } from '../domain/atlas'
 import type {
+  DeploymentArtifact,
   DeploymentTarget,
   DispatchAutomationReadiness,
   DispatchReadiness,
@@ -60,6 +61,11 @@ interface ProjectDetailProps {
     targetId: string,
     projectId: string,
     update: Partial<DispatchAutomationReadiness>,
+  ) => void
+  onDeploymentArtifactChange: (
+    runbookId: string,
+    artifactId: string,
+    update: Partial<DeploymentArtifact>,
   ) => void
   onRunDispatchPreflight: (targetId: string) => Promise<void>
   preflightRunningTargetId: string
@@ -112,6 +118,7 @@ export function ProjectDetail({
   onDispatchTargetChange,
   onDispatchReadinessChange,
   onDispatchAutomationReadinessChange,
+  onDeploymentArtifactChange,
   onRunDispatchPreflight,
   preflightRunningTargetId,
   onRepositoryUnbind,
@@ -267,6 +274,7 @@ export function ProjectDetail({
           onTargetChange={onDispatchTargetChange}
           onReadinessChange={onDispatchReadinessChange}
           onAutomationReadinessChange={onDispatchAutomationReadinessChange}
+          onDeploymentArtifactChange={onDeploymentArtifactChange}
           onRunPreflight={onRunDispatchPreflight}
           preflightRunningTargetId={preflightRunningTargetId}
         />

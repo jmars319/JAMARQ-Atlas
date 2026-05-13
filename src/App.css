@@ -1260,6 +1260,20 @@ h3 {
   font-size: 0.82rem;
 }
 
+.dispatch-artifact-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dispatch-artifact-line input {
+  max-width: 190px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
 .dispatch-mini-grid div,
 .dispatch-summary-grid div,
 .dispatch-signal-grid div {
