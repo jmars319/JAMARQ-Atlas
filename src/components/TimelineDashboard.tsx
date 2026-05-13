@@ -1,9 +1,9 @@
 import { CalendarDays, Filter, GitBranch, ListTree, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ProjectRecord } from '../domain/atlas'
-import { formatDateTimeLabel } from '../domain/atlas'
 import type { TimelineEvent, TimelineEventSource, TimelineEventType } from '../domain/timeline'
 import { defaultTimelineFilters, filterTimelineEvents } from '../services/timeline'
+import { TimelineEventList } from './TimelineEventList'
 
 const sourceOptions: Array<TimelineEventSource | 'all'> = [
   'all',
@@ -48,46 +48,6 @@ function countBy(events: TimelineEvent[], key: keyof Pick<TimelineEvent, 'source
     counts[event[key]] = (counts[event[key]] ?? 0) + 1
     return counts
   }, {})
-}
-
-export function TimelineEventList({
-  events,
-  emptyLabel = 'No timeline evidence matches this view.',
-  compact = false,
-}: {
-  events: TimelineEvent[]
-  emptyLabel?: string
-  compact?: boolean
-}) {
-  if (events.length === 0) {
-    return <p className="empty-state">{emptyLabel}</p>
-  }
-
-  return (
-    <ol className={compact ? 'timeline-list timeline-list-compact' : 'timeline-list'}>
-      {events.map((event) => (
-        <li key={event.id} className={`timeline-event timeline-tone-${event.tone}`}>
-          <div className="timeline-marker" aria-hidden="true" />
-          <div>
-            <div className="timeline-event-heading">
-              <strong>{event.title}</strong>
-              <span>{formatDateTimeLabel(event.occurredAt)}</span>
-            </div>
-            <p>{event.detail}</p>
-            <div className="activity-meta">
-              <span>{event.source}</span>
-              <span>{event.type}</span>
-              {event.projectName ? <span>{event.projectName}</span> : null}
-              {event.sectionName ? <span>{event.sectionName}</span> : null}
-              {event.meta.slice(0, compact ? 1 : 3).map((item) => (
-                <span key={`${event.id}-${item}`}>{item}</span>
-              ))}
-            </div>
-          </div>
-        </li>
-      ))}
-    </ol>
-  )
 }
 
 export function TimelineDashboard({

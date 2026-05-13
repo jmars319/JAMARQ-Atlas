@@ -166,8 +166,63 @@ h3 {
 }
 
 .dashboard,
-.project-detail {
+.project-detail,
+.surface-state {
   min-width: 0;
+}
+
+.surface-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-height: 118px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.94);
+  padding: 18px;
+}
+
+.surface-state svg {
+  flex: 0 0 auto;
+  color: var(--accent-cyan);
+}
+
+.surface-state strong,
+.surface-state span {
+  display: block;
+}
+
+.surface-state strong {
+  color: var(--paper-white);
+  font-size: 0.96rem;
+}
+
+.surface-state span {
+  margin-top: 5px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.surface-state button {
+  margin-top: 12px;
+}
+
+.surface-state-loading svg {
+  animation: atlas-spin 1s linear infinite;
+}
+
+.surface-state-warning svg,
+.surface-state-error svg {
+  color: var(--warning);
+}
+
+.surface-state-success svg {
+  color: var(--success);
+}
+
+@keyframes atlas-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .dashboard-header {

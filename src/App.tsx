@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import {
   ArchiveRestore,
   CalendarCheck,
@@ -15,18 +15,10 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import './App.css'
-import { DataCenter } from './components/DataCenter'
+import { AppViewBoundary } from './components/AppViewBoundary'
 import { Dashboard } from './components/Dashboard'
-import { DispatchDashboard } from './components/DispatchDashboard'
-import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
-import { PlanningCenter } from './components/PlanningCenter'
 import { ProjectDetail } from './components/ProjectDetail'
-import { ReportsCenter } from './components/ReportsCenter'
-import { ReviewCenter } from './components/ReviewCenter'
-import { SettingsCenter } from './components/SettingsCenter'
-import { TimelineDashboard } from './components/TimelineDashboard'
-import { VerificationCenter } from './components/VerificationCenter'
-import { WritingWorkbench } from './components/WritingWorkbench'
+import { SurfaceState } from './components/SurfaceState'
 import {
   findProjectRecord,
   flattenProjects,
@@ -74,6 +66,45 @@ import { createSyncSnapshot } from './services/syncSnapshots'
 import { deriveTimelineEvents } from './services/timeline'
 import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
 
+const TimelineDashboard = lazy(() =>
+  import('./components/TimelineDashboard').then((module) => ({
+    default: module.TimelineDashboard,
+  })),
+)
+const GitHubIntakeDashboard = lazy(() =>
+  import('./components/GitHubIntakeDashboard').then((module) => ({
+    default: module.GitHubIntakeDashboard,
+  })),
+)
+const PlanningCenter = lazy(() =>
+  import('./components/PlanningCenter').then((module) => ({ default: module.PlanningCenter })),
+)
+const ReportsCenter = lazy(() =>
+  import('./components/ReportsCenter').then((module) => ({ default: module.ReportsCenter })),
+)
+const ReviewCenter = lazy(() =>
+  import('./components/ReviewCenter').then((module) => ({ default: module.ReviewCenter })),
+)
+const VerificationCenter = lazy(() =>
+  import('./components/VerificationCenter').then((module) => ({
+    default: module.VerificationCenter,
+  })),
+)
+const DispatchDashboard = lazy(() =>
+  import('./components/DispatchDashboard').then((module) => ({
+    default: module.DispatchDashboard,
+  })),
+)
+const WritingWorkbench = lazy(() =>
+  import('./components/WritingWorkbench').then((module) => ({ default: module.WritingWorkbench })),
+)
+const DataCenter = lazy(() =>
+  import('./components/DataCenter').then((module) => ({ default: module.DataCenter })),
+)
+const SettingsCenter = lazy(() =>
+  import('./components/SettingsCenter').then((module) => ({ default: module.SettingsCenter })),
+)
+
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
 type AppView =
@@ -88,6 +119,24 @@ type AppView =
   | 'writing'
   | 'data'
   | 'settings'
+
+function appViewLabel(view: AppView) {
+  const labels: Record<AppView, string> = {
+    board: 'Board',
+    timeline: 'Timeline',
+    github: 'GitHub',
+    planning: 'Planning',
+    reports: 'Reports',
+    review: 'Review',
+    verification: 'Verification',
+    dispatch: 'Dispatch',
+    writing: 'Writing',
+    data: 'Data',
+    settings: 'Settings',
+  }
+
+  return labels[view]
+}
 
 function App() {
   const { workspace, setWorkspace, resetWorkspace } = useLocalWorkspace()
@@ -616,7 +665,17 @@ function App() {
       </nav>
 
       <div className="app-layout">
-        {appView === 'board' ? (
+        <AppViewBoundary viewKey={appView} title={`${appViewLabel(appView)} view`}>
+          <Suspense
+            fallback={
+              <SurfaceState
+                tone="loading"
+                title={`Loading ${appViewLabel(appView)}`}
+                detail="Atlas is loading this operator surface."
+              />
+            }
+          >
+            {appView === 'board' ? (
           <Dashboard
             workspace={workspace}
             projectRecords={projectRecords}
@@ -767,72 +826,76 @@ function App() {
             queueEvidenceSweepRunning={queueEvidenceSweepRunning}
             onCreateReadinessReport={handleCreateReadinessReport}
           />
-        )}
+            )}
+          </Suspense>
+        </AppViewBoundary>
 
         {selectedRecord ? (
-          <ProjectDetail
-            record={selectedRecord}
-            dispatch={dispatch}
-            planning={planning}
-            reports={reports}
-            review={review}
-            writingDrafts={writing.drafts}
-            timelineEvents={timelineEvents.filter(
-              (event) => event.projectId === selectedRecord.project.id,
-            )}
-            onManualChange={updateManualState}
-            onDispatchTargetChange={handleDispatchTargetChange}
-            onDispatchReadinessChange={handleDispatchReadinessChange}
-            onDispatchAutomationReadinessChange={handleDispatchAutomationReadinessChange}
-            onDeploymentArtifactChange={updateDeploymentArtifact}
-            onStartDeploySession={createDeploySession}
-            onDeploySessionChange={(
-              sessionId: string,
-              update: Partial<
-                Pick<
-                  DispatchDeploySession,
-                  | 'versionLabel'
-                  | 'sourceRef'
-                  | 'commitSha'
-                  | 'artifactName'
-                  | 'deployedBy'
-                  | 'summary'
-                  | 'recordStatus'
-                  | 'rollbackRef'
-                  | 'databaseBackupRef'
-                >
-              >,
-            ) => updateDeploySessionFields(sessionId, update)}
-            onDeploySessionStepChange={(
-              sessionId: string,
-              stepId: string,
-              update: Partial<Pick<DispatchDeploySessionStep, 'status' | 'notes' | 'evidence'>>,
-            ) => updateDeploySessionStepFields(sessionId, stepId, update)}
-            onRecordManualDeployment={recordManualDeployment}
-            onAttachDeploySessionEvidence={(
-              sessionId: string,
-              stepKind: DispatchDeploySessionStepKind,
-              label: string,
-              detail: string,
-            ) => attachDeploySessionEvidence(sessionId, stepKind, label, detail)}
-            onHostEvidenceRunAdd={(run: DispatchHostEvidenceRun) => addHostEvidenceRun(run)}
-            onVerificationEvidenceRunAdd={(run: DispatchVerificationEvidenceRun) =>
-              addVerificationEvidenceRun(run)
-            }
-            onRunDispatchPreflight={handleRunDispatchPreflight}
-            preflightRunningTargetId={preflightRunningTargetId}
-            onRepositoryUnbind={handleUnbindRepository}
-            onVerificationCadenceChange={handleVerificationCadenceChange}
-            onMarkVerified={handleMarkVerified}
-            onWritingRequest={handleWritingRequest}
-            onOpenWritingDraft={handleSelectWritingDraft}
-            onOpenPlanning={handleOpenPlanning}
-            onOpenReview={() => handleOpenReview(selectedRecord.project.id)}
-            onAddReviewNote={addReviewNote}
-            onResetWorkspace={() => {
-              resetWorkspace()
-            }}
-          />
+          <AppViewBoundary viewKey={`project-${selectedRecord.project.id}`} title="Project detail">
+            <ProjectDetail
+              record={selectedRecord}
+              dispatch={dispatch}
+              planning={planning}
+              reports={reports}
+              review={review}
+              writingDrafts={writing.drafts}
+              timelineEvents={timelineEvents.filter(
+                (event) => event.projectId === selectedRecord.project.id,
+              )}
+              onManualChange={updateManualState}
+              onDispatchTargetChange={handleDispatchTargetChange}
+              onDispatchReadinessChange={handleDispatchReadinessChange}
+              onDispatchAutomationReadinessChange={handleDispatchAutomationReadinessChange}
+              onDeploymentArtifactChange={updateDeploymentArtifact}
+              onStartDeploySession={createDeploySession}
+              onDeploySessionChange={(
+                sessionId: string,
+                update: Partial<
+                  Pick<
+                    DispatchDeploySession,
+                    | 'versionLabel'
+                    | 'sourceRef'
+                    | 'commitSha'
+                    | 'artifactName'
+                    | 'deployedBy'
+                    | 'summary'
+                    | 'recordStatus'
+                    | 'rollbackRef'
+                    | 'databaseBackupRef'
+                  >
+                >,
+              ) => updateDeploySessionFields(sessionId, update)}
+              onDeploySessionStepChange={(
+                sessionId: string,
+                stepId: string,
+                update: Partial<Pick<DispatchDeploySessionStep, 'status' | 'notes' | 'evidence'>>,
+              ) => updateDeploySessionStepFields(sessionId, stepId, update)}
+              onRecordManualDeployment={recordManualDeployment}
+              onAttachDeploySessionEvidence={(
+                sessionId: string,
+                stepKind: DispatchDeploySessionStepKind,
+                label: string,
+                detail: string,
+              ) => attachDeploySessionEvidence(sessionId, stepKind, label, detail)}
+              onHostEvidenceRunAdd={(run: DispatchHostEvidenceRun) => addHostEvidenceRun(run)}
+              onVerificationEvidenceRunAdd={(run: DispatchVerificationEvidenceRun) =>
+                addVerificationEvidenceRun(run)
+              }
+              onRunDispatchPreflight={handleRunDispatchPreflight}
+              preflightRunningTargetId={preflightRunningTargetId}
+              onRepositoryUnbind={handleUnbindRepository}
+              onVerificationCadenceChange={handleVerificationCadenceChange}
+              onMarkVerified={handleMarkVerified}
+              onWritingRequest={handleWritingRequest}
+              onOpenWritingDraft={handleSelectWritingDraft}
+              onOpenPlanning={handleOpenPlanning}
+              onOpenReview={() => handleOpenReview(selectedRecord.project.id)}
+              onAddReviewNote={addReviewNote}
+              onResetWorkspace={() => {
+                resetWorkspace()
+              }}
+            />
+          </AppViewBoundary>
         ) : null}
       </div>
 

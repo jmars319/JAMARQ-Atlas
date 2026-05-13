@@ -52,7 +52,7 @@ import { PlanningPanel } from './PlanningPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
 import { ReviewPanel } from './ReviewPanel'
 import { StatusBadge } from './StatusBadge'
-import { TimelineEventList } from './TimelineDashboard'
+import { TimelineEventList } from './TimelineEventList'
 
 interface ProjectDetailProps {
   record: ProjectRecord

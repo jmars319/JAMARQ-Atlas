@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { clickAtlasNav, installAtlasClipboardMock } from './helpers/atlasTestUtils'
 
 function createZipBuffer(entries: string[]) {
   const chunks = entries.map((entry) => {
@@ -16,16 +17,7 @@ function createZipBuffer(entries: string[]) {
 }
 
 test('operator can edit manual state and manage writing drafts', async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: {
-        writeText: async (text: string) => {
-          window.localStorage.setItem('atlas-e2e-clipboard', text)
-        },
-      },
-    })
-  })
+  await installAtlasClipboardMock(page)
   await page.route('**/api/dispatch/health?**', async (route) => {
     const url = new URL(route.request().url()).searchParams.get('url') ?? 'https://example.com'
     const protectedPath = url.endsWith('/api/.env') || url.endsWith('/api/logs/app.log')
@@ -54,7 +46,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Atlas status board')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Active' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Timeline', exact: true }).click()
+  await clickAtlasNav(page, 'Timeline')
   await expect(page.getByRole('heading', { name: 'Timeline', exact: true })).toBeVisible()
   await expect(page.getByLabel('Timeline evidence rows')).toContainText('Deployment record')
   await page.getByLabel('Filter timeline source').selectOption('dispatch')
@@ -62,10 +54,10 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Timeline evidence rows')).toContainText('baseline')
   await expect(page.locator('.project-detail')).toContainText('Evidence Timeline')
 
-  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await clickAtlasNav(page, 'GitHub')
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
   await expect(page.locator('.github-error')).toContainText(/Set GITHUB_TOKEN|GH_TOKEN/)
-  await page.getByRole('button', { name: 'Review', exact: true }).click()
+  await clickAtlasNav(page, 'Review')
   await expect(page.getByRole('heading', { name: 'Review Center' })).toBeVisible()
   await expect(page.getByLabel('Operator review queue')).toContainText('Midway Music Hall')
   await page.getByLabel('Filter review source').selectOption('workspace')
@@ -87,18 +79,18 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     page.locator('label.field').filter({ hasText: 'Status' }).locator('select'),
   ).toHaveValue(statusBeforeReview)
   await page.reload()
-  await page.getByRole('button', { name: 'Review', exact: true }).click()
+  await clickAtlasNav(page, 'Review')
   await expect(page.locator('.review-history-list[aria-label="Review sessions"]')).toContainText('Review:')
   await expect(page.locator('.review-history-list[aria-label="Review notes"]')).toContainText(
     'E2E review follow-up note',
   )
-  await page.getByRole('button', { name: 'Planning', exact: true }).click()
+  await clickAtlasNav(page, 'Planning')
   await expect(page.getByLabel('Planning records', { exact: true })).toContainText(
     'E2E planning note from review',
   )
-  await page.getByRole('button', { name: 'Writing', exact: true }).click()
+  await clickAtlasNav(page, 'Writing')
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await expect(page.getByRole('heading', { name: 'Settings & Connections' })).toBeVisible()
   await expect(page.locator('.settings-connection-card').filter({ hasText: 'GitHub Local API' })).toContainText(
     'No GitHub token is configured',
@@ -115,7 +107,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await page.locator('label.field').filter({ hasText: 'Device label' }).locator('input').fill('E2E Atlas device')
   await page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input').fill('E2E operator')
   await page.reload()
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await expect(page.locator('label.field').filter({ hasText: 'Device label' }).locator('input')).toHaveValue(
     'E2E Atlas device',
   )
@@ -129,26 +121,26 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await page.getByRole('button', { name: 'Create local snapshot' }).click()
   await expect(page.getByLabel('Sync snapshot inventory')).toContainText('E2E checkpoint')
   await page.reload()
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await expect(page.getByLabel('Sync snapshot inventory')).toContainText('E2E checkpoint')
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   const firstProjectNextAction = page
     .locator('label.field')
     .filter({ hasText: 'Next action' })
     .locator('textarea')
   await firstProjectNextAction.fill('Temporary mutation before snapshot restore')
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await expect(page.getByLabel('Sync restore preview')).toContainText('Selected snapshot')
   await page.getByLabel('Type RESTORE ATLAS to restore snapshot', { exact: true }).fill('RESTORE ATLAS')
   await page.getByRole('button', { name: 'Restore snapshot' }).click()
   await expect(page.getByText('Snapshot restored locally')).toBeVisible()
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await expect(firstProjectNextAction).not.toHaveValue('Temporary mutation before snapshot restore')
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await page.getByRole('button', { name: 'Delete' }).click()
   await page.getByRole('button', { name: 'Confirm delete' }).click()
   await page.reload()
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await expect(page.getByText('No local sync snapshots yet')).toBeVisible()
 
   let remoteSnapshot: Record<string, unknown> | null = null
@@ -249,9 +241,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByText('Remote snapshot pushed to Supabase.')).toBeVisible()
   await page.getByRole('button', { name: 'Load remote snapshots' }).click()
   await expect(page.getByLabel('Remote sync snapshot inventory')).toContainText('Remote E2E checkpoint')
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await firstProjectNextAction.fill('Temporary mutation before remote snapshot restore')
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await page.getByRole('button', { name: /Remote E2E checkpoint/ }).click()
   await expect(page.getByLabel('Remote sync restore preview')).toContainText('Remote snapshot')
   await expect(page.getByLabel('Remote/local snapshot comparison')).toContainText(
@@ -265,11 +257,11 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByText('Remote snapshot deleted from Supabase.')).toBeVisible()
   await expect(page.getByText('No remote snapshots loaded')).toBeVisible()
   await page.reload()
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await expect(firstProjectNextAction).not.toHaveValue('Temporary mutation before remote snapshot restore')
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
 
-  await page.getByRole('button', { name: 'Verification', exact: true }).click()
+  await clickAtlasNav(page, 'Verification')
   await expect(page.getByRole('heading', { name: 'Verification Queue' })).toBeVisible()
   await expect(page.getByLabel('Project verification queue')).toBeVisible()
   await page.getByLabel('Filter by cadence').selectOption('monthly')
@@ -305,7 +297,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   )
   await expect(page.locator('.project-detail')).toContainText('E2E verification note')
 
-  await page.getByRole('button', { name: 'Planning', exact: true }).click()
+  await clickAtlasNav(page, 'Planning')
   await expect(page.getByRole('heading', { name: 'Planning Center' })).toBeVisible()
   const planningCreatePanel = page.getByLabel('Create planning item')
   await planningCreatePanel.getByLabel('Planning project').selectOption('vaexcore-studio')
@@ -329,20 +321,20 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     statusBeforePlanning,
   )
   await page.reload()
-  await page.getByRole('button', { name: 'Planning', exact: true }).click()
+  await clickAtlasNav(page, 'Planning')
   await expect(page.getByLabel('Planning records', { exact: true })).toContainText(
     'E2E planning objective',
   )
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(page.getByLabel('Project planning')).toContainText('E2E planning objective')
   await expect(page.locator('.project-detail').locator('label.field').filter({ hasText: 'Status' }).locator('select')).toHaveValue(
     statusBeforePlanning,
   )
 
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
 
-  await page.getByRole('button', { name: 'Dispatch', exact: true }).click()
+  await clickAtlasNav(page, 'Dispatch')
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
   await expect(page.getByLabel('Dispatch closeout analytics')).toBeVisible()
   await expect(page.getByLabel('Dispatch closeout analytics')).toContainText('Closeout ready')
@@ -366,7 +358,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     })
   await expect(mmsQueueItem).toContainText('checksum captured')
   await page.reload()
-  await page.getByRole('button', { name: 'Dispatch', exact: true }).click()
+  await clickAtlasNav(page, 'Dispatch')
   await expect(
     page
       .getByLabel('Dispatch queue command center')
@@ -636,7 +628,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     })
   })
 
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await page.getByRole('button', { name: 'Refresh', exact: true }).click()
   await expect(
     page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
@@ -645,7 +637,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
   ).toContainText('2 SFTP read-only')
 
-  await page.getByRole('button', { name: 'Dispatch', exact: true }).click()
+  await clickAtlasNav(page, 'Dispatch')
   await page.getByRole('button', { name: 'Run read-only evidence sweep' }).click()
   await expect(
     page
@@ -667,7 +659,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     page.locator('.dispatch-card').filter({ hasText: 'Midway Mobile Storage production' }),
   ).toContainText('passing / sftp-readonly')
 
-  await page.getByRole('button', { name: 'Dispatch', exact: true }).click()
+  await clickAtlasNav(page, 'Dispatch')
   const mmsQueueSessionItem = page
     .getByLabel('Dispatch queue command center')
     .locator('.dispatch-queue-item')
@@ -727,7 +719,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   )
   await expect(mmsSessions).toContainText('completed')
   await page.reload()
-  await page.getByRole('button', { name: 'Dispatch', exact: true }).click()
+  await clickAtlasNav(page, 'Dispatch')
   const mmsDispatchCardAfterReload = page
     .locator('.dispatch-card')
     .filter({ hasText: 'Midway Mobile Storage production' })
@@ -770,7 +762,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     'manual-deployment',
   )
 
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(page.getByRole('heading', { name: 'VaexCore Studio' })).toBeVisible()
   await expect(page.getByText('No deployment target configured for this project')).toBeVisible()
@@ -853,14 +845,14 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Writing review audit')).toContainText('markdown-exported')
 
   await page.reload()
-  await page.getByRole('button', { name: 'Writing', exact: true }).click()
+  await clickAtlasNav(page, 'Writing')
   await page.getByLabel('Search writing drafts').fill('Human-edited')
   await page.getByRole('button', { name: /Client update - VaexCore Studio/ }).click()
   await expect(draftTextField).toHaveValue('Human-edited client update from E2E.')
   await expect(page.getByLabel('Writing review audit')).toContainText('approved')
   await expect(page.getByLabel('Writing review audit')).toContainText('markdown-exported')
 
-  await page.getByRole('button', { name: 'Reports', exact: true }).click()
+  await clickAtlasNav(page, 'Reports')
   await expect(page.getByRole('heading', { name: 'Report Packet Builder' })).toBeVisible()
   await expect(page.getByLabel('Report writing drafts')).toContainText('Client update - VaexCore Studio')
   await page.getByRole('button', { name: 'Select all drafts' }).click()
@@ -878,7 +870,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   expect((await reportDownload).suggestedFilename()).toMatch(/client-update-packet/)
   await expect(page.getByLabel('Report audit timeline')).toContainText('markdown-exported')
   await page.reload()
-  await page.getByRole('button', { name: 'Reports', exact: true }).click()
+  await clickAtlasNav(page, 'Reports')
   await expect(page.getByLabel('Report packet history')).toContainText('Client update packet')
   await expect(reportMarkdownField).toHaveValue(/Human report edit from E2E/)
   await expect(page.getByLabel('Report audit timeline')).toContainText('copied')
@@ -890,7 +882,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(reportMarkdownField).toHaveValue(/host-evidence-/)
   await expect(reportMarkdownField).toHaveValue(/verification-evidence-/)
   await expect(reportMarkdownField).toHaveValue(/Manual deployment record/)
-  await page.getByRole('button', { name: 'Dispatch', exact: true }).click()
+  await clickAtlasNav(page, 'Dispatch')
   await page
     .getByLabel('Dispatch queue command center')
     .locator('.dispatch-queue-item')
@@ -901,7 +893,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(reportMarkdownField).toHaveValue(/Deployment Runbooks & Artifact Readiness/)
   await expect(reportMarkdownField).toHaveValue(/Stored Dispatch Evidence/)
 
-  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  await clickAtlasNav(page, 'Data')
   await expect(page.getByRole('heading', { name: 'Backups & Restore' })).toBeVisible()
   const jsonDownload = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download JSON backup' }).click()
@@ -956,26 +948,26 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByText('Backup restored locally')).toBeVisible()
 
   await page.reload()
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await page.locator('button.project-row').filter({ hasText: 'Midway Music Hall' }).click()
   await expect(nextActionField).toHaveValue('Restored from Data Center backup.')
-  await page.getByRole('button', { name: 'Dispatch', exact: true }).click()
+  await clickAtlasNav(page, 'Dispatch')
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
-  await page.getByRole('button', { name: 'Verification', exact: true }).click()
+  await clickAtlasNav(page, 'Verification')
   await expect(page.getByRole('heading', { name: 'Verification Queue' })).toBeVisible()
-  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await clickAtlasNav(page, 'GitHub')
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
-  await page.getByRole('button', { name: 'Review', exact: true }).click()
+  await clickAtlasNav(page, 'Review')
   await expect(page.getByRole('heading', { name: 'Review Center' })).toBeVisible()
   await expect(page.locator('.review-history-list[aria-label="Review notes"]')).toContainText(
     'E2E review follow-up note',
   )
-  await page.getByRole('button', { name: 'Writing', exact: true }).click()
+  await clickAtlasNav(page, 'Writing')
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await clickAtlasNav(page, 'Settings')
   await expect(page.getByRole('heading', { name: 'Settings & Connections' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(nextActionField).toHaveValue('Interaction check persisted next action')
   await expect(detail.getByLabel('Approved writing drafts')).toContainText('exported')
@@ -1128,7 +1120,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   })
 
   await page.goto('/')
-  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await clickAtlasNav(page, 'GitHub')
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
   const placementSuggestions = page.getByLabel('Suggested repository placement')
   await expect(placementSuggestions).toContainText('jmars319/midway-mobile-storage-website')
@@ -1143,7 +1135,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await page.reload()
   await page.locator('button.project-row').filter({ hasText: 'Midway Mobile Storage' }).click()
   await expect(page.locator('.repo-list')).toContainText('jmars319/midway-mobile-storage-website')
-  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await clickAtlasNav(page, 'GitHub')
   await expect(page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })).toBeVisible()
   const deepDive = page.getByLabel('GitHub repo deep dive')
   await expect(deepDive).toContainText('jmars319/JAMARQ-Atlas')
@@ -1167,7 +1159,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(page.locator('.repo-list')).toContainText('jmars319/tenra.dev')
 
-  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await clickAtlasNav(page, 'GitHub')
   const utilitySuggestion = placementSuggestions
     .locator('.github-suggestion-card')
     .filter({ hasText: 'jmars319/new-utility' })
@@ -1175,7 +1167,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   const utilityCard = page.locator('.github-intake-card').filter({ hasText: 'jmars319/new-utility' })
   await expect(utilityCard).toContainText('Bound to new-utility')
 
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await clickAtlasNav(page, 'Board')
   await page.locator('button.project-row').filter({ hasText: 'new-utility' }).click()
   await expect(page.getByRole('heading', { name: 'new-utility' })).toBeVisible()
   await expect(page.locator('label.field').filter({ hasText: 'Status' }).locator('select')).toHaveValue(
