@@ -17,6 +17,7 @@ The dashboard currently supports:
 - Timeline evidence ledger derived from Workspace, Dispatch, Writing, Sync, and existing activity events.
 - GitHub Intake for discovering repositories, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
+- GitHub health and deploy-delta summaries for latest commits, PRs, issues, workflow/check status, releases, deployments, and permission gaps.
 - Planning Center for manual objectives, milestones, work sessions, and planning notes.
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.

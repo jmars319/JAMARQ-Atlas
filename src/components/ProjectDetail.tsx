@@ -31,6 +31,7 @@ import type {
 } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import type { TimelineEvent } from '../domain/timeline'
+import { getLatestDeploymentRecord } from '../domain/dispatch'
 import {
   getWritingTemplate,
   WRITING_TEMPLATES,
@@ -39,6 +40,7 @@ import {
 } from '../domain/writing'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
+import { GitHubHealthSummary } from './GitHubHealthSummary'
 import { PlanningPanel } from './PlanningPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
 import { StatusBadge } from './StatusBadge'
@@ -147,6 +149,12 @@ export function ProjectDetail({
     .slice(0, 3)
   const visibleWritingDrafts =
     approvedWritingDrafts.length > 0 ? approvedWritingDrafts : recentWritingDrafts
+  const firstRepository = project.repositories[0] ?? null
+  const latestDeployment = dispatch.targets
+    .filter((target) => target.projectId === project.id)
+    .map((target) => getLatestDeploymentRecord(dispatch, target.id))
+    .filter(Boolean)
+    .sort((left, right) => right.completedAt.localeCompare(left.completedAt))[0]
 
   return (
     <aside className="project-detail" aria-labelledby="project-detail-title">
@@ -285,6 +293,22 @@ export function ProjectDetail({
           <GitBranch size={17} />
           <h3>GitHub Activity</h3>
         </div>
+        {firstRepository ? (
+          <GitHubHealthSummary
+            repository={{
+              owner: firstRepository.owner,
+              name: firstRepository.name,
+              defaultBranch: firstRepository.defaultBranch,
+            }}
+            lastVerified={manual.lastVerified}
+            lastDeployed={latestDeployment?.completedAt ?? ''}
+            compact
+          />
+        ) : (
+          <p className="empty-state">
+            No repository is bound, so deploy delta summaries are unavailable.
+          </p>
+        )}
         <RepoActivityPanel project={project} />
       </section>
 

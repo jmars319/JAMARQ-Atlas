@@ -26,6 +26,7 @@ import type {
   GithubWorkflow,
   GithubWorkflowRun,
 } from '../services/githubIntegration'
+import { GitHubHealthSummary } from './GitHubHealthSummary'
 
 const deepDiveTabs: Array<{ id: GithubResourceName; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -295,6 +296,14 @@ function GitHubRepoDeepDiveContent({
           <span>Language</span>
         </div>
       </div>
+
+      <GitHubHealthSummary
+        repository={{
+          owner,
+          name: repository.name,
+          defaultBranch: repository.defaultBranch,
+        }}
+      />
 
       <div className="repo-tabs" role="tablist" aria-label="GitHub deep dive resources">
         {deepDiveTabs.map((tab) => (

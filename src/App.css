@@ -1089,7 +1089,8 @@ h3 {
   font-size: 0.86rem;
 }
 
-.github-error {
+.github-error,
+.github-health-warning {
   gap: 8px;
   align-items: flex-start;
   border: 1px solid rgba(244, 199, 107, 0.34);
@@ -1100,13 +1101,58 @@ h3 {
 }
 
 .github-error strong,
-.github-error span {
+.github-error span,
+.github-health-warning strong,
+.github-health-warning span {
   display: block;
 }
 
-.github-error span {
+.github-error span,
+.github-health-warning span {
   color: var(--text-soft);
   font-size: 0.8rem;
+}
+
+.github-health-summary {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 10px;
+}
+
+.github-health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.github-health-grid.is-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.github-health-grid > div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.github-health-grid svg {
+  color: var(--accent-cyan);
+}
+
+.github-health-grid strong {
+  color: var(--paper-white);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.github-health-grid span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
 }
 
 .load-more {
@@ -2570,6 +2616,7 @@ code {
   .github-intake-controls,
   .github-repo-facts,
   .github-deep-summary,
+  .github-health-grid,
   .verification-controls,
   .verification-row,
   .verification-row-meta,

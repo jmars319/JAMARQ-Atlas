@@ -71,6 +71,23 @@ Created Inbox projects are placed under `Outliers / One-off tools` with `kind: "
 
 Atlas persists only repository bindings and explicitly created project records. Commits, pull requests, issues, workflows, releases, deployments, and checks remain live read-only views fetched on demand.
 
+## Repo Health Summaries
+
+Atlas derives read-only repo health cards from the existing GitHub API boundary:
+
+- Latest commit.
+- Commits since the project was last verified.
+- Commits since the latest Dispatch deployment record.
+- Open PR count.
+- Open issue count.
+- Latest workflow/check result.
+- Latest release or deployment signal.
+- Scoped permission gaps.
+
+These summaries use the latest loaded GitHub pages and are advisory only. They do not change Atlas project status, Dispatch readiness, Verification, Planning, Writing, Reports, or GitHub bindings.
+
+Project detail pages show a compact deploy-delta summary for the first bound repository. Reports reference the availability of these summaries but do not persist full GitHub history.
+
 ## Permission Behavior
 
 GitHub permissions are handled per resource.

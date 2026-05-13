@@ -358,6 +358,10 @@ function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
     '',
     'GitHub context warnings:',
     list([...new Set(draftGithubWarnings)], 'No draft GitHub warnings recorded.'),
+    '',
+    'GitHub health/deploy-delta summaries:',
+    '- Live repo health summaries are available in GitHub and project detail views.',
+    '- Report packets store selected repository bindings and captured draft snippets only, not full live GitHub history.',
   ].join('\n')
 }
 
