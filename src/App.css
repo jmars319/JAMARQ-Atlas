@@ -2527,6 +2527,64 @@ h3 {
   gap: 9px;
 }
 
+.settings-calibration-groups,
+.settings-bulk-calibration {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-calibration-groups {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.settings-calibration-groups button {
+  min-height: 64px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  color: var(--text-soft);
+  text-align: left;
+  padding: 9px;
+}
+
+.settings-calibration-groups button.is-selected {
+  border-color: var(--accent-cyan);
+  background: rgba(9, 166, 214, 0.12);
+}
+
+.settings-calibration-groups strong,
+.settings-calibration-groups span,
+.settings-bulk-calibration strong,
+.settings-bulk-calibration span {
+  display: block;
+}
+
+.settings-calibration-groups strong {
+  color: var(--paper-white);
+  font-size: 1.04rem;
+}
+
+.settings-calibration-groups span,
+.settings-bulk-calibration span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.settings-bulk-calibration {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.55fr) minmax(220px, 0.75fr) auto;
+  align-items: end;
+  border: 1px solid var(--line);
+  background: rgba(11, 13, 16, 0.36);
+  padding: 10px;
+}
+
+.settings-bulk-calibration > div:first-child {
+  align-self: center;
+}
+
+.settings-bulk-calibration button {
+  min-height: 39px;
+}
+
 .settings-calibration-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr);
@@ -3204,7 +3262,9 @@ code {
   .data-summary-grid,
   .data-preview-grid,
   .settings-form-grid,
+  .settings-bulk-calibration,
   .settings-calibration-card,
+  .settings-calibration-groups,
   .settings-connection-grid,
   .settings-sync-grid,
   .settings-preview-grid,

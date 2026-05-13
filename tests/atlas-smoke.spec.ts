@@ -104,6 +104,13 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(
     page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
   ).toContainText('Missing')
+  await expect(page.getByLabel('Calibration group counts')).toContainText('Host config')
+  await page.getByRole('button', { name: /Host config/ }).click()
+  await expect(page.getByLabel('Atlas calibration checks')).toContainText('Remote host')
+  await page.getByLabel('Bulk calibration field').selectOption('remoteHost')
+  await page.getByLabel('Bulk calibration value').fill('password=do-not-store')
+  await page.getByRole('button', { name: /Apply to/ }).click()
+  await expect(page.getByText('This looks credential-shaped')).toBeVisible()
   await page.locator('label.field').filter({ hasText: 'Device label' }).locator('input').fill('E2E Atlas device')
   await page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input').fill('E2E operator')
   await page.reload()

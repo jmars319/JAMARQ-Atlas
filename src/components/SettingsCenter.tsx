@@ -41,10 +41,13 @@ import {
   type HostConnectionStatusResponse,
 } from '../services/hostConnection'
 import {
+  CALIBRATION_BULK_FIELDS,
   CALIBRATION_CATEGORIES,
   canStoreCalibrationValue,
+  calibrationValueToTargetUpdate,
   scanAtlasCalibration,
   type CalibrationCategory,
+  type CalibrationEditableTargetField,
   type CalibrationIssue,
 } from '../services/calibration'
 import { buildStaticConnectionCards } from '../services/settings'
@@ -336,17 +339,10 @@ function CalibrationField({
       return
     }
 
-    if (issue.field === 'healthCheckUrls') {
-      onTargetChange(issue.targetId, {
-        healthCheckUrls: value
-          .split('\n')
-          .map((line) => line.trim())
-          .filter(Boolean),
-      })
-      return
-    }
-
-    onTargetChange(issue.targetId, { [issue.field]: value } as Partial<DeploymentTarget>)
+    onTargetChange(
+      issue.targetId,
+      calibrationValueToTargetUpdate(issue.field as CalibrationEditableTargetField, value),
+    )
   }
 
   if (issue.field === 'healthCheckUrls') {
@@ -427,6 +423,9 @@ export function SettingsCenter({
   const [remoteSnapshotLimit, setRemoteSnapshotLimit] = useState(REMOTE_SYNC_SNAPSHOT_LIMIT)
   const [syncMessage, setSyncMessage] = useState('')
   const [calibrationFilter, setCalibrationFilter] = useState<CalibrationCategory | 'all'>('all')
+  const [bulkCalibrationField, setBulkCalibrationField] =
+    useState<CalibrationEditableTargetField>('credentialRef')
+  const [bulkCalibrationValue, setBulkCalibrationValue] = useState('')
   const [calibrationMessage, setCalibrationMessage] = useState('')
 
   async function loadGithubStatus() {
@@ -656,6 +655,18 @@ export function SettingsCenter({
         : calibrationIssues.filter((issue) => issue.category === calibrationFilter),
     [calibrationFilter, calibrationIssues],
   )
+  const calibrationCategoryCounts = useMemo(
+    () =>
+      CALIBRATION_CATEGORIES.filter((category) => category.id !== 'all').map((category) => ({
+        id: category.id,
+        label: category.label,
+        count: calibrationIssues.filter((issue) => issue.category === category.id).length,
+      })),
+    [calibrationIssues],
+  )
+  const matchingBulkIssues = filteredCalibrationIssues.filter(
+    (issue) => issue.editable && issue.targetId && issue.field === bulkCalibrationField,
+  )
   const currentStores = useMemo(
     () => ({ workspace, dispatch, writing, planning, reports, review }),
     [dispatch, planning, reports, review, workspace, writing],
@@ -692,6 +703,36 @@ export function SettingsCenter({
     sync.provider.remoteSnapshots,
     remoteSnapshotLimit,
   )
+
+  function handleApplyBulkCalibration() {
+    const storageCheck = canStoreCalibrationValue(bulkCalibrationValue)
+
+    if (!storageCheck.ok) {
+      setCalibrationMessage(storageCheck.message)
+      return
+    }
+
+    if (matchingBulkIssues.length === 0) {
+      setCalibrationMessage('No visible editable calibration items match that field.')
+      return
+    }
+
+    for (const issue of matchingBulkIssues) {
+      if (!issue.targetId) {
+        continue
+      }
+
+      onDispatchTargetChange(
+        issue.targetId,
+        calibrationValueToTargetUpdate(bulkCalibrationField, bulkCalibrationValue),
+      )
+    }
+
+    setCalibrationMessage(
+      `Bulk calibration updated ${matchingBulkIssues.length} visible ${bulkCalibrationField} item(s).`,
+    )
+    setBulkCalibrationValue('')
+  }
 
   function handleCreateSnapshot() {
     onCreateSnapshot(snapshotLabel, snapshotNote)
@@ -1032,6 +1073,61 @@ export function SettingsCenter({
               <span>{issueCountLabel(calibrationIssues.length)} across Workspace and Dispatch</span>
               <span>Secret-shaped values are rejected from calibration edits</span>
             </div>
+          </div>
+
+          <div className="settings-calibration-groups" aria-label="Calibration group counts">
+            {calibrationCategoryCounts.map((category) => (
+              <button
+                type="button"
+                key={category.id}
+                className={calibrationFilter === category.id ? 'is-selected' : ''}
+                onClick={() => setCalibrationFilter(category.id as CalibrationCategory)}
+              >
+                <strong>{category.count}</strong>
+                <span>{category.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="settings-bulk-calibration" aria-label="Bulk calibration editor">
+            <div>
+              <strong>Bulk-safe Dispatch edit</strong>
+              <span>
+                Applies one non-secret value to visible editable items matching the selected field.
+              </span>
+            </div>
+            <label className="field">
+              <span>Bulk field</span>
+              <select
+                aria-label="Bulk calibration field"
+                value={bulkCalibrationField}
+                onChange={(event) =>
+                  setBulkCalibrationField(event.target.value as CalibrationEditableTargetField)
+                }
+              >
+                {CALIBRATION_BULK_FIELDS.map((field) => (
+                  <option key={field.id} value={field.id}>
+                    {field.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Bulk value</span>
+              <textarea
+                aria-label="Bulk calibration value"
+                rows={bulkCalibrationField === 'healthCheckUrls' ? 3 : 1}
+                value={bulkCalibrationValue}
+                onChange={(event) => setBulkCalibrationValue(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={!bulkCalibrationValue.trim()}
+              onClick={handleApplyBulkCalibration}
+            >
+              Apply to {matchingBulkIssues.length} visible item(s)
+            </button>
           </div>
 
           {filteredCalibrationIssues.length > 0 ? (

@@ -3,6 +3,7 @@ import { seedDispatchState } from '../src/data/seedDispatch'
 import { seedWorkspace } from '../src/data/seedWorkspace'
 import type { DeploymentTarget } from '../src/domain/dispatch'
 import {
+  calibrationValueToTargetUpdate,
   canStoreCalibrationValue,
   isPlaceholderValue,
   scanAtlasCalibration,
@@ -16,6 +17,9 @@ describe('Atlas calibration checks', () => {
     expect(issues.some((issue) => issue.field === 'remoteHost')).toBe(true)
     expect(issues.some((issue) => issue.field === 'remoteFrontendPath')).toBe(true)
     expect(issues.some((issue) => issue.category === 'github-bindings')).toBe(true)
+    expect(issues.some((issue) => issue.category === 'host-config')).toBe(true)
+    expect(issues.some((issue) => issue.category === 'health-urls')).toBe(true)
+    expect(issues.some((issue) => issue.category === 'backup-rollback')).toBe(true)
   })
 
   it('detects placeholder values consistently', () => {
@@ -37,6 +41,43 @@ describe('Atlas calibration checks', () => {
     expect(target.remoteHost).toBe('mmh-prod.examplehost.com')
     expect(target.remoteFrontendPath).toBe('/home/mmh/public_html')
     expect(target.remoteBackendPath).toBe('/home/mmh/public_html/api')
+  })
+
+  it('supports guarded calibration updates for credential references and health URLs', () => {
+    const credentialUpdate = calibrationValueToTargetUpdate(
+      'credentialRef',
+      'godaddy-mmh-production',
+    )
+    const healthUpdate = calibrationValueToTargetUpdate(
+      'healthCheckUrls',
+      'https://midwaymusichall.com/\nhttps://midwaymusichall.com/api/health',
+    )
+
+    expect(credentialUpdate).toEqual({ credentialRef: 'godaddy-mmh-production' })
+    expect(healthUpdate).toEqual({
+      healthCheckUrls: [
+        'https://midwaymusichall.com/',
+        'https://midwaymusichall.com/api/health',
+      ],
+    })
+  })
+
+  it('flags placeholder credential reference labels without storing secrets', () => {
+    const updated = replaceDeploymentTarget(seedDispatchState, 'midway-music-hall-production', {
+      credentialRef: 'placeholder-credential',
+    })
+    const issues = scanAtlasCalibration(seedWorkspace, updated)
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetId: 'midway-music-hall-production',
+          field: 'credentialRef',
+          category: 'host-config',
+          editable: true,
+        }),
+      ]),
+    )
   })
 
   it('flags real host metadata with no matching host inspector config entry', () => {

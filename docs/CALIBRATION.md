@@ -5,12 +5,14 @@ Calibration is a Settings surface for replacing placeholder operational values w
 ## What It Scans
 
 - Dispatch target hosts, users, paths, public URLs, database names, and health URLs.
+- Credential reference labels such as `godaddy-mmh-production`.
 - Backup notes and rollback references.
 - Future automation rollback requirements.
 - Client Systems projects that still need Dispatch targets.
 - Projects with no GitHub repository binding.
 - Projects missing a manual `lastVerified` date.
 - Dispatch targets that have real host/path metadata but no matching server-side Host Inspector config entry.
+- Connection-readiness status for GitHub, Supabase, OpenAI Writing, and Host Inspector boundaries.
 
 ## What It Can Edit
 
@@ -22,8 +24,11 @@ Calibration can edit selected Dispatch target fields:
 - Public URL.
 - Health check URLs.
 - Non-secret database name.
+- Credential reference label.
 
 Those edits update Dispatch target storage only. They do not change Atlas project status, Dispatch readiness, deployment records, verification stamps, GitHub bindings, Planning, Writing, or Reports.
+
+The Settings UI also supports a guarded bulk edit for visible editable Dispatch calibration rows. The bulk editor only accepts known non-secret target fields and still rejects credential-shaped values.
 
 ## Secret Rule
 

@@ -3,12 +3,25 @@ import type { DeploymentTarget, DispatchState } from '../domain/dispatch'
 import { flattenProjects } from '../domain/atlas'
 
 export type CalibrationCategory =
-  | 'client-systems'
   | 'dispatch-targets'
   | 'github-bindings'
+  | 'host-config'
+  | 'health-urls'
+  | 'backup-rollback'
   | 'verification-gaps'
+  | 'client-labels'
 
 export type CalibrationSeverity = 'needs-real-value' | 'warning'
+
+export type CalibrationEditableTargetField =
+  | 'remoteHost'
+  | 'remoteUser'
+  | 'remoteFrontendPath'
+  | 'remoteBackendPath'
+  | 'publicUrl'
+  | 'healthCheckUrls'
+  | 'databaseName'
+  | 'credentialRef'
 
 export interface CalibrationIssue {
   id: string
@@ -31,10 +44,27 @@ export const CALIBRATION_CATEGORIES: Array<{
   label: string
 }> = [
   { id: 'all', label: 'All calibration gaps' },
-  { id: 'client-systems', label: 'Client Systems' },
   { id: 'dispatch-targets', label: 'Dispatch targets' },
   { id: 'github-bindings', label: 'GitHub bindings' },
+  { id: 'host-config', label: 'Host config' },
+  { id: 'health-urls', label: 'Health URLs' },
+  { id: 'backup-rollback', label: 'Backup / rollback' },
   { id: 'verification-gaps', label: 'Verification gaps' },
+  { id: 'client-labels', label: 'Client labels' },
+]
+
+export const CALIBRATION_BULK_FIELDS: Array<{
+  id: CalibrationEditableTargetField
+  label: string
+}> = [
+  { id: 'remoteHost', label: 'Remote host' },
+  { id: 'remoteUser', label: 'Remote user / label' },
+  { id: 'remoteFrontendPath', label: 'Frontend/root path' },
+  { id: 'remoteBackendPath', label: 'Backend/API path' },
+  { id: 'publicUrl', label: 'Public URL' },
+  { id: 'healthCheckUrls', label: 'Health check URLs' },
+  { id: 'databaseName', label: 'Database name' },
+  { id: 'credentialRef', label: 'Credential reference label' },
 ]
 
 const PLACEHOLDER_PATTERN = /\b(placeholder|example|needs real|tbd|todo|unknown|not set)\b/i
@@ -76,6 +106,7 @@ function valueLabel(value: string | string[]) {
 function dispatchIssue({
   records,
   target,
+  category = 'dispatch-targets',
   field,
   label,
   value,
@@ -84,6 +115,7 @@ function dispatchIssue({
 }: {
   records: ProjectRecord[]
   target: DeploymentTarget
+  category?: CalibrationCategory
   field: string
   label: string
   value: string | string[]
@@ -92,7 +124,7 @@ function dispatchIssue({
 }): CalibrationIssue {
   return {
     id: `dispatch-${target.id}-${field}`,
-    category: 'dispatch-targets',
+    category,
     severity: 'needs-real-value',
     source: 'dispatch',
     projectId: target.projectId,
@@ -105,6 +137,22 @@ function dispatchIssue({
     message,
     editable,
   }
+}
+
+export function calibrationValueToTargetUpdate(
+  field: CalibrationEditableTargetField,
+  value: string,
+): Partial<DeploymentTarget> {
+  if (field === 'healthCheckUrls') {
+    return {
+      healthCheckUrls: value
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+    }
+  }
+
+  return { [field]: value } as Partial<DeploymentTarget>
 }
 
 function workspaceIssue({
@@ -163,52 +211,69 @@ function scanTarget(
       | 'publicUrl'
       | 'healthCheckUrls'
       | 'databaseName'
+      | 'credentialRef'
     >
+    category: CalibrationCategory
     label: string
     value: string | string[]
     message: string
   }> = [
     {
       field: 'remoteHost',
+      category: 'host-config',
       label: 'Remote host',
       value: target.remoteHost,
       message: 'Confirm the production host without storing passwords or tokens.',
     },
     {
       field: 'remoteUser',
+      category: 'host-config',
       label: 'Remote user',
       value: target.remoteUser,
       message: 'Use a non-secret username or credential reference only.',
     },
     {
       field: 'remoteFrontendPath',
+      category: 'host-config',
       label: 'Frontend path',
       value: target.remoteFrontendPath,
       message: 'Replace placeholder frontend/root paths with the actual cPanel path.',
     },
     {
       field: 'remoteBackendPath',
+      category: 'host-config',
       label: 'Backend path',
       value: target.remoteBackendPath,
       message: 'Replace placeholder backend/API paths with the actual cPanel path.',
     },
     {
       field: 'publicUrl',
+      category: 'dispatch-targets',
       label: 'Public URL',
       value: target.publicUrl,
       message: 'Use the real production URL so health checks and reports are meaningful.',
     },
     {
       field: 'healthCheckUrls',
+      category: 'health-urls',
       label: 'Health check URLs',
       value: target.healthCheckUrls,
       message: 'Add real read-only URLs for homepage/API health checks.',
     },
     {
       field: 'databaseName',
+      category: 'dispatch-targets',
       label: 'Database name',
       value: target.databaseName,
       message: 'Use the non-secret database name when a database exists.',
+    },
+    {
+      field: 'credentialRef',
+      category: 'host-config',
+      label: 'Credential reference label',
+      value: target.credentialRef,
+      message:
+        'Use a non-secret credential reference label such as godaddy-mmh-production; never store the credential value.',
     },
   ]
 
@@ -227,6 +292,7 @@ function scanTarget(
       dispatchIssue({
         records,
         target,
+        category: 'backup-rollback',
         field: 'backup-notes',
         label: 'Backup notes',
         value: target.deploymentNotes,
@@ -241,6 +307,7 @@ function scanTarget(
       dispatchIssue({
         records,
         target,
+        category: 'backup-rollback',
         field: 'rollback-notes',
         label: 'Rollback reference',
         value: latestRecord?.rollbackRef ?? '',
@@ -255,6 +322,7 @@ function scanTarget(
       dispatchIssue({
         records,
         target,
+        category: 'backup-rollback',
         field: 'automation-rollback-requirements',
         label: 'Automation rollback requirements',
         value: '',
@@ -275,6 +343,7 @@ function scanTarget(
       dispatchIssue({
         records,
         target,
+        category: 'host-config',
         field: 'host-preflight-config',
         label: 'Host preflight config',
         value: target.credentialRef,
@@ -309,7 +378,7 @@ export function scanAtlasCalibration(
         issues.push(
           workspaceIssue({
             record,
-            category: 'client-systems',
+            category: 'client-labels',
             field: 'summary',
             label: 'Client/project label',
             value: record.project.summary,
@@ -325,7 +394,7 @@ export function scanAtlasCalibration(
         issues.push(
           workspaceIssue({
             record,
-            category: 'client-systems',
+            category: 'dispatch-targets',
             field: 'deployment-target',
             label: 'Deployment target',
             value: '',
