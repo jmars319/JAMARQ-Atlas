@@ -64,7 +64,6 @@ import {
 import {
   createHostEvidenceRun,
   createVerificationEvidenceRun,
-  DISPATCH_EVIDENCE_HISTORY_LIMIT,
   formatHostEvidenceProbeLabel,
 } from '../services/dispatchEvidence'
 import {
@@ -74,6 +73,14 @@ import {
 } from '../services/deploySessions'
 import { canStoreCalibrationValue } from '../services/calibration'
 import { requestHostConnectionPreflight } from '../services/hostConnection'
+import {
+  backupLabel,
+  DEPLOY_SESSION_STEP_STATUSES,
+  EvidenceHistoryDisplayControl,
+  evidenceLinkDetail,
+  linesToText,
+  textToLines,
+} from './DispatchPanelParts'
 
 interface DispatchPanelProps {
   record: ProjectRecord
@@ -137,47 +144,6 @@ interface DispatchPanelProps {
   onVerificationEvidenceRunAdd: (run: DispatchVerificationEvidenceRun) => void
   onRunPreflight: (targetId: string) => Promise<void>
   preflightRunningTargetId: string
-}
-
-function linesToText(lines: string[]) {
-  return lines.join('\n')
-}
-
-function textToLines(value: string) {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
-
-function backupLabel(target: DeploymentTarget, readiness?: DispatchReadiness) {
-  if (!target.backupRequired) {
-    return 'Not required'
-  }
-
-  return readiness?.backupReady ? 'Ready' : 'Required'
-}
-
-const DEPLOY_SESSION_STEP_STATUSES: DispatchDeploySessionStep['status'][] = [
-  'pending',
-  'in-progress',
-  'confirmed',
-  'skipped',
-  'blocked',
-]
-
-function evidenceLinkDetail({
-  id,
-  status,
-  completedAt,
-  summary,
-}: {
-  id: string
-  status: string
-  completedAt: string
-  summary: string
-}) {
-  return `${id}: ${status} at ${completedAt}. ${summary}`
 }
 
 export function DispatchPanel({
@@ -276,10 +242,6 @@ export function DispatchPanel({
           evidenceHistoryLimit,
         )
         const visiblePreflightRuns = preflightRuns.slice(0, evidenceHistoryLimit)
-        const evidenceHistoryLabel =
-          evidenceHistoryLimit >= DISPATCH_EVIDENCE_HISTORY_LIMIT
-            ? 'all retained evidence'
-            : `latest ${evidenceHistoryLimit} evidence runs`
         const preflightRunning = preflightRunningTargetId === target.id
         const health = getHealthCheckSummary(latestDeployment?.healthCheckResults)
         const automationReadiness = findAutomationReadiness(
@@ -392,22 +354,11 @@ export function DispatchPanel({
               </div>
             </div>
 
-            <div className="dispatch-preflight-actions">
-              <label className="repo-selector">
-                <History size={15} />
-                <span className="sr-only">Evidence history display</span>
-                <select
-                  aria-label={`${target.name} evidence history display`}
-                  value={evidenceHistoryLimit}
-                  onChange={(event) => setEvidenceHistoryLimit(Number(event.target.value))}
-                >
-                  <option value={5}>Latest 5 evidence runs</option>
-                  <option value={10}>Latest 10 evidence runs</option>
-                  <option value={DISPATCH_EVIDENCE_HISTORY_LIMIT}>All retained evidence</option>
-                </select>
-              </label>
-              <span>Showing {evidenceHistoryLabel}. Atlas keeps the newest retained evidence only.</span>
-            </div>
+            <EvidenceHistoryDisplayControl
+              targetName={target.name}
+              limit={evidenceHistoryLimit}
+              onLimitChange={setEvidenceHistoryLimit}
+            />
 
             <div className="dispatch-runbook" aria-label={`${target.name} deploy runbook`}>
               <div className="panel-heading">
