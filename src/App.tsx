@@ -37,6 +37,8 @@ import {
 import type {
   DeploymentTarget,
   DispatchAutomationReadiness,
+  DispatchDeploySession,
+  DispatchDeploySessionStep,
   DispatchReadiness,
 } from './domain/dispatch'
 import type { AtlasBackupStores } from './domain/dataPortability'
@@ -84,6 +86,10 @@ function App() {
     updateReadiness,
     updateAutomationReadiness,
     updateDeploymentArtifact,
+    createDeploySession,
+    updateDeploySessionFields,
+    updateDeploySessionStepFields,
+    recordManualDeployment,
     addPreflightRun,
   } = useLocalDispatch()
   const { settings, setSettings, updateLocalSettings } = useLocalSettings()
@@ -561,6 +567,7 @@ function App() {
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
             onSelectProject={selectProject}
+            onStartDeploySession={createDeploySession}
           />
         )}
 
@@ -578,6 +585,30 @@ function App() {
             onDispatchReadinessChange={handleDispatchReadinessChange}
             onDispatchAutomationReadinessChange={handleDispatchAutomationReadinessChange}
             onDeploymentArtifactChange={updateDeploymentArtifact}
+            onStartDeploySession={createDeploySession}
+            onDeploySessionChange={(
+              sessionId: string,
+              update: Partial<
+                Pick<
+                  DispatchDeploySession,
+                  | 'versionLabel'
+                  | 'sourceRef'
+                  | 'commitSha'
+                  | 'artifactName'
+                  | 'deployedBy'
+                  | 'summary'
+                  | 'recordStatus'
+                  | 'rollbackRef'
+                  | 'databaseBackupRef'
+                >
+              >,
+            ) => updateDeploySessionFields(sessionId, update)}
+            onDeploySessionStepChange={(
+              sessionId: string,
+              stepId: string,
+              update: Partial<Pick<DispatchDeploySessionStep, 'status' | 'notes' | 'evidence'>>,
+            ) => updateDeploySessionStepFields(sessionId, stepId, update)}
+            onRecordManualDeployment={recordManualDeployment}
             onRunDispatchPreflight={handleRunDispatchPreflight}
             preflightRunningTargetId={preflightRunningTargetId}
             onRepositoryUnbind={handleUnbindRepository}

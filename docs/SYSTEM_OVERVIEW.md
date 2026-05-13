@@ -126,6 +126,8 @@ Primary concepts:
 - Dispatch automation dry-run plan
 - Dispatch write automation gate
 - Read-only host connection check
+- Dispatch deploy session
+- Dispatch deploy session step/event
 - Deployment runner phase
 - Deployment runner result
 
@@ -136,6 +138,8 @@ Dispatch Preflight stores short local evidence snapshots under the Dispatch stor
 The local `/api/dispatch/health` boundary performs timeout-bound read-only `http`/`https` probes without credentials or request bodies. Browser code receives normalized health results, so CORS and network failures are displayed as scoped evidence instead of breaking the app.
 
 The optional `/api/dispatch/host-status` and `/api/dispatch/host-preflight` boundaries prepare for future host checks while staying read-only. Atlas stores only credential reference labels on targets. Server-side `ATLAS_HOST_PREFLIGHT_CONFIG` may enable host reachability and read-only local-mirror path evidence, but no SSH/SFTP write, cPanel write, upload, deletion, extraction, writable check, backup, restore, or rollback is attempted.
+
+Dispatch Deploy Sessions are stored under the Dispatch key as manual evidence workflows tied to cPanel runbooks. They guide a human through preflight review, artifact inspection, preserve/create paths, backup readiness, outside-Atlas upload notes, verification checks, operator notes, and wrap-up. Creating a deployment record from a session requires the exact typed confirmation `RECORD MANUAL DEPLOYMENT`, and the record states that Atlas did not perform the deployment. Sessions do not change Atlas status, Dispatch readiness, Verification, Planning, GitHub bindings, Writing, or Reports automatically.
 
 Dispatch Automation Readiness is advisory documentation for future automation. It stores per-target runbook notes, required confirmations, checklist items, artifact expectations, backup requirements, rollback requirements, and dry-run notes. The dry-run planner returns no-op phase output only and does not execute deployment commands.
 
@@ -256,7 +260,7 @@ Supported packet types:
 - Release packet
 - Project handoff packet
 
-Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
+Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, deploy-session evidence, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
 
 Reports do not fetch full GitHub history and do not write externally. Copy and Markdown download are browser-local actions. Exporting a packet does not mean anything was sent, published, deployed, shipped, or verified.
 

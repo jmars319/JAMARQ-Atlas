@@ -4,6 +4,7 @@ import type {
   DeploymentTarget,
   DeploymentArtifact,
   DispatchAutomationReadiness,
+  DispatchDeploySessionStep,
   DispatchPreflightRun,
   DispatchReadiness,
   DispatchState,
@@ -14,6 +15,12 @@ import {
   replaceDeploymentArtifact,
   replaceDispatchAutomationReadiness,
 } from '../services/dispatchStorage'
+import {
+  recordManualDeploymentFromSession,
+  startDeploySession,
+  updateDeploySession,
+  updateDeploySessionStep,
+} from '../services/deploySessions'
 
 const STORAGE_KEY = 'jamarq-atlas.dispatch.v1'
 
@@ -118,6 +125,36 @@ export function useLocalDispatch() {
     setDispatch((current) => replaceDeploymentArtifact(current, runbookId, artifactId, update))
   }
 
+  function createDeploySession(runbookId: string) {
+    setDispatch((current) => startDeploySession(current, runbookId))
+  }
+
+  function updateDeploySessionFields(
+    sessionId: string,
+    update: Parameters<typeof updateDeploySession>[2],
+  ) {
+    setDispatch((current) => updateDeploySession(current, sessionId, update))
+  }
+
+  function updateDeploySessionStepFields(
+    sessionId: string,
+    stepId: string,
+    update: Partial<Pick<DispatchDeploySessionStep, 'status' | 'notes' | 'evidence'>>,
+  ) {
+    setDispatch((current) => updateDeploySessionStep(current, sessionId, stepId, update))
+  }
+
+  function recordManualDeployment(sessionId: string, confirmation: string) {
+    const result = recordManualDeploymentFromSession(dispatch, sessionId, confirmation)
+    setDispatch(result.state)
+
+    return {
+      ok: result.ok,
+      message: result.message,
+      recordId: result.recordId,
+    }
+  }
+
   return {
     dispatch,
     setDispatch,
@@ -126,6 +163,10 @@ export function useLocalDispatch() {
     updateReadiness,
     updateAutomationReadiness,
     updateDeploymentArtifact,
+    createDeploySession,
+    updateDeploySessionFields,
+    updateDeploySessionStepFields,
+    recordManualDeployment,
     addPreflightRun,
   }
 }

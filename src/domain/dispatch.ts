@@ -303,6 +303,81 @@ export interface HostConnectionPreflightResult {
   warnings: string[]
 }
 
+export type DispatchDeploySessionStatus =
+  | 'active'
+  | 'blocked'
+  | 'completed'
+  | 'recorded'
+  | 'archived'
+
+export type DispatchDeploySessionStepStatus =
+  | 'pending'
+  | 'in-progress'
+  | 'confirmed'
+  | 'skipped'
+  | 'blocked'
+
+export type DispatchDeploySessionStepKind =
+  | 'preflight'
+  | 'artifact-inspection'
+  | 'preserve-paths'
+  | 'backup-readiness'
+  | 'outside-atlas-upload'
+  | 'verification-checks'
+  | 'notes'
+  | 'post-deploy-wrap-up'
+
+export interface DispatchDeploySessionStep {
+  id: string
+  kind: DispatchDeploySessionStepKind
+  label: string
+  status: DispatchDeploySessionStepStatus
+  detail: string
+  evidence: string
+  notes: string
+  updatedAt: string
+}
+
+export type DispatchDeploySessionEventType =
+  | 'created'
+  | 'step-updated'
+  | 'session-updated'
+  | 'completed'
+  | 'manual-deployment-recorded'
+
+export interface DispatchDeploySessionEvent {
+  id: string
+  sessionId: string
+  type: DispatchDeploySessionEventType
+  occurredAt: string
+  detail: string
+}
+
+export interface DispatchDeploySession {
+  id: string
+  projectId: string
+  targetId: string
+  runbookId: string
+  orderGroupId: string
+  siteName: string
+  status: DispatchDeploySessionStatus
+  startedAt: string
+  updatedAt: string
+  completedAt: string | null
+  recordedDeploymentRecordId: string | null
+  versionLabel: string
+  sourceRef: string
+  commitSha: string
+  artifactName: string
+  deployedBy: string
+  summary: string
+  recordStatus: DeploymentStatus
+  rollbackRef: string
+  databaseBackupRef: string
+  steps: DispatchDeploySessionStep[]
+  events: DispatchDeploySessionEvent[]
+}
+
 export interface DispatchState {
   targets: DeploymentTarget[]
   records: DeploymentRecord[]
@@ -311,6 +386,7 @@ export interface DispatchState {
   automationReadiness: DispatchAutomationReadiness[]
   runbooks: DeploymentRunbook[]
   orderGroups: DeploymentOrderGroup[]
+  deploySessions: DispatchDeploySession[]
 }
 
 export type DeploymentRunnerPhase =
@@ -365,6 +441,18 @@ export function getLatestPreflightRun(state: DispatchState, targetId: string) {
 
 export function getRunbookForTarget(state: DispatchState, targetId: string) {
   return state.runbooks.find((runbook) => runbook.targetId === targetId)
+}
+
+export function getTargetDeploySessions(state: DispatchState, targetId: string) {
+  return state.deploySessions
+    .filter((session) => session.targetId === targetId)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+}
+
+export function getActiveDeploySession(state: DispatchState, targetId: string) {
+  return getTargetDeploySessions(state, targetId).find((session) =>
+    ['active', 'blocked', 'completed'].includes(session.status),
+  )
 }
 
 export function summarizePreflightStatus(checks: DispatchPreflightCheck[]): DispatchPreflightStatus {

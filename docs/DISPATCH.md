@@ -13,6 +13,7 @@ Dispatch currently supports:
 - Environment and host metadata
 - Public URLs and health check URLs
 - cPanel deploy runbooks
+- Guided manual deploy sessions
 - Expected deploy artifacts
 - Preserve/create-on-server path checklists
 - Read-only preflight evidence history
@@ -43,7 +44,7 @@ Seed cPanel runbooks exist for the current five-site queue:
 4. Thunder Road
 5. Bow Wow
 
-These runbooks capture artifact filenames, upload targets, preserve paths, and post-upload checks. They do not upload, extract, delete, overwrite, or create deployment records.
+These runbooks capture artifact filenames, upload targets, preserve paths, and post-upload checks. They do not upload, extract, delete, overwrite, or create deployment records by themselves.
 
 Artifact inspection is browser-local. Selecting a zip reads metadata from the local file, computes a checksum when the browser supports it, lists top-level ZIP entries, and flags wrong filenames, absolute paths, `..` traversal, or missing frontend/backend/placeholder indicators. Atlas stores only inspection metadata on the local runbook artifact; it does not upload the file.
 
@@ -58,6 +59,8 @@ Dispatch records reference Atlas projects by `projectId`. Dispatch readiness mus
 
 Preflight runs are stored in the same Dispatch storage document as short evidence snapshots. They contain target IDs, timestamps, check results, scoped GitHub snippets, warnings, and errors. They do not store deployment artifacts or full GitHub history.
 
+Deploy sessions are also stored in the Dispatch document. They contain session IDs, runbook and target references, step states, human notes, evidence text, session events, and optional links to manually created deployment records. They do not store credentials or server files.
+
 ## Service Boundary
 
 Dispatch services live under `src/services`.
@@ -68,6 +71,7 @@ Dispatch services live under `src/services`.
 - `dispatchHealthChecks.ts`: read-only local health probe client.
 - `dispatchRunner.ts`: no-op future deployment runner boundary.
 - `dispatchAutomation.ts`: advisory automation readiness and no-op dry-run planning.
+- `deploySessions.ts`: manual deploy-session creation, step updates, typed-confirmation deployment record creation, and storage normalization.
 - `hostConnection.ts`: browser client for server-side read-only host boundary status/preflight.
 
 ## cPanel Runbooks
@@ -93,6 +97,41 @@ Current preserve/create notes:
 - TRBG: preserve `/api/.env`, `/api/uploads`, `/api/incoming`, logs/runtime data; backend artifact includes `vendor/`, so Composer is not run on the server.
 
 The most important cPanel rule remains: never replace the whole `/api` folder without preserving server-only files first.
+
+## Deploy Sessions
+
+Deploy Sessions convert a cPanel runbook into a guided manual workflow. The first version is scoped to the current five-site queue:
+
+1. MMS
+2. MMH
+3. Surplus Containers
+4. TRBG
+5. Bow Wow
+
+Session steps are manual:
+
+- Read-only preflight reviewed.
+- Artifact inspection reviewed.
+- Preserve/create paths reviewed.
+- Backup readiness confirmed.
+- Outside-Atlas upload completed.
+- Post-upload verification reviewed.
+- Operator notes captured.
+- Post-deploy wrap-up reviewed.
+
+Each step can be `pending`, `in-progress`, `confirmed`, `skipped`, or `blocked`, and each step supports human notes and evidence text. These fields are evidence for an operator, not proof that Atlas performed any action.
+
+After review, a human can create one manual `DeploymentRecord` from a session. This requires typing `RECORD MANUAL DEPLOYMENT`. The record defaults to `verification` status and includes safety notes stating that Atlas did not upload, extract, delete, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch production databases.
+
+Deploy Sessions must not:
+
+- Change Atlas project status.
+- Change Dispatch target status or readiness.
+- Mark verification.
+- Create Planning, Writing, GitHub, Reports, or Sync changes automatically.
+- Perform upload, deployment, backup, restore, rollback, SSH/SFTP, cPanel, GoDaddy, file, or database operations.
+
+Session evidence differs from deployment records: a session is an operator checklist and notes trail; a deployment record is a human-confirmed summary that something was done outside Atlas.
 
 ## Preflight Evidence
 

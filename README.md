@@ -22,6 +22,7 @@ The dashboard currently supports:
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - cPanel deploy runbooks for the current five-site deploy queue, including artifacts, preserve paths, and verification checks.
+- Guided Dispatch deploy sessions for manual cPanel upload evidence, step notes, and explicit human-confirmed deployment records.
 - Read-only Dispatch host boundary checks for optional server-side host reachability and path evidence without exposing credentials or attempting writes.
 - Dispatch write automation gate showing future required safeguards while keeping execution locked.
 - Dispatch automation readiness for runbook notes, confirmations, checklist posture, artifact expectations, backup requirements, rollback requirements, and no-op dry-run planning.
@@ -46,6 +47,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
 - Optional read-only host boundary API under `/api/dispatch/host-status` and `/api/dispatch/host-preflight`.
 - Dispatch automation readiness helpers and no-op dry-run planning.
+- Dispatch deploy session helpers for manual session steps, evidence capture, and typed-confirmation deployment records.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
 - Versioned local backup/export helpers for Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync data.
@@ -191,6 +193,7 @@ Current Dispatch data:
 - Deployment notes, blockers, and target notes.
 - Last deployed and last verified dates.
 - Deployment records and health check results.
+- Manual deploy sessions, step evidence, and session audit events.
 - Rollback reference and database backup reference.
 - Backup-required and destructive-confirmation-required flags.
 - Advisory readiness blockers and warnings.
@@ -205,6 +208,8 @@ Dispatch Preflight collects short local evidence snapshots for human review:
 - Scoped warnings for missing tokens, private repos, permission gaps, rate limits, or unavailable resources.
 
 Preflight runs are stored under Dispatch state as evidence history only. They do not create deployment records, update Atlas project status, update Dispatch target status, mark readiness, stamp verification, or decide what should ship.
+
+Deploy Sessions sit between runbooks and deployment records. A session guides a human through preflight review, artifact inspection, preserve/create path checks, backup readiness, an outside-Atlas upload note, verification checks, operator notes, and wrap-up. Atlas does not perform the upload. Recording the final deployment requires typing `RECORD MANUAL DEPLOYMENT`, and the resulting record states that Atlas did not deploy, upload, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch databases.
 
 Seed targets exist for:
 

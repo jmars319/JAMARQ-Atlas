@@ -6,9 +6,11 @@ import {
   formatDeploymentStatus,
   formatPreflightStatus,
   getHealthCheckSummary,
+  getActiveDeploySession,
   getLatestDeploymentRecord,
   getLatestPreflightRun,
   getRunbookForTarget,
+  getTargetDeploySessions,
   type DispatchState,
 } from '../domain/dispatch'
 import {
@@ -22,6 +24,7 @@ interface DispatchDashboardProps {
   projectRecords: ProjectRecord[]
   selectedProjectId: string
   onSelectProject: (projectId: string) => void
+  onStartDeploySession: (runbookId: string) => void
 }
 
 function projectName(projectRecords: ProjectRecord[], projectId: string) {
@@ -33,6 +36,7 @@ export function DispatchDashboard({
   projectRecords,
   selectedProjectId,
   onSelectProject,
+  onStartDeploySession,
 }: DispatchDashboardProps) {
   const configuredTargets = dispatch.targets.length
   const blockedTargets = dispatch.targets.filter((target) => {
@@ -41,6 +45,13 @@ export function DispatchDashboard({
     return evaluateDispatchReadiness({ target, readiness, latestRecord: latest }).blocked
   }).length
   const backupRequired = dispatch.targets.filter((target) => target.backupRequired).length
+  const activeSessions = dispatch.deploySessions.filter((session) =>
+    ['active', 'blocked', 'completed'].includes(session.status),
+  )
+  const recentSessions = dispatch.deploySessions
+    .slice()
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, 5)
 
   return (
     <section className="dispatch-dashboard" aria-labelledby="dispatch-title">
@@ -69,8 +80,58 @@ export function DispatchDashboard({
             <strong>{backupRequired}</strong>
             <span>Backups</span>
           </div>
+          <div>
+            <Rocket size={16} />
+            <strong>{activeSessions.length}</strong>
+            <span>Sessions</span>
+          </div>
         </div>
       </div>
+
+      <section className="dispatch-preflight" aria-label="Deploy session queue">
+        <div className="panel-heading">
+          <Rocket size={17} />
+          <h2>Deploy Sessions</h2>
+        </div>
+        <div className="dispatch-signal-grid">
+          <div>
+            <strong>{activeSessions.length}</strong>
+            <span>Active/manual sessions</span>
+          </div>
+          <div>
+            <strong>{recentSessions.length}</strong>
+            <span>Recent session entries</span>
+          </div>
+        </div>
+        {recentSessions.length > 0 ? (
+          <ol className="resource-list" aria-label="Deploy session history">
+            {recentSessions.map((session) => (
+              <li key={session.id}>
+                <div className="resource-icon" aria-hidden="true">
+                  <Rocket size={15} />
+                </div>
+                <div>
+                  <div className="resource-line">
+                    <strong>{session.siteName}</strong>
+                    <span className={`resource-pill state-${session.status}`}>
+                      {session.status}
+                    </span>
+                  </div>
+                  <p>{session.summary}</p>
+                  <div className="resource-meta">
+                    <span>{formatDateTimeLabel(session.updatedAt)}</span>
+                    <span>{session.recordedDeploymentRecordId ?? 'no deployment record'}</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="empty-state">
+            No deploy sessions yet. Start one from a cPanel runbook card.
+          </p>
+        )}
+      </section>
 
       <div className="dispatch-card-grid">
         {dispatch.targets.map((target) => {
@@ -78,6 +139,8 @@ export function DispatchDashboard({
           const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
           const latestPreflight = getLatestPreflightRun(dispatch, target.id)
           const runbook = getRunbookForTarget(dispatch, target.id)
+          const activeSession = getActiveDeploySession(dispatch, target.id)
+          const sessionCount = getTargetDeploySessions(dispatch, target.id).length
           const automationReadiness = findAutomationReadiness(
             dispatch.automationReadiness,
             target,
@@ -91,13 +154,11 @@ export function DispatchDashboard({
           })
 
           return (
-            <button
-              type="button"
+            <article
               className={`dispatch-card ${
                 selectedProjectId === target.projectId ? 'is-selected' : ''
               }`}
               key={target.id}
-              onClick={() => onSelectProject(target.projectId)}
             >
               <div className="dispatch-summary-heading">
                 <div>
@@ -146,6 +207,10 @@ export function DispatchDashboard({
                   <strong>{runbook ? `#${runbook.deployOrder}` : 'None'}</strong>
                 </div>
                 <div>
+                  <span>Session</span>
+                  <strong>{activeSession?.status ?? (sessionCount > 0 ? `${sessionCount} recent` : 'None')}</strong>
+                </div>
+                <div>
                   <span>Automation</span>
                   <strong>
                     {automationEvaluation.completeChecklistItems}/
@@ -177,7 +242,17 @@ export function DispatchDashboard({
                   {target.publicUrl}
                 </span>
               ) : null}
-            </button>
+              <div className="dispatch-card-actions">
+                <button type="button" onClick={() => onSelectProject(target.projectId)}>
+                  Open project
+                </button>
+                {runbook ? (
+                  <button type="button" onClick={() => onStartDeploySession(runbook.id)}>
+                    Start deploy session
+                  </button>
+                ) : null}
+              </div>
+            </article>
           )
         })}
       </div>

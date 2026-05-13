@@ -293,11 +293,15 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await page.getByRole('button', { name: 'Dispatch' }).click()
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
+  await expect(page.getByLabel('Deploy session queue')).toBeVisible()
+  const mmhDispatchCard = page
+    .locator('.dispatch-card')
+    .filter({ hasText: 'Midway Music Hall production' })
   await expect(
-    page.locator('button.dispatch-card').filter({ hasText: 'Midway Music Hall production' }),
+    mmhDispatchCard,
   ).toContainText('Preflight: not run')
-  await expect(page.locator('button.dispatch-card').filter({ hasText: 'Midway Music Hall production' })).toBeVisible()
-  await page.locator('button.dispatch-card').filter({ hasText: 'Midway Music Hall production' }).click()
+  await expect(mmhDispatchCard).toBeVisible()
+  await mmhDispatchCard.getByRole('button', { name: 'Open project' }).click()
 
   const detail = page.locator('.project-detail')
   await expect(detail.getByRole('heading', { name: 'Midway Music Hall production' })).toBeVisible()
@@ -354,6 +358,67 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(automationRunbookCheck).toBeChecked()
   await expect(detail.getByLabel('Midway Music Hall production preflight')).toContainText(
     'Preflight history',
+  )
+
+  await page.getByRole('button', { name: 'Dispatch' }).click()
+  const mmsDispatchCard = page
+    .locator('.dispatch-card')
+    .filter({ hasText: 'Midway Mobile Storage production' })
+  await mmsDispatchCard.getByRole('button', { name: 'Start deploy session' }).click()
+  await mmsDispatchCard.getByRole('button', { name: 'Open project' }).click()
+  const mmsDetail = page.locator('.project-detail')
+  const mmsSessions = mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')
+  await expect(mmsSessions).toContainText('Outside-Atlas upload completed')
+
+  const sessionSteps = [
+    'Read-only preflight reviewed',
+    'Artifact inspection reviewed',
+    'Preserve/create paths reviewed',
+    'Backup readiness confirmed',
+    'Outside-Atlas upload completed',
+    'Post-upload verification reviewed',
+    'Operator notes captured',
+    'Post-deploy wrap-up reviewed',
+  ]
+
+  for (const step of sessionSteps) {
+    await mmsDetail.getByLabel(`${step} step status`).selectOption('confirmed')
+  }
+
+  await mmsDetail
+    .getByLabel('Artifact inspection reviewed notes')
+    .fill('E2E confirmed frontend and backend artifacts.')
+  await mmsDetail
+    .getByLabel('Outside-Atlas upload completed evidence')
+    .fill('E2E operator noted cPanel upload outside Atlas.')
+  await expect(mmsSessions).toContainText('completed')
+  await page.reload()
+  await page.getByRole('button', { name: 'Dispatch' }).click()
+  const mmsDispatchCardAfterReload = page
+    .locator('.dispatch-card')
+    .filter({ hasText: 'Midway Mobile Storage production' })
+  await mmsDispatchCardAfterReload.getByRole('button', { name: 'Open project' }).click()
+  await expect(
+    mmsDetail.getByLabel('Outside-Atlas upload completed evidence'),
+  ).toHaveValue(
+    'E2E operator noted cPanel upload outside Atlas.',
+  )
+  await mmsDetail
+    .getByLabel('Type RECORD MANUAL DEPLOYMENT for MMS')
+    .fill('RECORD DEPLOYMENT')
+  await mmsDetail.getByRole('button', { name: 'Record manual deployment' }).click()
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')).toContainText(
+    'RECORD MANUAL DEPLOYMENT',
+  )
+  await mmsDetail
+    .getByLabel('Type RECORD MANUAL DEPLOYMENT for MMS')
+    .fill('RECORD MANUAL DEPLOYMENT')
+  await mmsDetail.getByRole('button', { name: 'Record manual deployment' }).click()
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')).toContainText(
+    'Manual deployment record created',
+  )
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')).toContainText(
+    'manual-deployment',
   )
 
   await page.getByRole('button', { name: 'Board', exact: true }).click()

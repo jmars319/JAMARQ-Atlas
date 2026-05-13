@@ -8,6 +8,12 @@ import {
   emptyPlanningStore,
 } from '../src/services/planning'
 import {
+  MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
+  recordManualDeploymentFromSession,
+  startDeploySession,
+  updateDeploySessionStep,
+} from '../src/services/deploySessions'
+import {
   addReportPacket,
   archiveReportPacket,
   createReportPacket,
@@ -144,10 +150,39 @@ describe('report packet builder', () => {
   })
 
   it('creates deployment report packets with runbooks, artifacts, preserve paths, checks, and guardrails', () => {
+    const sessionState = startDeploySession(
+      seedDispatchState,
+      'mms-cpanel-runbook',
+      new Date('2026-05-10T11:30:00Z'),
+    )
+    const session = sessionState.deploySessions[0]
+    const uploadStep = session.steps.find((step) => step.kind === 'outside-atlas-upload')
+
+    if (!uploadStep) {
+      throw new Error('Expected outside-Atlas upload step.')
+    }
+
+    const updatedSessionState = updateDeploySessionStep(
+      sessionState,
+      session.id,
+      uploadStep.id,
+      {
+        status: 'confirmed',
+        notes: 'Human uploaded frontend and backend artifacts through cPanel.',
+        evidence: 'operator note 2026-05-10',
+      },
+      new Date('2026-05-10T11:45:00Z'),
+    )
+    const recorded = recordManualDeploymentFromSession(
+      updatedSessionState,
+      session.id,
+      MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
+      new Date('2026-05-10T11:50:00Z'),
+    )
     const packet = createReportPacket({
       type: 'deployment-readiness-packet',
       projectRecords,
-      dispatch: seedDispatchState,
+      dispatch: recorded.state,
       planning: emptyPlanningStore(now),
       writingDrafts: [],
       projectIds: ['midway-mobile-storage-site'],
@@ -161,6 +196,10 @@ describe('report packet builder', () => {
     expect(packet.markdown).toContain('/api/.env')
     expect(packet.markdown).toContain('/api/config.php (temporary)')
     expect(packet.markdown).toContain('/api/.env: expect 403/404')
+    expect(packet.markdown).toContain('Deploy Session Evidence')
+    expect(packet.markdown).toContain('Outside-Atlas upload completed')
+    expect(packet.markdown).toContain('operator note 2026-05-10')
+    expect(packet.markdown).toContain(recorded.recordId ?? 'manual-deployment')
     expect(packet.markdown).toContain('Export does not mean anything was sent')
     expect(packet.auditEvents).toHaveLength(1)
   })

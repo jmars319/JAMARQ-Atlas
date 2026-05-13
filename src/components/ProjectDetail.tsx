@@ -26,6 +26,8 @@ import type {
   DeploymentArtifact,
   DeploymentTarget,
   DispatchAutomationReadiness,
+  DispatchDeploySession,
+  DispatchDeploySessionStep,
   DispatchReadiness,
   DispatchState,
 } from '../domain/dispatch'
@@ -69,6 +71,33 @@ interface ProjectDetailProps {
     artifactId: string,
     update: Partial<DeploymentArtifact>,
   ) => void
+  onStartDeploySession: (runbookId: string) => void
+  onDeploySessionChange: (
+    sessionId: string,
+    update: Partial<
+      Pick<
+        DispatchDeploySession,
+        | 'versionLabel'
+        | 'sourceRef'
+        | 'commitSha'
+        | 'artifactName'
+        | 'deployedBy'
+        | 'summary'
+        | 'recordStatus'
+        | 'rollbackRef'
+        | 'databaseBackupRef'
+      >
+    >,
+  ) => void
+  onDeploySessionStepChange: (
+    sessionId: string,
+    stepId: string,
+    update: Partial<Pick<DispatchDeploySessionStep, 'status' | 'notes' | 'evidence'>>,
+  ) => void
+  onRecordManualDeployment: (
+    sessionId: string,
+    confirmation: string,
+  ) => { ok: boolean; message: string; recordId: string | null }
   onRunDispatchPreflight: (targetId: string) => Promise<void>
   preflightRunningTargetId: string
   onRepositoryUnbind: (projectId: string, repository: GithubRepositoryLink) => void
@@ -121,6 +150,10 @@ export function ProjectDetail({
   onDispatchReadinessChange,
   onDispatchAutomationReadinessChange,
   onDeploymentArtifactChange,
+  onStartDeploySession,
+  onDeploySessionChange,
+  onDeploySessionStepChange,
+  onRecordManualDeployment,
   onRunDispatchPreflight,
   preflightRunningTargetId,
   onRepositoryUnbind,
@@ -283,6 +316,10 @@ export function ProjectDetail({
           onReadinessChange={onDispatchReadinessChange}
           onAutomationReadinessChange={onDispatchAutomationReadinessChange}
           onDeploymentArtifactChange={onDeploymentArtifactChange}
+          onStartDeploySession={onStartDeploySession}
+          onDeploySessionChange={onDeploySessionChange}
+          onDeploySessionStepChange={onDeploySessionStepChange}
+          onRecordManualDeployment={onRecordManualDeployment}
           onRunPreflight={onRunDispatchPreflight}
           preflightRunningTargetId={preflightRunningTargetId}
         />

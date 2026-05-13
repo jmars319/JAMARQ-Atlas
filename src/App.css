@@ -54,6 +54,7 @@
 .writing-editor-actions,
 .writing-warning,
 .dispatch-preflight-actions,
+.dispatch-card-actions,
 .settings-card-heading,
 .settings-panel-heading-row,
 .settings-panel-heading-row div,
@@ -1162,6 +1163,8 @@ h3 {
 
 .state-success,
 .state-completed,
+.state-confirmed,
+.state-recorded,
 .state-open,
 .state-active,
 .state-available,
@@ -1171,20 +1174,24 @@ h3 {
 
 .state-failure,
 .state-failed,
+.state-blocked,
 .state-cancelled,
 .state-closed {
   color: var(--danger);
 }
 
 .state-in_progress,
+.state-in-progress,
 .state-queued,
 .state-requested,
+.state-pending,
 .state-waiting,
 .state-warning {
   color: var(--warning);
 }
 
-.state-skipped {
+.state-skipped,
+.state-archived {
   color: var(--text-muted);
 }
 
@@ -1204,6 +1211,7 @@ h3 {
 .dispatch-readiness,
 .dispatch-preflight,
 .dispatch-automation,
+.dispatch-deploy-session,
 .dispatch-dry-run,
 .dispatch-runbook,
 .dispatch-target-detail {
@@ -1369,6 +1377,7 @@ h3 {
 .dispatch-readiness,
 .dispatch-preflight,
 .dispatch-automation,
+.dispatch-deploy-session,
 .dispatch-dry-run {
   display: grid;
   gap: 10px;
@@ -1378,6 +1387,21 @@ h3 {
 .dispatch-checklist {
   display: grid;
   gap: 8px;
+}
+
+.dispatch-card-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dispatch-card-actions button {
+  min-height: 32px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.1);
+  color: var(--paper-white);
+  padding: 7px 10px;
+  font-size: 0.76rem;
 }
 
 .dispatch-preflight-actions {
@@ -1451,6 +1475,33 @@ h3 {
 
 .dispatch-warning-list {
   color: var(--warning);
+}
+
+.dispatch-session-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.dispatch-session-step,
+.dispatch-manual-record {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 10px;
+}
+
+.dispatch-session-step p,
+.dispatch-manual-record p {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.dispatch-manual-record h4 {
+  margin: 0;
+  color: var(--paper-white);
+  font-size: 0.9rem;
 }
 
 .dispatch-history {

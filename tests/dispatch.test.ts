@@ -21,6 +21,12 @@ import {
   runDeploymentVerificationChecks,
 } from '../src/services/deployPreflight'
 import {
+  MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
+  recordManualDeploymentFromSession,
+  startDeploySession,
+  updateDeploySessionStep,
+} from '../src/services/deploySessions'
+import {
   createHostConnectionStatus,
   getHostConnectionConfig,
   runHostConnectionPreflight,
@@ -167,6 +173,7 @@ describe('dispatch readiness', () => {
     })
 
     expect(normalized.preflightRuns).toEqual([])
+    expect(normalized.deploySessions).toEqual([])
   })
 
   it('returns safe preflight evidence when no target is configured', () => {
@@ -249,6 +256,7 @@ describe('dispatch readiness', () => {
       automationReadiness: [],
       runbooks: [],
       orderGroups: [],
+      deploySessions: [],
     }
 
     if (!record) {
@@ -316,6 +324,7 @@ describe('dispatch readiness', () => {
       automationReadiness: [],
       runbooks: [],
       orderGroups: [],
+      deploySessions: [],
     }
     const before = JSON.stringify(dispatch)
 
@@ -358,6 +367,7 @@ describe('dispatch readiness', () => {
       automationReadiness: [automation],
       runbooks: [],
       orderGroups: [],
+      deploySessions: [],
     }
     const before = JSON.stringify(dispatch)
     const plan = createDispatchAutomationDryRunPlan({
@@ -458,6 +468,139 @@ describe('dispatch readiness', () => {
 
     expect(seedDispatchState.records).toHaveLength(beforeRecordCount)
     expect(bowWowTarget?.status).toBe('verification')
+  })
+
+  it('starts cPanel deploy sessions with the expected ordered manual steps', () => {
+    const runbookIds = [
+      'mms-cpanel-runbook',
+      'mmh-cpanel-runbook',
+      'surplus-cpanel-runbook',
+      'trbg-cpanel-runbook',
+      'bow-wow-cpanel-runbook',
+    ]
+
+    for (const runbookId of runbookIds) {
+      const state = startDeploySession(
+        seedDispatchState,
+        runbookId,
+        new Date('2026-05-10T12:00:00Z'),
+      )
+      const session = state.deploySessions[0]
+
+      expect(session.runbookId).toBe(runbookId)
+      expect(session.status).toBe('active')
+      expect(session.steps.map((step) => step.kind)).toEqual([
+        'preflight',
+        'artifact-inspection',
+        'preserve-paths',
+        'backup-readiness',
+        'outside-atlas-upload',
+        'verification-checks',
+        'notes',
+        'post-deploy-wrap-up',
+      ])
+      expect(session.steps.map((step) => step.status).every((status) => status === 'pending')).toBe(
+        true,
+      )
+    }
+  })
+
+  it('persists deploy session step notes and evidence without mutating target status or readiness', () => {
+    const state = startDeploySession(
+      seedDispatchState,
+      'mms-cpanel-runbook',
+      new Date('2026-05-10T12:00:00Z'),
+    )
+    const session = state.deploySessions[0]
+    const step = session.steps.find((candidate) => candidate.kind === 'artifact-inspection')
+    const targetsBefore = JSON.stringify(state.targets)
+    const readinessBefore = JSON.stringify(state.readiness)
+
+    if (!step) {
+      throw new Error('Expected artifact step')
+    }
+
+    const updated = updateDeploySessionStep(
+      state,
+      session.id,
+      step.id,
+      {
+        status: 'confirmed',
+        notes: 'Frontend and backend zip filenames reviewed.',
+        evidence: 'sha256-local-check',
+      },
+      new Date('2026-05-10T12:15:00Z'),
+    )
+    const updatedStep = updated.deploySessions[0].steps.find(
+      (candidate) => candidate.id === step.id,
+    )
+
+    expect(updatedStep).toMatchObject({
+      status: 'confirmed',
+      notes: 'Frontend and backend zip filenames reviewed.',
+      evidence: 'sha256-local-check',
+    })
+    expect(JSON.stringify(updated.targets)).toBe(targetsBefore)
+    expect(JSON.stringify(updated.readiness)).toBe(readinessBefore)
+  })
+
+  it('requires typed confirmation before creating a human-confirmed deployment record', () => {
+    const state = startDeploySession(
+      seedDispatchState,
+      'mms-cpanel-runbook',
+      new Date('2026-05-10T12:00:00Z'),
+    )
+    const session = state.deploySessions[0]
+    const targetsBefore = JSON.stringify(state.targets)
+    const readinessBefore = JSON.stringify(state.readiness)
+    const recordsBefore = state.records.length
+    const rejected = recordManualDeploymentFromSession(
+      state,
+      session.id,
+      'record deployment',
+      new Date('2026-05-10T12:30:00Z'),
+    )
+
+    expect(rejected.ok).toBe(false)
+    expect(rejected.state.records).toHaveLength(recordsBefore)
+    expect(rejected.message).toContain(MANUAL_DEPLOYMENT_RECORD_CONFIRMATION)
+
+    const accepted = recordManualDeploymentFromSession(
+      state,
+      session.id,
+      MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
+      new Date('2026-05-10T12:35:00Z'),
+    )
+
+    expect(accepted.ok).toBe(true)
+    expect(accepted.state.records).toHaveLength(recordsBefore + 1)
+    expect(accepted.state.records[0]).toMatchObject({
+      projectId: session.projectId,
+      targetId: session.targetId,
+      status: 'verification',
+    })
+    expect(accepted.state.records[0].summary).toContain('Atlas did not perform the deployment')
+    expect(accepted.state.deploySessions[0]).toMatchObject({
+      status: 'recorded',
+      recordedDeploymentRecordId: accepted.state.records[0].id,
+    })
+    expect(JSON.stringify(accepted.state.targets)).toBe(targetsBefore)
+    expect(JSON.stringify(accepted.state.readiness)).toBe(readinessBefore)
+  })
+
+  it('starts Bow Wow deploy sessions with placeholder artifact expectations only', () => {
+    const state = startDeploySession(
+      seedDispatchState,
+      'bow-wow-cpanel-runbook',
+      new Date('2026-05-10T12:00:00Z'),
+    )
+    const session = state.deploySessions[0]
+    const artifactStep = session.steps.find((step) => step.kind === 'artifact-inspection')
+
+    expect(session.artifactName).toBe('deploy-placeholder.zip')
+    expect(artifactStep?.detail).toContain('deploy-placeholder.zip')
+    expect(artifactStep?.detail).not.toContain('frontend-deploy.zip')
+    expect(artifactStep?.detail).not.toContain('backend-deploy.zip')
   })
 
   it('inspects deployment artifacts locally for filename, checksum, entries, and warnings', async () => {

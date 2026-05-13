@@ -395,6 +395,61 @@ function buildDeploymentRunbookSection(records: ProjectRecord[], dispatch: Dispa
     .join('\n\n')
 }
 
+function buildDeploySessionSection(records: ProjectRecord[], dispatch: DispatchState) {
+  const projectIds = new Set(records.map((record) => record.project.id))
+  const sessions = dispatch.deploySessions
+    .filter((session) => projectIds.has(session.projectId))
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+
+  if (sessions.length === 0) {
+    return '_No deploy sessions are included in this report scope._'
+  }
+
+  return sessions
+    .map((session) => {
+      const confirmedSteps = session.steps.filter((step) => step.status === 'confirmed')
+      const evidenceSteps = session.steps.filter((step) => step.notes || step.evidence)
+
+      return [
+        `### ${session.siteName} / ${session.status}`,
+        '',
+        `- Started: ${session.startedAt}`,
+        `- Updated: ${session.updatedAt}`,
+        `- Manual deployment record: ${session.recordedDeploymentRecordId ?? 'not recorded'}`,
+        `- Record status target: ${session.recordStatus}`,
+        '',
+        session.summary || 'No session summary recorded.',
+        '',
+        'Confirmed steps:',
+        list(
+          confirmedSteps.map((step) => `${step.label}: ${step.evidence || 'confirmed'}`),
+          'No steps confirmed.',
+        ),
+        '',
+        'Session notes and evidence:',
+        list(
+          evidenceSteps.map(
+            (step) =>
+              `${step.label}: ${step.notes || 'No notes'}${
+                step.evidence ? ` Evidence: ${step.evidence}` : ''
+              }`,
+          ),
+          'No session notes or evidence recorded.',
+        ),
+        '',
+        'Session events:',
+        list(
+          session.events
+            .slice()
+            .sort((left, right) => left.occurredAt.localeCompare(right.occurredAt))
+            .map((event) => `${event.occurredAt}: ${event.type} - ${event.detail}`),
+          'No session events recorded.',
+        ),
+      ].join('\n')
+    })
+    .join('\n\n')
+}
+
 function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
   const repositoryLines = records.flatMap((record) =>
     record.project.repositories.map((repo) => `- ${record.project.name}: ${repo.owner}/${repo.name}`),
@@ -458,6 +513,10 @@ export function buildReportMarkdown({
     '## Deployment Runbooks & Artifact Readiness',
     '',
     buildDeploymentRunbookSection(records, dispatch),
+    '',
+    '## Deploy Session Evidence',
+    '',
+    buildDeploySessionSection(records, dispatch),
     '',
     '## GitHub Context',
     '',

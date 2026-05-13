@@ -655,4 +655,5 @@ export const seedDispatchState: DispatchState = {
   ],
   preflightRuns: [],
   automationReadiness: [],
+  deploySessions: [],
 }

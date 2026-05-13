@@ -16,6 +16,7 @@ import {
   getTargetRecords,
 } from '../domain/dispatch'
 import { normalizeAutomationReadiness } from './dispatchAutomation'
+import { normalizeDeploySessions } from './deploySessions'
 
 const PREFLIGHT_HISTORY_LIMIT = 50
 
@@ -52,6 +53,7 @@ export function normalizeDispatchState(value: unknown, now = new Date()): Dispat
     orderGroups: Array.isArray(candidate.orderGroups)
       ? (candidate.orderGroups as DeploymentOrderGroup[])
       : [],
+    deploySessions: normalizeDeploySessions(candidate.deploySessions, now),
   }
 }
 
