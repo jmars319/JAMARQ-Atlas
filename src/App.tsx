@@ -39,12 +39,18 @@ import type {
   DispatchReadiness,
   DispatchVerificationEvidenceRun,
 } from './domain/dispatch'
+import type {
+  CalibrationAuditEventType,
+  CalibrationCredentialReference,
+  CalibrationFieldStatus,
+} from './domain/calibration'
 import type { DeploySessionChecklistPresetId } from './services/deploySessions'
 import type { AtlasBackupStores } from './domain/dataPortability'
 import type { PlanningSourceLink } from './domain/planning'
 import type { AtlasSyncCoreStores } from './domain/sync'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
+import { useLocalCalibration } from './hooks/useLocalCalibration'
 import { useLocalPlanning } from './hooks/useLocalPlanning'
 import { useLocalReports } from './hooks/useLocalReports'
 import { useLocalReview } from './hooks/useLocalReview'
@@ -67,6 +73,12 @@ import { createReportPacket } from './services/reports'
 import { createSyncSnapshot } from './services/syncSnapshots'
 import { deriveTimelineEvents } from './services/timeline'
 import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
+import {
+  applyCalibrationImportPreview,
+  recordCalibrationAuditEvent,
+  type CalibrationImportPreview,
+  type CalibrationIssue,
+} from './services/calibration'
 
 const TimelineDashboard = lazy(() =>
   import('./components/TimelineDashboard').then((module) => ({
@@ -161,6 +173,13 @@ function App() {
   } = useLocalDispatch()
   const { settings, setSettings, updateLocalSettings } = useLocalSettings()
   const {
+    calibration,
+    setCalibration,
+    setFieldProgress: setCalibrationFieldProgress,
+    saveCredentialReference,
+    removeCredentialReference,
+  } = useLocalCalibration()
+  const {
     sync,
     setSync,
     addSnapshot,
@@ -218,9 +237,10 @@ function App() {
         planning,
         reports,
         review,
+        calibration,
         sync,
       }),
-    [dispatch, planning, projectRecords, reports, review, sync, writing],
+    [calibration, dispatch, planning, projectRecords, reports, review, sync, writing],
   )
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -504,6 +524,7 @@ function App() {
     setPlanning(stores.planning)
     setReports(stores.reports)
     setReview(stores.review)
+    setCalibration(stores.calibration)
     setSettings(stores.settings)
     setSync(stores.sync)
     setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
@@ -513,7 +534,7 @@ function App() {
   function handleCreateSnapshot(label: string, note: string) {
     addSnapshot(
       createSyncSnapshot({
-        stores: { workspace, dispatch, writing, planning, reports, review },
+        stores: { workspace, dispatch, writing, planning, reports, review, calibration },
         settings,
         sync,
         label,
@@ -529,8 +550,60 @@ function App() {
     setPlanning(stores.planning)
     setReports(stores.reports)
     setReview(stores.review)
+    setCalibration(stores.calibration)
     setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
     setSelectedWritingDraftId('')
+  }
+
+  function handleCalibrationProgress(
+    issue: CalibrationIssue,
+    status: CalibrationFieldStatus,
+    note: string,
+  ) {
+    setCalibrationFieldProgress(issue, status, note, settings.operatorLabel)
+  }
+
+  function handleCalibrationAudit(input: {
+    type: CalibrationAuditEventType
+    summary: string
+    issue?: CalibrationIssue
+    projectId?: string | null
+    targetId?: string | null
+    field?: string
+  }) {
+    setCalibration((current) =>
+      recordCalibrationAuditEvent(current, {
+        type: input.type,
+        summary: input.summary,
+        operatorLabel: settings.operatorLabel,
+        issueId: input.issue?.id,
+        projectId: input.issue?.projectId ?? input.projectId,
+        targetId: input.issue?.targetId ?? input.targetId,
+        field: input.issue?.field ?? input.field,
+      }),
+    )
+  }
+
+  function handleSaveCredentialReference(
+    input: Pick<
+      CalibrationCredentialReference,
+      'label' | 'provider' | 'purpose' | 'projectIds' | 'targetIds' | 'notes'
+    >,
+  ) {
+    return saveCredentialReference({ ...input, operatorLabel: settings.operatorLabel })
+  }
+
+  function handleApplyCalibrationImport(preview: CalibrationImportPreview) {
+    const result = applyCalibrationImportPreview({
+      workspace,
+      dispatch,
+      calibration,
+      preview,
+      operatorLabel: settings.operatorLabel,
+    })
+    setWorkspace(result.workspace)
+    setDispatch(result.dispatch)
+    setCalibration(result.calibration)
   }
 
   return (
@@ -799,6 +872,7 @@ function App() {
             planning={planning}
             reports={reports}
             review={review}
+            calibration={calibration}
             settings={settings}
             sync={sync}
             onRestoreStores={handleRestoreStores}
@@ -812,9 +886,17 @@ function App() {
             planning={planning}
             reports={reports}
             review={review}
+            calibration={calibration}
             sync={sync}
             onSettingsChange={updateLocalSettings}
             onDispatchTargetChange={handleDispatchTargetChange}
+            onCalibrationProgressChange={handleCalibrationProgress}
+            onCalibrationAudit={handleCalibrationAudit}
+            onCredentialReferenceSave={handleSaveCredentialReference}
+            onCredentialReferenceDelete={(referenceId) =>
+              removeCredentialReference(referenceId, settings.operatorLabel)
+            }
+            onApplyCalibrationImport={handleApplyCalibrationImport}
             onCreateSnapshot={handleCreateSnapshot}
             onDeleteSnapshot={removeSnapshot}
             onRestoreSnapshot={handleRestoreSnapshot}

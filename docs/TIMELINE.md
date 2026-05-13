@@ -16,6 +16,7 @@ Timeline derives evidence from:
 - Review sessions and notes.
 - Planning objectives, milestones, work sessions, and notes.
 - Report packet audit events.
+- Calibration audit events.
 - Local Sync snapshots.
 - Loaded remote Sync snapshot metadata.
 - Hosted Sync push/pull timestamps.

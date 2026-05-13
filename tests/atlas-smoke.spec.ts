@@ -104,13 +104,58 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(
     page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
   ).toContainText('Missing')
+  await expect(page.getByLabel('Calibration progress summary')).toContainText('Progress records')
+  await page
+    .getByRole('textbox', { name: 'Credential reference label', exact: true })
+    .fill('godaddy-e2e-production')
+  await page
+    .getByRole('textbox', { name: 'Credential reference provider', exact: true })
+    .fill('GoDaddy cPanel')
+  await page
+    .getByRole('textbox', { name: 'Credential reference purpose', exact: true })
+    .fill('Production host access label')
+  await page.getByRole('button', { name: 'Save credential reference' }).click()
+  await expect(page.getByLabel('Credential reference registry', { exact: true })).toContainText(
+    'godaddy-e2e-production',
+  )
   await expect(page.getByLabel('Calibration group counts')).toContainText('Host config')
   await page.getByRole('button', { name: /Host config/ }).click()
-  await expect(page.getByLabel('Atlas calibration checks')).toContainText('Remote host')
+  await expect(page.getByLabel('Atlas calibration operations')).toContainText('Remote host')
+  const calibrationCard = page.locator('.settings-calibration-card').filter({ hasText: 'Remote host' }).first()
+  await calibrationCard.getByLabel(/Calibration note/).fill('Confirmed during E2E calibration.')
+  await calibrationCard.getByRole('button', { name: 'Mark verified' }).click()
+  await expect(page.getByLabel('Calibration audit events')).toContainText('marked verified')
   await page.getByLabel('Bulk calibration field').selectOption('remoteHost')
   await page.getByLabel('Bulk calibration value').fill('password=do-not-store')
   await page.getByRole('button', { name: /Apply to/ }).click()
   await expect(page.getByText('This looks credential-shaped')).toBeVisible()
+  await page.getByLabel('Import calibration file').setInputFiles({
+    name: 'atlas-calibration.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({
+        rows: [
+          {
+            kind: 'credential-reference',
+            label: 'godaddy-mms-production',
+            provider: 'GoDaddy cPanel',
+            purpose: 'Production host access label',
+          },
+          {
+            kind: 'dispatch-target',
+            targetId: 'midway-mobile-storage-production',
+            remoteHost: 'password=do-not-store',
+          },
+        ],
+      }),
+    ),
+  })
+  await expect(page.getByLabel('Calibration import preview')).toContainText('Accepted rows')
+  await expect(page.getByLabel('Calibration import preview')).toContainText('Secret-shaped values')
+  await page.getByRole('button', { name: 'Apply accepted import rows' }).click()
+  await expect(page.getByLabel('Credential reference registry', { exact: true })).toContainText(
+    'godaddy-mms-production',
+  )
   await page.locator('label.field').filter({ hasText: 'Device label' }).locator('input').fill('E2E Atlas device')
   await page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input').fill('E2E operator')
   await page.reload()
@@ -924,12 +969,15 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     const planning = JSON.parse(window.localStorage.getItem('jamarq-atlas.planning.v1') ?? '{}')
     const reports = JSON.parse(window.localStorage.getItem('jamarq-atlas.reports.v1') ?? '{}')
     const review = JSON.parse(window.localStorage.getItem('jamarq-atlas.review.v1') ?? '{}')
+    const calibration = JSON.parse(
+      window.localStorage.getItem('jamarq-atlas.calibration.v1') ?? '{}',
+    )
     workspace.sections[0].groups[0].projects[0].manual.nextAction =
       'Restored from Data Center backup.'
 
     return JSON.stringify({
       kind: 'jamarq-atlas-backup',
-      schemaVersion: 4,
+      schemaVersion: 5,
       exportedAt: '2026-05-10T12:00:00.000Z',
       appName: 'JAMARQ Atlas',
       stores: {
@@ -939,6 +987,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
         planning,
         reports,
         review,
+        calibration,
         settings: JSON.parse(window.localStorage.getItem('jamarq-atlas.settings.v1') ?? '{}'),
         sync: JSON.parse(window.localStorage.getItem('jamarq-atlas.sync.v1') ?? '{}'),
       },

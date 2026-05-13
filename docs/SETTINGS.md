@@ -31,17 +31,36 @@ The host boundary card reads `/api/dispatch/host-status`. Missing `ATLAS_HOST_PR
 
 For SFTP inspection, `ATLAS_HOST_PREFLIGHT_CONFIG` must use env-var references such as `passwordEnvVar`, `privateKeyPathEnvVar`, and `passphraseEnvVar`. Settings may show configured target count, SFTP-enabled count, host, port, credential reference, and auth method, but it does not expose usernames, passwords, key paths, passphrases, or raw environment values.
 
+## Calibration Operations
+
+Settings hosts Calibration Operations, backed by its own local store at `jamarq-atlas.calibration.v1`.
+
+Calibration Operations includes:
+
+- Placeholder and data-quality scans across Workspace and Dispatch.
+- Field progress status: `needs-value`, `entered`, `verified`, and `deferred`.
+- Calibration notes per row.
+- Audit events for field edits, bulk edits, verification marks, import applies, and credential-reference changes.
+- Inline and bulk-safe editing for selected non-secret Dispatch target fields.
+- A non-secret credential reference registry.
+- CSV and JSON calibration template export.
+- Preview-first CSV/JSON import for Dispatch target fields, repo bindings, and credential references.
+
+Calibration rejects secret-shaped values. It must not store passwords, tokens, API keys, private keys, passphrases, raw environment variable names, production file contents, or credential values. Credential references are labels only, such as `godaddy-mmh-production`.
+
+Calibration progress is human-authored metadata. It does not verify production access, mark a project stable, change Dispatch readiness, create deployment records, update Planning, bind GitHub repositories automatically, alter Writing drafts, or publish Reports.
+
 ## Sync Snapshots
 
 Settings also hosts manual Sync snapshot controls.
 
-Snapshots capture normalized Workspace, Dispatch, Writing, Planning, Reports, and Review stores only. They do not include Settings, Sync, GitHub tokens, AI keys, deployment credentials, environment variables, unknown localStorage keys, or live GitHub history.
+Snapshots capture normalized Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores only. They do not include Settings, Sync, GitHub tokens, AI keys, deployment credentials, environment variables, unknown localStorage keys, or live GitHub history.
 
 Current snapshot actions:
 
 - Create a manual local snapshot.
 - Preview a snapshot restore.
-- Restore Workspace, Dispatch, Writing, Planning, Reports, and Review after typing `RESTORE ATLAS`.
+- Restore Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration after typing `RESTORE ATLAS`.
 - Delete a local snapshot after explicit confirmation.
 - Check hosted sync status.
 - Push a manual remote snapshot when Supabase env vars are configured.

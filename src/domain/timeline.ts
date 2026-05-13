@@ -6,6 +6,7 @@ export type TimelineEventSource =
   | 'planning'
   | 'reports'
   | 'review'
+  | 'calibration'
   | 'sync'
   | 'github'
 
@@ -18,6 +19,7 @@ export type TimelineEventType =
   | 'planning'
   | 'report'
   | 'review'
+  | 'calibration'
   | 'sync'
   | 'github'
 

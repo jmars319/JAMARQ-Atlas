@@ -18,14 +18,14 @@ The app has these main surfaces:
 - Writing Workbench: local draft packets and reviewable operational writing.
 - Reports: local Markdown packet assembly from approved Writing and operational context.
 - Data Center: local backup export, restore preview, and typed-confirmation restore.
-- Settings & Connections: local workspace identity, calibration checks, and integration-readiness status.
+- Settings & Connections: local workspace identity, Calibration Operations, and integration-readiness status.
 - Sync Snapshots: manual local snapshots and optional Supabase hosted snapshots.
 
 The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
 
 ## Timeline Model
 
-Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight/host/verification evidence, Writing audit events, Review sessions/notes, Planning records, Report audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
+Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight/host/verification evidence, Writing audit events, Review sessions/notes, Planning records, Report audit events, Calibration audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
 
 Timeline supports filtering by project, section, source, type, date range, and search. It does not mutate Workspace, Dispatch, Writing, Review, Sync, Settings, GitHub bindings, verification, readiness, or project status.
 
@@ -60,6 +60,23 @@ Manual state includes:
 Workspace state persists through `src/hooks/useLocalWorkspace.ts`.
 
 Existing workspace records are normalized on read so older local storage receives a default monthly verification cadence without losing user-authored fields.
+
+## Calibration Model
+
+Calibration Operations is stored separately under `jamarq-atlas.calibration.v1`.
+
+Primary concepts:
+
+- Calibration field progress
+- Calibration audit event
+- Non-secret credential reference
+- Preview-first calibration import row
+
+Calibration scans Workspace and Dispatch for unresolved placeholders, missing repo bindings, verification gaps, host/path gaps, health URL gaps, backup/rollback notes, and credential reference registry mismatches. It can edit selected non-secret Dispatch target fields and can import/export CSV or JSON templates for Dispatch target fields, repo bindings, and credential references.
+
+Calibration field statuses are `needs-value`, `entered`, `verified`, and `deferred`. These are human-authored tracking marks only. They do not verify production access, change Workspace manual status, update Dispatch readiness/status, create deployment records, stamp Verification, modify Planning automatically, publish Reports, alter Writing drafts, or change Sync provider state.
+
+Credential references are non-secret labels only, such as `godaddy-mmh-production`. Atlas rejects secret-shaped values and must not store passwords, tokens, API keys, private keys, passphrases, raw environment variable names, production file contents, or credential values.
 
 ## Planning Model
 
@@ -209,14 +226,6 @@ The GitHub tab includes a selected-repo deep dive over these same live resources
 
 GitHub data does not create or update Planning records. Repo history may be useful context for a human planning session, but the current Planning Center remains explicit and manual-only.
 
-## Calibration Model
-
-Calibration lives inside Settings and scans Workspace plus Dispatch for unresolved placeholder values. It surfaces missing or placeholder domains, hosts, paths, repo bindings, health URLs, backup notes, rollback notes, client labels, and verification gaps.
-
-Calibration can edit selected non-secret Dispatch target fields such as host, user, paths, public URL, health check URLs, and database name. It rejects credential-shaped values and never stores GitHub tokens, API keys, passwords, or deployment credentials.
-
-Calibration does not verify access, change status, change readiness, create deployment records, or make decisions. It is a cleanup queue for human-confirmed operational data.
-
 ## AI Boundary
 
 AI support is limited to drafting, summarizing, rewriting, and formatting human-reviewable text.
@@ -319,6 +328,7 @@ The backup envelope contains:
 - Planning store
 - Reports store
 - Review store
+- Calibration store
 - Settings store
 - Sync store
 - Schema version
@@ -327,7 +337,7 @@ The backup envelope contains:
 
 Backups intentionally exclude GitHub tokens, environment variables, credentials, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
 
-Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync normalizers, and compared against current local counts before restore. Data Center also shows store diagnostics, schema versions, repair hints, and count-diff rows before typed confirmation. Restore requires the exact typed confirmation `RESTORE ATLAS`.
+Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync normalizers, and compared against current local counts before restore. Data Center also shows store diagnostics, schema versions, repair hints, and count-diff rows before typed confirmation. Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
 Data Center does not merge records, write to GitHub, sync to hosted storage, send external data, or change Atlas source-of-truth rules.
 
@@ -364,9 +374,9 @@ Current Sync is manual and snapshot-based. It supports:
 - Remote/local snapshot comparison by fingerprint, counts, created date, and device label.
 - Explicit remote snapshot deletion.
 
-Snapshots contain Workspace, Dispatch, Writing, Planning, Reports, and Review only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
+Snapshots contain Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
 
-Snapshot restore replaces Workspace, Dispatch, Writing, Planning, Reports, and Review only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
+Snapshot restore replaces Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
 
 Hosted sync runs through the local `/api/sync` boundary:
 

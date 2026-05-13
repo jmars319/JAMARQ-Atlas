@@ -2546,9 +2546,57 @@ h3 {
 }
 
 .settings-calibration-groups,
-.settings-bulk-calibration {
+.settings-bulk-calibration,
+.settings-calibration-summary,
+.settings-credential-registry,
+.settings-import-export,
+.settings-import-preview,
+.settings-audit-list {
   display: grid;
   gap: 8px;
+}
+
+.settings-calibration-summary {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.settings-calibration-summary div,
+.settings-credential-card,
+.settings-import-row,
+.settings-audit-list article {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.settings-calibration-summary strong,
+.settings-calibration-summary span,
+.settings-credential-card strong,
+.settings-credential-card span,
+.settings-import-row strong,
+.settings-import-row span,
+.settings-audit-list strong,
+.settings-audit-list span,
+.settings-audit-list p,
+.settings-subpanel-heading strong,
+.settings-subpanel-heading span {
+  display: block;
+}
+
+.settings-calibration-summary strong {
+  color: var(--paper-white);
+  font-size: 1rem;
+}
+
+.settings-calibration-summary span,
+.settings-credential-card span,
+.settings-import-row span,
+.settings-audit-list span,
+.settings-audit-list p,
+.settings-subpanel-heading span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .settings-calibration-groups {
@@ -2605,7 +2653,7 @@ h3 {
 
 .settings-calibration-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr) minmax(220px, 0.55fr);
   gap: 12px;
   align-items: start;
   border: 1px solid var(--line);
@@ -2626,6 +2674,78 @@ h3 {
   font-size: 0.78rem;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.settings-calibration-field,
+.settings-calibration-progress,
+.settings-calibration-actions,
+.settings-credential-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-calibration-field button,
+.settings-calibration-actions button,
+.settings-import-preview button {
+  width: fit-content;
+}
+
+.settings-calibration-actions {
+  grid-template-columns: repeat(4, max-content);
+  align-items: center;
+}
+
+.settings-quality-list {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-quality-list span,
+.settings-import-row .warning {
+  color: var(--warning);
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+
+.settings-quality-list span.blocked,
+.settings-import-row.rejected span {
+  color: var(--danger);
+}
+
+.settings-subpanel-heading {
+  display: grid;
+  grid-template-columns: 18px minmax(0, max-content) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-subpanel-heading svg {
+  color: var(--accent-cyan);
+}
+
+.settings-credential-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.file-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.04);
+  color: var(--paper-white);
+  padding: 0 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.file-action input {
+  display: none;
 }
 
 .settings-sync-grid {
@@ -3389,7 +3509,10 @@ code {
   .settings-bulk-calibration,
   .settings-calibration-card,
   .settings-calibration-groups,
+  .settings-calibration-summary,
+  .settings-calibration-actions,
   .settings-connection-grid,
+  .settings-subpanel-heading,
   .settings-sync-grid,
   .settings-preview-grid,
   .settings-compare-grid,

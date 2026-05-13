@@ -1,4 +1,5 @@
 import type { ProjectRecord } from '../domain/atlas'
+import type { AtlasCalibrationState } from '../domain/calibration'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState, PlanningItem } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
@@ -99,6 +100,7 @@ export function deriveTimelineEvents({
   planning,
   reports,
   review,
+  calibration,
   sync,
 }: {
   projectRecords: ProjectRecord[]
@@ -107,6 +109,7 @@ export function deriveTimelineEvents({
   planning: AtlasPlanningState
   reports: ReportsState
   review: ReviewState
+  calibration?: AtlasCalibrationState
   sync: AtlasSyncState
 }): TimelineEvent[] {
   const workspaceEvents = projectRecords.flatMap((record) =>
@@ -268,6 +271,20 @@ export function deriveTimelineEvents({
     }),
   )
 
+  const calibrationEvents = (calibration?.auditEvents ?? []).map((event) =>
+    withProject(projectRecords, event.projectId ?? null, {
+      id: `calibration-${event.id}`,
+      source: 'calibration',
+      type: 'calibration',
+      tone: event.type === 'import-apply' ? 'success' : 'info',
+      title: `Calibration: ${event.type}`,
+      detail: event.summary,
+      occurredAt: event.occurredAt,
+      projectId: event.projectId ?? null,
+      meta: [event.type, event.field ?? '', event.operatorLabel].filter(Boolean),
+    }),
+  )
+
   const syncEvents: TimelineEvent[] = [
     ...sync.snapshots.map((snapshot) =>
       withProject(projectRecords, null, {
@@ -340,6 +357,7 @@ export function deriveTimelineEvents({
     ...reportEvents,
     ...reviewSessionEvents,
     ...reviewNoteEvents,
+    ...calibrationEvents,
     ...syncEvents,
   ].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
 }

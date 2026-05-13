@@ -1,11 +1,12 @@
 import type { Workspace } from './atlas'
+import type { AtlasCalibrationState } from './calibration'
 import type { DispatchState } from './dispatch'
 import type { AtlasPlanningState } from './planning'
 import type { ReportsState } from './reports'
 import type { ReviewState } from './review'
 import type { WritingWorkbenchState } from './writing'
 
-export const ATLAS_SYNC_SCHEMA_VERSION = 3
+export const ATLAS_SYNC_SCHEMA_VERSION = 4
 
 export type AtlasSyncSchemaVersion = typeof ATLAS_SYNC_SCHEMA_VERSION
 export type AtlasSyncProviderId = 'local' | 'supabase'
@@ -19,6 +20,7 @@ export interface AtlasSyncCoreStores {
   planning: AtlasPlanningState
   reports: ReportsState
   review: ReviewState
+  calibration: AtlasCalibrationState
 }
 
 export interface AtlasSyncStoreSummary {
@@ -62,6 +64,15 @@ export interface AtlasSyncStoreSummary {
     notes: number
     followUps: number
     planned: number
+  }
+  calibration: {
+    progressRecords: number
+    needsValue: number
+    entered: number
+    verified: number
+    deferred: number
+    credentialReferences: number
+    auditEvents: number
   }
 }
 

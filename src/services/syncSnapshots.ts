@@ -15,6 +15,7 @@ import {
   type AtlasSyncStoreSummary,
 } from '../domain/sync'
 import { normalizeWritingState } from './aiWritingAssistant'
+import { normalizeCalibrationState, summarizeCalibrationState } from './calibration'
 import { normalizeDispatchState } from './dispatchStorage'
 import { normalizePlanningState, summarizePlanningState } from './planning'
 import { normalizeReportsState } from './reports'
@@ -76,6 +77,15 @@ function emptySyncSummary(): AtlasSyncStoreSummary {
       followUps: 0,
       planned: 0,
     },
+    calibration: {
+      progressRecords: 0,
+      needsValue: 0,
+      entered: 0,
+      verified: 0,
+      deferred: 0,
+      credentialReferences: 0,
+      auditEvents: 0,
+    },
   }
 }
 
@@ -92,6 +102,7 @@ function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
   const planning = isRecord(value.planning) ? value.planning : {}
   const reports = isRecord(value.reports) ? value.reports : {}
   const review = isRecord(value.review) ? value.review : {}
+  const calibration = isRecord(value.calibration) ? value.calibration : {}
 
   return {
     workspace: {
@@ -134,6 +145,15 @@ function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
       notes: Number(review.notes) || 0,
       followUps: Number(review.followUps) || 0,
       planned: Number(review.planned) || 0,
+    },
+    calibration: {
+      progressRecords: Number(calibration.progressRecords) || 0,
+      needsValue: Number(calibration.needsValue) || 0,
+      entered: Number(calibration.entered) || 0,
+      verified: Number(calibration.verified) || 0,
+      deferred: Number(calibration.deferred) || 0,
+      credentialReferences: Number(calibration.credentialReferences) || 0,
+      auditEvents: Number(calibration.auditEvents) || 0,
     },
   }
 }
@@ -218,6 +238,7 @@ export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStore
       archivedPackets: stores.reports.packets.filter((packet) => packet.status === 'archived').length,
     },
     review: summarizeReviewState(stores.review),
+    calibration: summarizeCalibrationState(stores.calibration),
   }
 }
 
@@ -237,11 +258,12 @@ export function normalizeSyncStores(value: unknown): AtlasSyncCoreStores {
     planning: normalizePlanningState(value.planning ?? {}),
     reports: normalizeReportsState(value.reports ?? {}),
     review: normalizeReviewState(value.review ?? {}),
+    calibration: normalizeCalibrationState(value.calibration ?? {}, SYNC_NORMALIZATION_FALLBACK_DATE),
   }
 }
 
 export function fingerprintSyncStores(stores: AtlasSyncCoreStores) {
-  return `fnv1a-${hashText(stableStringify(stores))}`
+  return `fnv1a-${hashText(stableStringify(normalizeSyncStores(stores)))}`
 }
 
 export function createLocalSyncProviderState(now = new Date()): AtlasSyncProviderState {
@@ -575,6 +597,10 @@ export function createSyncRestorePreview(
     warnings.push('Incoming snapshot has fewer Review sessions than current local data.')
   }
 
+  if (incomingSummary.calibration.progressRecords < currentSummary.calibration.progressRecords) {
+    warnings.push('Incoming snapshot has fewer Calibration progress records than current local data.')
+  }
+
   return {
     snapshotId: snapshot.id,
     currentSummary,
@@ -648,6 +674,12 @@ function countDrops(
     )
   }
 
+  if (incomingSummary.calibration.progressRecords < currentSummary.calibration.progressRecords) {
+    drops.push(
+      `Calibration progress records drop from ${currentSummary.calibration.progressRecords} to ${incomingSummary.calibration.progressRecords}.`,
+    )
+  }
+
   return drops
 }
 
@@ -691,6 +723,7 @@ export function compareSyncSnapshot(
       }`,
       `Report packets: local ${currentSummary.reports.packets}, snapshot ${snapshot.summary.reports.packets}`,
       `Review sessions: local ${currentSummary.review.sessions}, snapshot ${snapshot.summary.review.sessions}`,
+      `Calibration progress: local ${currentSummary.calibration.progressRecords}, snapshot ${snapshot.summary.calibration.progressRecords}`,
     ],
   }
 }

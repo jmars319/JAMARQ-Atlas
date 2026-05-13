@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArchiveRestore,
   Bot,
+  ClipboardList,
   DatabaseZap,
+  Download,
   GitBranch,
   HardDrive,
   PlusCircle,
@@ -15,6 +17,12 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import type { Workspace } from '../domain/atlas'
+import type {
+  AtlasCalibrationState,
+  CalibrationAuditEventType,
+  CalibrationCredentialReference,
+  CalibrationFieldStatus,
+} from '../domain/calibration'
 import type { DeploymentTarget, DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
@@ -45,7 +53,13 @@ import {
   CALIBRATION_CATEGORIES,
   canStoreCalibrationValue,
   calibrationValueToTargetUpdate,
+  createCalibrationCsvTemplate,
+  createCalibrationJsonTemplate,
+  parseCalibrationImportPreview,
   scanAtlasCalibration,
+  summarizeCalibrationState,
+  validateCalibrationDataQuality,
+  type CalibrationImportPreview,
   type CalibrationCategory,
   type CalibrationEditableTargetField,
   type CalibrationIssue,
@@ -79,11 +93,33 @@ interface SettingsCenterProps {
   planning: AtlasPlanningState
   reports: ReportsState
   review: ReviewState
+  calibration: AtlasCalibrationState
   sync: AtlasSyncState
   onSettingsChange: (
     update: Partial<Pick<AtlasSettingsState, 'deviceLabel' | 'operatorLabel' | 'notes'>>,
   ) => void
   onDispatchTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
+  onCalibrationProgressChange: (
+    issue: CalibrationIssue,
+    status: CalibrationFieldStatus,
+    note: string,
+  ) => void
+  onCalibrationAudit: (input: {
+    type: CalibrationAuditEventType
+    summary: string
+    issue?: CalibrationIssue
+    projectId?: string | null
+    targetId?: string | null
+    field?: string
+  }) => void
+  onCredentialReferenceSave: (
+    input: Pick<
+      CalibrationCredentialReference,
+      'label' | 'provider' | 'purpose' | 'projectIds' | 'targetIds' | 'notes'
+    >,
+  ) => { ok: boolean; message: string }
+  onCredentialReferenceDelete: (referenceId: string) => void
+  onApplyCalibrationImport: (preview: CalibrationImportPreview) => void
   onCreateSnapshot: (label: string, note: string) => void
   onDeleteSnapshot: (snapshotId: string) => void
   onRestoreSnapshot: (stores: AtlasSyncCoreStores) => void
@@ -284,6 +320,7 @@ function SnapshotSummary({
   planningRecords,
   reportPackets,
   reviewSessions,
+  calibrationProgress,
 }: {
   title: string
   projects: number
@@ -292,6 +329,7 @@ function SnapshotSummary({
   planningRecords: number
   reportPackets: number
   reviewSessions: number
+  calibrationProgress: number
 }) {
   return (
     <div className="settings-snapshot-summary">
@@ -302,6 +340,7 @@ function SnapshotSummary({
       <span>{planningRecords} Planning records</span>
       <span>{reportPackets} Report packets</span>
       <span>{reviewSessions} Review sessions</span>
+      <span>{calibrationProgress} Calibration progress</span>
     </div>
   )
 }
@@ -312,13 +351,17 @@ function issueCountLabel(count: number) {
 
 function CalibrationField({
   issue,
+  credentialReferences,
   onTargetChange,
   onRejectValue,
 }: {
   issue: CalibrationIssue
+  credentialReferences: CalibrationCredentialReference[]
   onTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
   onRejectValue: (message: string) => void
 }) {
+  const [draftValue, setDraftValue] = useState(issue.value)
+
   if (!issue.editable || !issue.targetId) {
     return (
       <div className="settings-calibration-value">
@@ -327,43 +370,90 @@ function CalibrationField({
     )
   }
 
-  function commitValue(value: string) {
+  const qualityMessages = validateCalibrationDataQuality(issue.field, draftValue)
+
+  function commitValue() {
     if (!issue.targetId) {
       return
     }
 
-    const storageCheck = canStoreCalibrationValue(value)
+    const blockedMessage = qualityMessages.find((message) => message.level === 'blocked')
+    const storageCheck = canStoreCalibrationValue(draftValue)
 
-    if (!storageCheck.ok) {
-      onRejectValue(storageCheck.message)
+    if (blockedMessage || !storageCheck.ok) {
+      onRejectValue(blockedMessage?.message ?? storageCheck.message)
       return
     }
 
     onTargetChange(
       issue.targetId,
-      calibrationValueToTargetUpdate(issue.field as CalibrationEditableTargetField, value),
-    )
-  }
-
-  if (issue.field === 'healthCheckUrls') {
-    return (
-      <label className="field field-full">
-        <span>{issue.label}</span>
-        <textarea
-          value={issue.value}
-          rows={3}
-          onChange={(event) => commitValue(event.target.value)}
-        />
-      </label>
+      calibrationValueToTargetUpdate(issue.field as CalibrationEditableTargetField, draftValue),
     )
   }
 
   return (
-    <label className="field field-full">
-      <span>{issue.label}</span>
-      <input value={issue.value} onChange={(event) => commitValue(event.target.value)} />
-    </label>
+    <div className="settings-calibration-field">
+      {issue.field === 'credentialRef' && credentialReferences.length > 0 ? (
+        <label className="field field-full">
+          <span>Registry label</span>
+          <select
+            aria-label={`Credential reference for ${issue.projectName}`}
+            value={credentialReferences.some((reference) => reference.label === draftValue) ? draftValue : ''}
+            onChange={(event) => setDraftValue(event.target.value)}
+          >
+            <option value="">Choose a registered label</option>
+            {credentialReferences.map((reference) => (
+              <option key={reference.id} value={reference.label}>
+                {reference.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <label className="field field-full">
+        <span>{issue.label}</span>
+        {issue.field === 'healthCheckUrls' ? (
+          <textarea
+            value={draftValue}
+            rows={3}
+            onChange={(event) => setDraftValue(event.target.value)}
+          />
+        ) : (
+          <input value={draftValue} onChange={(event) => setDraftValue(event.target.value)} />
+        )}
+      </label>
+      {qualityMessages.length > 0 ? (
+        <div className="settings-quality-list">
+          {qualityMessages.map((message, index) => (
+            <span key={`${message.field}-${message.message}-${index}`} className={message.level}>
+              {message.level === 'blocked' ? 'Blocked' : 'Warning'}: {message.message}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <button type="button" onClick={commitValue}>
+        Apply field value
+      </button>
+    </div>
   )
+}
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function splitInputList(value: string) {
+  return value
+    .split(/\n|\|/)
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 async function requestGithubStatus(signal?: AbortSignal) {
@@ -384,9 +474,15 @@ export function SettingsCenter({
   planning,
   reports,
   review,
+  calibration,
   sync,
   onSettingsChange,
   onDispatchTargetChange,
+  onCalibrationProgressChange,
+  onCalibrationAudit,
+  onCredentialReferenceSave,
+  onCredentialReferenceDelete,
+  onApplyCalibrationImport,
   onCreateSnapshot,
   onDeleteSnapshot,
   onRestoreSnapshot,
@@ -427,6 +523,16 @@ export function SettingsCenter({
     useState<CalibrationEditableTargetField>('credentialRef')
   const [bulkCalibrationValue, setBulkCalibrationValue] = useState('')
   const [calibrationMessage, setCalibrationMessage] = useState('')
+  const [calibrationNoteDrafts, setCalibrationNoteDrafts] = useState<Record<string, string>>({})
+  const [credentialLabel, setCredentialLabel] = useState('')
+  const [credentialProvider, setCredentialProvider] = useState('')
+  const [credentialPurpose, setCredentialPurpose] = useState('')
+  const [credentialNotes, setCredentialNotes] = useState('')
+  const [credentialTargetIds, setCredentialTargetIds] = useState('')
+  const [credentialProjectIds, setCredentialProjectIds] = useState('')
+  const [calibrationImportPreview, setCalibrationImportPreview] =
+    useState<CalibrationImportPreview | null>(null)
+  const [calibrationImportError, setCalibrationImportError] = useState('')
 
   async function loadGithubStatus() {
     setLoadingGithub(true)
@@ -645,8 +751,25 @@ export function SettingsCenter({
     [hostConnectionStatus],
   )
   const calibrationIssues = useMemo(
-    () => scanAtlasCalibration(workspace, dispatch, configuredHostTargetIds),
-    [configuredHostTargetIds, dispatch, workspace],
+    () =>
+      scanAtlasCalibration(
+        workspace,
+        dispatch,
+        configuredHostTargetIds,
+        calibration.credentialReferences.map((reference) => reference.label),
+      ),
+    [calibration.credentialReferences, configuredHostTargetIds, dispatch, workspace],
+  )
+  const calibrationSummary = useMemo(
+    () => summarizeCalibrationState(calibration),
+    [calibration],
+  )
+  const calibrationProgressByIssue = useMemo(
+    () =>
+      new Map(
+        calibration.fieldProgress.map((progress) => [progress.issueId, progress]),
+      ),
+    [calibration.fieldProgress],
   )
   const filteredCalibrationIssues = useMemo(
     () =>
@@ -668,8 +791,8 @@ export function SettingsCenter({
     (issue) => issue.editable && issue.targetId && issue.field === bulkCalibrationField,
   )
   const currentStores = useMemo(
-    () => ({ workspace, dispatch, writing, planning, reports, review }),
-    [dispatch, planning, reports, review, workspace, writing],
+    () => ({ workspace, dispatch, writing, planning, reports, review, calibration }),
+    [calibration, dispatch, planning, reports, review, workspace, writing],
   )
   const selectedSnapshot =
     sync.snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? sync.snapshots[0]
@@ -726,12 +849,98 @@ export function SettingsCenter({
         issue.targetId,
         calibrationValueToTargetUpdate(bulkCalibrationField, bulkCalibrationValue),
       )
+      onCalibrationProgressChange(
+        issue,
+        'entered',
+        `Bulk edit applied to ${bulkCalibrationField}.`,
+      )
     }
 
+    onCalibrationAudit({
+      type: 'bulk-edit',
+      summary: `Bulk calibration updated ${matchingBulkIssues.length} visible ${bulkCalibrationField} item(s).`,
+      field: bulkCalibrationField,
+    })
     setCalibrationMessage(
       `Bulk calibration updated ${matchingBulkIssues.length} visible ${bulkCalibrationField} item(s).`,
     )
     setBulkCalibrationValue('')
+  }
+
+  function handleProgressChange(issue: CalibrationIssue, status: CalibrationFieldStatus) {
+    const note = calibrationNoteDrafts[issue.id] ?? calibrationProgressByIssue.get(issue.id)?.note ?? ''
+    onCalibrationProgressChange(issue, status, note)
+    setCalibrationMessage(`${issue.label} marked ${status}.`)
+  }
+
+  function handleSaveCredentialReference() {
+    const result = onCredentialReferenceSave({
+      label: credentialLabel,
+      provider: credentialProvider,
+      purpose: credentialPurpose,
+      notes: credentialNotes,
+      targetIds: splitInputList(credentialTargetIds),
+      projectIds: splitInputList(credentialProjectIds),
+    })
+
+    if (!result.ok) {
+      setCalibrationMessage(result.message)
+      return
+    }
+
+    setCredentialLabel('')
+    setCredentialProvider('')
+    setCredentialPurpose('')
+    setCredentialNotes('')
+    setCredentialTargetIds('')
+    setCredentialProjectIds('')
+    setCalibrationMessage('Credential reference saved without secret values.')
+  }
+
+  function handleDownloadCalibrationCsv() {
+    downloadTextFile(
+      'atlas-calibration-template.csv',
+      createCalibrationCsvTemplate(dispatch),
+      'text/csv',
+    )
+  }
+
+  function handleDownloadCalibrationJson() {
+    downloadTextFile(
+      'atlas-calibration-template.json',
+      createCalibrationJsonTemplate(workspace, dispatch, calibration),
+      'application/json',
+    )
+  }
+
+  async function handleCalibrationImportFile(file: File | null) {
+    setCalibrationImportError('')
+    setCalibrationImportPreview(null)
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const text = await file.text()
+      setCalibrationImportPreview(parseCalibrationImportPreview(text, workspace, dispatch))
+    } catch (error) {
+      setCalibrationImportError(
+        error instanceof Error ? error.message : 'Calibration import file could not be read.',
+      )
+    }
+  }
+
+  function handleApplyCalibrationImport() {
+    if (!calibrationImportPreview || calibrationImportPreview.acceptedRows.length === 0) {
+      setCalibrationMessage('No accepted calibration import rows are ready to apply.')
+      return
+    }
+
+    onApplyCalibrationImport(calibrationImportPreview)
+    setCalibrationImportPreview(null)
+    setCalibrationImportError('')
+    setCalibrationMessage('Calibration import applied after preview.')
   }
 
   function handleCreateSnapshot() {
@@ -749,7 +958,7 @@ export function SettingsCenter({
     onRestoreSnapshot(restorePreview.normalizedStores)
     setSnapshotConfirmation('')
     setSyncMessage(
-      'Snapshot restored locally. Workspace, Dispatch, Writing, Planning, Reports, and Review stores were replaced.',
+      'Snapshot restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores were replaced.',
     )
   }
 
@@ -1037,11 +1246,11 @@ export function SettingsCenter({
           </div>
         </section>
 
-        <section className="settings-panel" aria-label="Atlas calibration checks">
+        <section className="settings-panel" aria-label="Atlas calibration operations">
           <div className="panel-heading settings-panel-heading-row">
             <div>
               <ShieldCheck size={17} />
-              <h2>Calibration Checks</h2>
+              <h2>Calibration Operations</h2>
             </div>
             <span className="resource-pill state-warning">
               {issueCountLabel(filteredCalibrationIssues.length)}
@@ -1051,6 +1260,32 @@ export function SettingsCenter({
             Replace placeholders with real non-secret operational values. Credentials stay outside
             Atlas; store only labels such as godaddy-mmh-production in notes when needed.
           </p>
+          <div className="settings-calibration-summary" aria-label="Calibration progress summary">
+            <div>
+              <strong>{calibrationSummary.progressRecords}</strong>
+              <span>Progress records</span>
+            </div>
+            <div>
+              <strong>{calibrationSummary.entered}</strong>
+              <span>Entered</span>
+            </div>
+            <div>
+              <strong>{calibrationSummary.verified}</strong>
+              <span>Verified</span>
+            </div>
+            <div>
+              <strong>{calibrationSummary.deferred}</strong>
+              <span>Deferred</span>
+            </div>
+            <div>
+              <strong>{calibrationSummary.credentialReferences}</strong>
+              <span>Credential refs</span>
+            </div>
+            <div>
+              <strong>{calibrationSummary.auditEvents}</strong>
+              <span>Audit events</span>
+            </div>
+          </div>
           <div className="settings-form-grid">
             <label className="field">
               <span>Calibration filter</span>
@@ -1073,6 +1308,215 @@ export function SettingsCenter({
               <span>{issueCountLabel(calibrationIssues.length)} across Workspace and Dispatch</span>
               <span>Secret-shaped values are rejected from calibration edits</span>
             </div>
+          </div>
+
+          <div className="settings-credential-registry" aria-label="Credential reference registry">
+            <div className="settings-subpanel-heading">
+              <ClipboardList size={16} />
+              <strong>Non-secret credential registry</strong>
+              <span>Reference labels only. No tokens, passwords, keys, passphrases, or env vars.</span>
+            </div>
+            <div className="settings-form-grid">
+              <label className="field">
+                <span>Reference label</span>
+                <input
+                  aria-label="Credential reference label"
+                  value={credentialLabel}
+                  placeholder="godaddy-mmh-production"
+                  onChange={(event) => setCredentialLabel(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Provider</span>
+                <input
+                  aria-label="Credential reference provider"
+                  value={credentialProvider}
+                  placeholder="GoDaddy cPanel"
+                  onChange={(event) => setCredentialProvider(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Purpose</span>
+                <input
+                  aria-label="Credential reference purpose"
+                  value={credentialPurpose}
+                  placeholder="Production host access label"
+                  onChange={(event) => setCredentialPurpose(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Related target IDs</span>
+                <input
+                  aria-label="Credential reference target IDs"
+                  value={credentialTargetIds}
+                  placeholder="target-a|target-b"
+                  onChange={(event) => setCredentialTargetIds(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Related project IDs</span>
+                <input
+                  aria-label="Credential reference project IDs"
+                  value={credentialProjectIds}
+                  placeholder="project-a|project-b"
+                  onChange={(event) => setCredentialProjectIds(event.target.value)}
+                />
+              </label>
+              <label className="field field-full">
+                <span>Reference notes</span>
+                <textarea
+                  aria-label="Credential reference notes"
+                  rows={3}
+                  value={credentialNotes}
+                  placeholder="Non-secret location/context only."
+                  onChange={(event) => setCredentialNotes(event.target.value)}
+                />
+              </label>
+            </div>
+            <div className="data-actions">
+              <button
+                type="button"
+                onClick={handleSaveCredentialReference}
+                disabled={!credentialLabel.trim()}
+              >
+                <PlusCircle size={15} />
+                Save credential reference
+              </button>
+            </div>
+            {calibration.credentialReferences.length > 0 ? (
+              <div className="settings-credential-list">
+                {calibration.credentialReferences.map((reference) => (
+                  <article key={reference.id} className="settings-credential-card">
+                    <div>
+                      <strong>{reference.label}</strong>
+                      <span>{reference.provider || 'Provider not set'}</span>
+                      <span>{reference.purpose || 'Purpose not set'}</span>
+                      <span>
+                        {reference.targetIds.length} targets / {reference.projectIds.length}{' '}
+                        projects
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="danger-action"
+                      onClick={() => onCredentialReferenceDelete(reference.id)}
+                    >
+                      <Trash2 size={15} />
+                      Remove
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">
+                No credential references registered yet. Dispatch targets can still use manual
+                non-secret labels, but unregistered labels will be flagged.
+              </p>
+            )}
+          </div>
+
+          <div className="settings-import-export" aria-label="Calibration import export">
+            <div className="settings-subpanel-heading">
+              <Download size={16} />
+              <strong>Calibration import / export</strong>
+              <span>Preview-first local files for target fields, repo bindings, and references.</span>
+            </div>
+            <div className="data-actions">
+              <button type="button" onClick={handleDownloadCalibrationCsv}>
+                <Download size={15} />
+                Export CSV template
+              </button>
+              <button type="button" onClick={handleDownloadCalibrationJson}>
+                <Download size={15} />
+                Export JSON template
+              </button>
+              <label className="file-action">
+                <UploadCloud size={15} />
+                Import calibration file
+                <input
+                  aria-label="Import calibration file"
+                  type="file"
+                  accept=".json,.csv,application/json,text/csv"
+                  onChange={(event) => {
+                    void handleCalibrationImportFile(event.target.files?.[0] ?? null)
+                    event.currentTarget.value = ''
+                  }}
+                />
+              </label>
+            </div>
+            {calibrationImportError ? (
+              <div className="data-warning">
+                <strong>Import error</strong>
+                <ul>
+                  <li>{calibrationImportError}</li>
+                </ul>
+              </div>
+            ) : null}
+            {calibrationImportPreview ? (
+              <div className="settings-import-preview" aria-label="Calibration import preview">
+                <div className="settings-preview-grid">
+                  <div className="settings-snapshot-summary">
+                    <strong>Accepted rows</strong>
+                    <span>{calibrationImportPreview.acceptedRows.length} ready to apply</span>
+                    <span>
+                      {
+                        calibrationImportPreview.acceptedRows.filter(
+                          (row) => row.warnings.length > 0,
+                        ).length
+                      }{' '}
+                      with advisory warnings
+                    </span>
+                  </div>
+                  <div className="settings-snapshot-summary">
+                    <strong>Rejected rows</strong>
+                    <span>{calibrationImportPreview.rejectedRows.length} blocked</span>
+                    <span>Secret-shaped failures are never applied</span>
+                  </div>
+                </div>
+                {calibrationImportPreview.acceptedRows.slice(0, 6).map((row) => (
+                  <article key={`accepted-${row.index}`} className="settings-import-row">
+                    <strong>
+                      Row {row.index}: {row.kind}
+                    </strong>
+                    {row.changes.map((change) => (
+                      <span key={change}>{change}</span>
+                    ))}
+                    {row.warnings.map((warning, index) => (
+                      <span key={`${warning.field}-${index}`} className="warning">
+                        Warning: {warning.message}
+                      </span>
+                    ))}
+                  </article>
+                ))}
+                {calibrationImportPreview.rejectedRows.slice(0, 6).map((row) => (
+                  <article key={`rejected-${row.index}`} className="settings-import-row rejected">
+                    <strong>
+                      Row {row.index}: {row.kind || 'unknown'}
+                    </strong>
+                    {row.errors.map((error) => (
+                      <span key={error}>Rejected: {error}</span>
+                    ))}
+                  </article>
+                ))}
+                {calibrationImportPreview.warnings.length > 0 ? (
+                  <div className="data-warning">
+                    <strong>Import warnings</strong>
+                    <ul>
+                      {calibrationImportPreview.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={calibrationImportPreview.acceptedRows.length === 0}
+                  onClick={handleApplyCalibrationImport}
+                >
+                  Apply accepted import rows
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div className="settings-calibration-groups" aria-label="Calibration group counts">
@@ -1150,13 +1594,61 @@ export function SettingsCenter({
                     </div>
                   </div>
                   <CalibrationField
+                    key={`${issue.id}-${issue.value}`}
                     issue={issue}
+                    credentialReferences={calibration.credentialReferences}
                     onTargetChange={(targetId, update) => {
                       onDispatchTargetChange(targetId, update)
+                      onCalibrationProgressChange(
+                        issue,
+                        'entered',
+                        calibrationNoteDrafts[issue.id] ??
+                          calibrationProgressByIssue.get(issue.id)?.note ??
+                          '',
+                      )
+                      onCalibrationAudit({
+                        type: 'field-edit',
+                        summary: `Updated ${issue.label} for ${issue.projectName}.`,
+                        issue,
+                      })
                       setCalibrationMessage('Calibration field updated locally.')
                     }}
                     onRejectValue={setCalibrationMessage}
                   />
+                  <div className="settings-calibration-progress">
+                    <label className="field field-full">
+                      <span>Calibration note</span>
+                      <textarea
+                        aria-label={`Calibration note for ${issue.label}`}
+                        rows={2}
+                        value={
+                          calibrationNoteDrafts[issue.id] ??
+                          calibrationProgressByIssue.get(issue.id)?.note ??
+                          ''
+                        }
+                        onChange={(event) =>
+                          setCalibrationNoteDrafts((current) => ({
+                            ...current,
+                            [issue.id]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <div className="settings-calibration-actions">
+                      <span className="resource-pill">
+                        {calibrationProgressByIssue.get(issue.id)?.status ?? 'needs-value'}
+                      </span>
+                      <button type="button" onClick={() => handleProgressChange(issue, 'entered')}>
+                        Mark entered
+                      </button>
+                      <button type="button" onClick={() => handleProgressChange(issue, 'verified')}>
+                        Mark verified
+                      </button>
+                      <button type="button" onClick={() => handleProgressChange(issue, 'deferred')}>
+                        Defer
+                      </button>
+                    </div>
+                  </div>
                 </article>
               ))}
               {filteredCalibrationIssues.length > 40 ? (
@@ -1173,6 +1665,18 @@ export function SettingsCenter({
           )}
           {calibrationMessage ? (
             <p className="data-action-message">{calibrationMessage}</p>
+          ) : null}
+          {calibration.auditEvents.length > 0 ? (
+            <div className="settings-audit-list" aria-label="Calibration audit events">
+              <strong>Latest calibration audit</strong>
+              {calibration.auditEvents.slice(0, 8).map((event) => (
+                <article key={event.id}>
+                  <span>{new Date(event.occurredAt).toLocaleString()}</span>
+                  <span>{event.type}</span>
+                  <p>{event.summary}</p>
+                </article>
+              ))}
+            </div>
           ) : null}
         </section>
 
@@ -1264,6 +1768,7 @@ export function SettingsCenter({
                       }
                       reportPackets={restorePreview.currentSummary.reports.packets}
                       reviewSessions={restorePreview.currentSummary.review.sessions}
+                      calibrationProgress={restorePreview.currentSummary.calibration.progressRecords}
                     />
                     <SnapshotSummary
                       title="Selected snapshot"
@@ -1278,6 +1783,9 @@ export function SettingsCenter({
                       }
                       reportPackets={restorePreview.incomingSummary.reports.packets}
                       reviewSessions={restorePreview.incomingSummary.review.sessions}
+                      calibrationProgress={
+                        restorePreview.incomingSummary.calibration.progressRecords
+                      }
                     />
                   </div>
                   {restorePreview.warnings.length > 0 ? (
@@ -1502,6 +2010,9 @@ export function SettingsCenter({
                       }
                       reportPackets={remoteRestorePreview.currentSummary.reports.packets}
                       reviewSessions={remoteRestorePreview.currentSummary.review.sessions}
+                      calibrationProgress={
+                        remoteRestorePreview.currentSummary.calibration.progressRecords
+                      }
                     />
                     <SnapshotSummary
                       title="Remote snapshot"
@@ -1516,6 +2027,9 @@ export function SettingsCenter({
                       }
                       reportPackets={remoteRestorePreview.incomingSummary.reports.packets}
                       reviewSessions={remoteRestorePreview.incomingSummary.review.sessions}
+                      calibrationProgress={
+                        remoteRestorePreview.incomingSummary.calibration.progressRecords
+                      }
                     />
                   </div>
                   {remoteRestorePreview.warnings.length > 0 ? (

@@ -15,7 +15,7 @@ Data Center supports:
 - JSON backup import.
 - Restore preview with current vs incoming counts and count-diff rows.
 - Full local restore after typed confirmation.
-- Backup schema v1/v2/v3/v4 import compatibility.
+- Backup schema v1/v2/v3/v4/v5 import compatibility.
 
 It does not support:
 
@@ -34,7 +34,7 @@ Atlas backups are versioned JSON envelopes.
 Required fields:
 
 - `kind: "jamarq-atlas-backup"`
-- `schemaVersion: 4`
+- `schemaVersion: 5`
 - `exportedAt`
 - `appName`
 - `stores.workspace`
@@ -43,6 +43,7 @@ Required fields:
 - `stores.planning`
 - `stores.reports`
 - `stores.review`
+- `stores.calibration`
 - `stores.settings`
 - `stores.sync`
 
@@ -54,10 +55,11 @@ The backup includes only Atlas-owned stores:
 - Planning: objectives, milestones, work sessions, and planning notes.
 - Reports: report packets, source summaries, context warnings, Markdown, and report-only audit events.
 - Review: human review sessions, notes, outcomes, and timestamps.
+- Calibration: field progress, non-secret credential references, and calibration audit events.
 - Settings: local device/operator labels and local-only notes.
 - Sync: local snapshot metadata and manual snapshots.
 
-Schema v1/v2/v3 backups that contain only earlier store sets remain importable. Atlas normalizes missing Planning, Reports, Review, Settings, and Sync stores to safe local defaults during restore preview.
+Schema v1/v2/v3/v4 backups that contain only earlier store sets remain importable. Atlas normalizes missing Planning, Reports, Review, Calibration, Settings, and Sync stores to safe local defaults during restore preview.
 
 ## Store Diagnostics
 
@@ -93,9 +95,9 @@ The import flow:
 2. Validate the backup envelope.
 3. Normalize compatible older store shapes.
 4. Show current local counts beside incoming backup counts.
-5. Show count diffs for projects, repo bindings, Dispatch evidence, Writing drafts, Planning records, Reports, Review sessions, and Sync snapshots.
+5. Show count diffs for projects, repo bindings, Dispatch evidence, Writing drafts, Planning records, Reports, Review sessions, Calibration progress, credential references, and Sync snapshots.
 6. Require the exact typed confirmation `RESTORE ATLAS`.
-7. Replace Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores together.
+7. Replace Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores together.
 
 Restore does not merge records. Reset seed remains a separate action.
 
@@ -119,6 +121,6 @@ Data Center may:
 
 ## Hosted Persistence Relationship
 
-Supabase hosted sync lives in Settings, not Data Center. It uses the same normalized Workspace, Dispatch, Writing, Planning, Reports, and Review store boundaries and keeps restore preview plus typed confirmation. Data Center remains the browser-local JSON/Markdown portability surface.
+Supabase hosted sync lives in Settings, not Data Center. It uses the same normalized Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration store boundaries and keeps restore preview plus typed confirmation. Data Center remains the browser-local JSON/Markdown portability surface.
 
 Future hosted persistence should keep these store boundaries, schema versioning, validation, restore preview, and source-of-truth rules.

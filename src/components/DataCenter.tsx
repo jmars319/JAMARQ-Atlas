@@ -9,6 +9,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import type { Workspace } from '../domain/atlas'
+import type { AtlasCalibrationState } from '../domain/calibration'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasBackupStores, AtlasRestorePreview } from '../domain/dataPortability'
 import type { AtlasPlanningState } from '../domain/planning'
@@ -36,6 +37,7 @@ interface DataCenterProps {
   planning: AtlasPlanningState
   reports: ReportsState
   review: ReviewState
+  calibration: AtlasCalibrationState
   settings: AtlasSettingsState
   sync: AtlasSyncState
   onRestoreStores: (stores: AtlasBackupStores) => void
@@ -99,6 +101,10 @@ function PreviewComparison({ preview }: { preview: AtlasRestorePreview }) {
             },
             { label: 'Report packets', value: preview.currentSummary.reports.packets },
             { label: 'Review sessions', value: preview.currentSummary.review.sessions },
+            {
+              label: 'Calibration progress',
+              value: preview.currentSummary.calibration.progressRecords,
+            },
             { label: 'Sync snapshots', value: preview.currentSummary.sync.snapshots },
           ]}
         />
@@ -120,6 +126,10 @@ function PreviewComparison({ preview }: { preview: AtlasRestorePreview }) {
             },
             { label: 'Report packets', value: preview.incomingSummary.reports.packets },
             { label: 'Review sessions', value: preview.incomingSummary.review.sessions },
+            {
+              label: 'Calibration progress',
+              value: preview.incomingSummary.calibration.progressRecords,
+            },
             { label: 'Sync snapshots', value: preview.incomingSummary.sync.snapshots },
           ]}
         />
@@ -145,6 +155,7 @@ export function DataCenter({
   planning,
   reports,
   review,
+  calibration,
   settings,
   sync,
   onRestoreStores,
@@ -154,8 +165,8 @@ export function DataCenter({
   const [confirmation, setConfirmation] = useState('')
   const [message, setMessage] = useState('')
   const stores = useMemo(
-    () => ({ workspace, dispatch, writing, planning, reports, review, settings, sync }),
-    [dispatch, planning, reports, review, settings, sync, workspace, writing],
+    () => ({ workspace, dispatch, writing, planning, reports, review, calibration, settings, sync }),
+    [calibration, dispatch, planning, reports, review, settings, sync, workspace, writing],
   )
   const envelope = useMemo(() => createAtlasBackupEnvelope(stores), [stores])
   const summary = useMemo(() => summarizeAtlasStores(stores), [stores])
@@ -225,7 +236,7 @@ export function DataCenter({
     setConfirmation('')
     setErrors([])
     setMessage(
-      'Backup restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores were replaced.',
+      'Backup restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores were replaced.',
     )
   }
 
@@ -237,8 +248,8 @@ export function DataCenter({
           <h1 id="data-center-title">Backups & Restore</h1>
           <p>
             Export local Atlas state, inspect backup contents, and restore Workspace, Dispatch,
-            Writing, Planning, Reports, Review, Settings, and Sync stores after explicit human
-            confirmation.
+            Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores after
+            explicit human confirmation.
           </p>
         </div>
         <div className="dashboard-stats" aria-label="Data inventory counts">
@@ -334,6 +345,19 @@ export function DataCenter({
                 { label: 'Notes', value: summary.review.notes },
                 { label: 'Follow-ups', value: summary.review.followUps },
                 { label: 'Planned outcomes', value: summary.review.planned },
+              ]}
+            />
+            <SummaryCard
+              title="Calibration"
+              items={[
+                { label: 'Progress', value: summary.calibration.progressRecords },
+                { label: 'Needs value', value: summary.calibration.needsValue },
+                { label: 'Verified', value: summary.calibration.verified },
+                {
+                  label: 'Credential refs',
+                  value: summary.calibration.credentialReferences,
+                },
+                { label: 'Audit events', value: summary.calibration.auditEvents },
               ]}
             />
             <SummaryCard
@@ -451,7 +475,7 @@ export function DataCenter({
             <h2>Data Rules</h2>
           </div>
           <ul className="dispatch-list">
-            <li>Backups include Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores only.</li>
+            <li>Backups include Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores only.</li>
             <li>Backups exclude GitHub tokens, env vars, browser secrets, and unknown storage keys.</li>
             <li>Restore replaces local stores after preview and typed confirmation.</li>
             <li>Restore does not send, publish, deploy, verify, or change source-of-truth rules.</li>

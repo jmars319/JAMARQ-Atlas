@@ -47,7 +47,12 @@ export function parseRepositoryFullName(
   value: string,
   fallbackOwner?: string,
 ): GithubRepositoryLink | null {
-  const trimmed = value.trim().replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '')
+  const trimmed = value
+    .trim()
+    .replace(/^https?:\/\/github\.com\//i, '')
+    .replace(/^github\.com\//i, '')
+    .replace(/\.git$/i, '')
+    .replace(/\/$/, '')
   const [owner, name] = trimmed.includes('/') ? trimmed.split('/') : [fallbackOwner, trimmed]
 
   if (!owner || !name) {

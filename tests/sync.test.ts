@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { seedDispatchState } from '../src/data/seedDispatch'
 import { seedWorkspace } from '../src/data/seedWorkspace'
+import { emptyCalibrationState } from '../src/services/calibration'
 import { emptyPlanningStore } from '../src/services/planning'
 import { emptyReportsStore } from '../src/services/reports'
 import { emptyReviewStore } from '../src/services/review'
@@ -31,6 +32,7 @@ const now = new Date('2026-05-10T12:00:00Z')
 const planning = emptyPlanningStore(now)
 const reports = emptyReportsStore(now)
 const review = emptyReviewStore(now)
+const calibration = emptyCalibrationState(now)
 const stores = {
   workspace: seedWorkspace,
   dispatch: seedDispatchState,
@@ -38,6 +40,7 @@ const stores = {
   planning,
   reports,
   review,
+  calibration,
 }
 
 function collectKeys(value: unknown): string[] {
@@ -54,7 +57,10 @@ function collectKeys(value: unknown): string[] {
 
 function collectSecretShapedKeys(value: unknown) {
   return collectKeys(value).filter(
-    (key) => key !== 'credentialRef' && /token|secret|password|credential/i.test(key),
+    (key) =>
+      key !== 'credentialRef' &&
+      key !== 'credentialReferences' &&
+      /token|secret|password|credential/i.test(key),
   )
 }
 
@@ -62,12 +68,12 @@ describe('sync snapshots', () => {
   it('normalizes missing sync state into local-only defaults', () => {
     const sync = normalizeSyncState(null, now)
 
-    expect(sync.schemaVersion).toBe(3)
+    expect(sync.schemaVersion).toBe(4)
     expect(sync.provider.status).toBe('local-only')
     expect(sync.snapshots).toEqual([])
   })
 
-  it('creates manual snapshots from Workspace, Dispatch, Writing, Planning, Reports, and Review stores only', () => {
+  it('creates manual snapshots from Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores only', () => {
     const snapshot = createSyncSnapshot({
       stores,
       settings: emptySettingsState(now),
@@ -85,6 +91,7 @@ describe('sync snapshots', () => {
     expect(snapshot.summary.planning.objectives).toBe(0)
     expect(snapshot.summary.reports.packets).toBe(0)
     expect(snapshot.summary.review.sessions).toBe(0)
+    expect(snapshot.summary.calibration.progressRecords).toBe(0)
     expect(Object.keys(snapshot.stores)).toEqual([
       'workspace',
       'dispatch',
@@ -92,6 +99,7 @@ describe('sync snapshots', () => {
       'planning',
       'reports',
       'review',
+      'calibration',
     ])
     expect(serialized).not.toContain('jamarq-atlas.settings')
     expect(serialized).not.toContain('jamarq-atlas.sync')
@@ -148,6 +156,7 @@ describe('sync snapshots', () => {
         planning,
         reports,
         review,
+        calibration,
       },
       label: 'Smaller state',
       note: '',
@@ -200,7 +209,7 @@ describe('sync snapshots', () => {
     })
   })
 
-  it('builds Supabase push rows from Workspace, Dispatch, Writing, Planning, Reports, and Review only', () => {
+  it('builds Supabase push rows from Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration only', () => {
     const snapshot = createSyncSnapshot({
       stores,
       settings: emptySettingsState(now),
@@ -220,6 +229,7 @@ describe('sync snapshots', () => {
       'planning',
       'reports',
       'review',
+      'calibration',
     ])
     expect(collectSecretShapedKeys(row)).toEqual([])
   })

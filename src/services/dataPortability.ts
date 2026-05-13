@@ -16,6 +16,10 @@ import {
   ATLAS_PLANNING_SCHEMA_VERSION,
   type AtlasPlanningState,
 } from '../domain/planning'
+import {
+  ATLAS_CALIBRATION_SCHEMA_VERSION,
+  type AtlasCalibrationState,
+} from '../domain/calibration'
 import { ATLAS_REPORTS_SCHEMA_VERSION, type ReportsState } from '../domain/reports'
 import { ATLAS_REVIEW_SCHEMA_VERSION, type ReviewState } from '../domain/review'
 import { ATLAS_SETTINGS_SCHEMA_VERSION, type AtlasSettingsState } from '../domain/settings'
@@ -29,6 +33,7 @@ import { normalizeReportsState } from './reports'
 import { normalizeReviewState, summarizeReviewState } from './review'
 import { normalizeSettingsState } from './settings'
 import { normalizeSyncState } from './syncSnapshots'
+import { normalizeCalibrationState, summarizeCalibrationState } from './calibration'
 
 export const RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
 const BACKUP_NORMALIZATION_FALLBACK_DATE = new Date('1970-01-01T00:00:00.000Z')
@@ -94,6 +99,10 @@ function collectReviewSummary(review: ReviewState) {
   return summarizeReviewState(review)
 }
 
+function collectCalibrationSummary(calibration: AtlasCalibrationState) {
+  return summarizeCalibrationState(calibration)
+}
+
 function collectSettingsSummary(settings: AtlasSettingsState) {
   return {
     configured: settings.deviceLabel ? 1 : 0,
@@ -116,6 +125,7 @@ export function summarizeAtlasStores(stores: AtlasBackupStores): AtlasBackupStor
     planning: collectPlanningSummary(stores.planning),
     reports: collectReportsSummary(stores.reports),
     review: collectReviewSummary(stores.review),
+    calibration: collectCalibrationSummary(stores.calibration),
     settings: collectSettingsSummary(stores.settings),
     sync: collectSyncSummary(stores.sync),
   }
@@ -176,6 +186,14 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
+  if (!value.calibration) {
+    warnings.push({
+      type: 'missing-calibration',
+      message:
+        'Backup is missing Calibration state; an empty Calibration Operations store will be restored.',
+    })
+  }
+
   if (!value.settings) {
     warnings.push({
       type: 'missing-settings',
@@ -200,6 +218,7 @@ export function normalizeBackupStores(value: unknown): {
   let planning: AtlasPlanningState
   let reports: ReportsState
   let review: ReviewState
+  let calibration: AtlasCalibrationState
   let settings: AtlasSettingsState
   let sync: AtlasSyncState
 
@@ -210,6 +229,10 @@ export function normalizeBackupStores(value: unknown): {
     planning = normalizePlanningState(value.planning ?? {})
     reports = normalizeReportsState(value.reports ?? {})
     review = normalizeReviewState(value.review ?? {})
+    calibration = normalizeCalibrationState(
+      value.calibration ?? {},
+      BACKUP_NORMALIZATION_FALLBACK_DATE,
+    )
     settings = normalizeSettingsState(value.settings ?? {})
     sync = normalizeSyncState(value.sync ?? {})
   } catch {
@@ -255,6 +278,13 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
+  if (!isRecord(value.calibration) || !Array.isArray(value.calibration.fieldProgress)) {
+    warnings.push({
+      type: 'legacy-normalized',
+      message: 'Calibration state was normalized for the current backup schema.',
+    })
+  }
+
   if (!isRecord(value.settings) || typeof value.settings.deviceLabel !== 'string') {
     warnings.push({
       type: 'legacy-normalized',
@@ -269,7 +299,17 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
-  const stores = { workspace, dispatch, writing, planning, reports, review, settings, sync }
+  const stores = {
+    workspace,
+    dispatch,
+    writing,
+    planning,
+    reports,
+    review,
+    calibration,
+    settings,
+    sync,
+  }
   const summary = summarizeAtlasStores(stores)
 
   if (summary.workspace.projects === 0) {
@@ -286,13 +326,15 @@ export function createAtlasBackupEnvelope(
   stores: AtlasBackupStores,
   now = new Date(),
 ): AtlasBackupEnvelope {
+  const normalizedStores = normalizeBackupStores(stores).stores ?? stores
+
   return {
     kind: ATLAS_BACKUP_KIND,
     schemaVersion: ATLAS_BACKUP_SCHEMA_VERSION,
     exportedAt: now.toISOString(),
     appName: 'JAMARQ Atlas',
-    stores,
-    summary: summarizeAtlasStores(stores),
+    stores: normalizedStores,
+    summary: summarizeAtlasStores(normalizedStores),
   }
 }
 
@@ -330,6 +372,7 @@ export function validateAtlasBackupEnvelope(value: unknown): AtlasBackupValidati
     value.schemaVersion !== 1 &&
     value.schemaVersion !== 2 &&
     value.schemaVersion !== 3 &&
+    value.schemaVersion !== 4 &&
     value.schemaVersion !== ATLAS_BACKUP_SCHEMA_VERSION
   ) {
     errors.push(`Unsupported backup schema version: ${String(value.schemaVersion)}.`)
@@ -468,6 +511,18 @@ export function createBackupDiffItems(
       incoming: incomingSummary.review.sessions,
     },
     {
+      id: 'calibration-progress',
+      label: 'Calibration progress',
+      current: currentSummary.calibration.progressRecords,
+      incoming: incomingSummary.calibration.progressRecords,
+    },
+    {
+      id: 'credential-references',
+      label: 'Credential references',
+      current: currentSummary.calibration.credentialReferences,
+      incoming: incomingSummary.calibration.credentialReferences,
+    },
+    {
       id: 'sync-snapshots',
       label: 'Sync snapshots',
       current: currentSummary.sync.snapshots,
@@ -585,6 +640,20 @@ export function createAtlasStoreDiagnostics(
     repairHint: 'Review sessions and notes are manual context only.',
   })
 
+  diagnostics.push({
+    id: 'calibration',
+    label: 'Calibration',
+    schemaVersion: `v${ATLAS_CALIBRATION_SCHEMA_VERSION}`,
+    status: 'ok',
+    countSummary: `${summary.calibration.progressRecords} progress records / ${summary.calibration.credentialReferences} credential references`,
+    messages:
+      summary.calibration.progressRecords === 0
+        ? ['No Calibration Operations progress has been recorded yet.']
+        : [],
+    repairHint:
+      'Calibration progress is local human metadata. Export a backup before large imports.',
+  })
+
   const settingsMessages = [
     ...(stores.settings.operatorLabel ? [] : ['Operator label is not set.']),
     ...(stores.settings.deviceLabel ? [] : ['Device label is not set.']),
@@ -621,10 +690,10 @@ export function createAtlasStoreDiagnostics(
     label: 'Restore Compatibility',
     schemaVersion: `backup v${ATLAS_BACKUP_SCHEMA_VERSION}`,
     status: 'ok',
-    countSummary: 'accepts backup schemas v1-v4',
+    countSummary: 'accepts backup schemas v1-v5',
     messages: [
       'Restore is preview-first and full-replace.',
-      'Older backups normalize missing Planning, Reports, Review, Settings, and Sync stores.',
+      'Older backups normalize missing Planning, Reports, Review, Calibration, Settings, and Sync stores.',
     ],
     repairHint:
       'If restore counts look wrong, cancel restore and export the current local backup first.',
@@ -634,7 +703,7 @@ export function createAtlasStoreDiagnostics(
 }
 
 export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing, planning, reports, review, settings, sync } =
+  const { workspace, dispatch, writing, planning, reports, review, calibration, settings, sync } =
     envelope.summary
 
   return `# JAMARQ Atlas Backup Report
@@ -652,13 +721,14 @@ Schema: ${envelope.schemaVersion}
 - Planning: ${planning.objectives} objectives, ${planning.milestones} milestones, ${planning.workSessions} work sessions, ${planning.notes} notes
 - Reports: ${reports.packets} packets, ${reports.auditEvents} audit events, ${reports.exportedPackets} exported, ${reports.archivedPackets} archived
 - Review: ${review.sessions} sessions, ${review.notes} notes, ${review.followUps} follow-ups, ${review.planned} planned outcomes
+- Calibration: ${calibration.progressRecords} progress records, ${calibration.credentialReferences} credential references, ${calibration.auditEvents} audit events
 - Settings: ${settings.configured} local settings store
 - Sync: ${sync.snapshots} local snapshots, provider configured: ${sync.providerConfigured ? 'yes' : 'no'}
 
 ## Restore Rules
 
 - Restore is previewed before it replaces local Atlas data.
-- Restore replaces Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores together.
+- Restore replaces Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores together.
 - Restore does not merge records.
 - Restore requires typed human confirmation.
 - Reset seed remains separate from restore.
@@ -679,9 +749,10 @@ Schema: ${envelope.schemaVersion}
 }
 
 export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing, planning, reports, review, sync } = envelope.summary
+  const { workspace, dispatch, writing, planning, reports, review, calibration, sync } =
+    envelope.summary
 
-  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${sync.snapshots} sync snapshots.`
+  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${calibration.progressRecords} calibration progress records, ${sync.snapshots} sync snapshots.`
 }
 
 export function canApplyAtlasRestore(confirmation: string) {
