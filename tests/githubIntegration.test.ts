@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest'
-import { normalizeGithubResource } from '../server/githubApi'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { normalizeGithubResource, summarizeConfiguredRepoFailures } from '../server/githubApi'
+import { clearGithubRequestCache, fetchGithubJson } from '../src/services/githubIntegration'
+
+afterEach(() => {
+  clearGithubRequestCache()
+  vi.unstubAllGlobals()
+})
 
 describe('GitHub API normalization', () => {
   it('normalizes branch and tag resources for repo deep dive', () => {
@@ -40,5 +46,71 @@ describe('GitHub API normalization', () => {
         tarballUrl: 'https://github.com/jmars319/example/archive/v1.0.0.tar.gz',
       },
     ])
+  })
+
+  it('caches short-lived GitHub requests and bypasses cache on explicit reload', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: 'cached' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: 'fresh' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchGithubJson<{ data: string }>('/api/github/repos?source=viewer')).resolves.toEqual(
+      { data: 'cached' },
+    )
+    await expect(fetchGithubJson<{ data: string }>('/api/github/repos?source=viewer')).resolves.toEqual(
+      { data: 'cached' },
+    )
+    await expect(
+      fetchGithubJson<{ data: string }>('/api/github/repos?source=viewer', undefined, {
+        cache: 'reload',
+      }),
+    ).resolves.toEqual({ data: 'fresh' })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses scoped GitHub API error messages when requests fail', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: { message: 'GitHub rate limit reached.' } }), {
+          status: 429,
+        }),
+      ),
+    )
+
+    await expect(fetchGithubJson('/api/github/repos?source=viewer')).rejects.toThrow(
+      'GitHub rate limit reached.',
+    )
+  })
+
+  it('summarizes partial configured repository failures without hiding readable repos', () => {
+    const error = summarizeConfiguredRepoFailures(
+      [
+        {
+          data: { id: 1 },
+          pageInfo: { currentPage: 1, hasNextPage: false, nextPage: null, perPage: 20 },
+          error: null,
+          permission: 'available',
+        },
+        {
+          data: null,
+          pageInfo: { currentPage: 1, hasNextPage: false, nextPage: null, perPage: 20 },
+          error: {
+            type: 'not-found-or-private',
+            message: 'The repository or resource was not found.',
+            status: 404,
+            resource: 'repo',
+          },
+          permission: 'unknown',
+        },
+      ],
+      2,
+    )
+
+    expect(error?.resource).toBe('configured-repos')
+    expect(error?.message).toContain('1 of 2 configured GitHub repositories could not be read')
+    expect(error?.message).toContain('1 readable')
   })
 })

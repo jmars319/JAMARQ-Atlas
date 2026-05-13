@@ -242,15 +242,80 @@ export const githubIngestionContract: GithubIngestionContract = {
   ],
 }
 
+type GithubFetchCacheMode = 'default' | 'reload'
+
+interface GithubFetchOptions {
+  cache?: GithubFetchCacheMode
+}
+
+interface GithubFetchCacheEntry<T> {
+  storedAt: number
+  value: T
+}
+
+const GITHUB_FETCH_CACHE_TTL_MS = 30_000
+const githubFetchCache = new Map<string, GithubFetchCacheEntry<unknown>>()
+
+function readCachedGithubResponse<T>(path: string, cacheMode: GithubFetchCacheMode): T | null {
+  if (cacheMode === 'reload') {
+    githubFetchCache.delete(path)
+    return null
+  }
+
+  const cached = githubFetchCache.get(path)
+
+  if (!cached) {
+    return null
+  }
+
+  if (Date.now() - cached.storedAt > GITHUB_FETCH_CACHE_TTL_MS) {
+    githubFetchCache.delete(path)
+    return null
+  }
+
+  return cached.value as T
+}
+
+function writeCachedGithubResponse<T>(path: string, value: T) {
+  githubFetchCache.set(path, {
+    storedAt: Date.now(),
+    value,
+  })
+}
+
+export function clearGithubRequestCache() {
+  githubFetchCache.clear()
+}
+
+async function readGithubErrorMessage(response: Response) {
+  try {
+    const body = (await response.json()) as { error?: { message?: string }; message?: string }
+    return body.error?.message || body.message || `Atlas GitHub API returned ${response.status}.`
+  } catch {
+    return `Atlas GitHub API returned ${response.status}.`
+  }
+}
+
 export async function fetchGithubJson<T>(
   path: string,
   signal?: AbortSignal,
+  options: GithubFetchOptions = {},
 ): Promise<T> {
+  const cacheMode = options.cache ?? 'default'
+  const cached = readCachedGithubResponse<T>(path, cacheMode)
+
+  if (cached) {
+    return cached
+  }
+
   const response = await fetch(path, { signal })
 
   if (!response.ok) {
-    throw new Error(`Atlas GitHub API returned ${response.status}`)
+    throw new Error(await readGithubErrorMessage(response))
   }
 
-  return response.json() as Promise<T>
+  const value = (await response.json()) as T
+  writeCachedGithubResponse(path, value)
+
+  return value
 }

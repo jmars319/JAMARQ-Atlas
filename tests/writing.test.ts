@@ -27,6 +27,7 @@ import {
   getWritingProviderConfig,
   normalizeOpenAIResponseText,
 } from '../server/writingApi'
+import { normalizeWritingProviderError } from '../src/services/writingProvider'
 
 const record = flattenProjects(seedWorkspace).find(
   (candidate) => candidate.project.id === 'midway-music-hall-site',
@@ -210,6 +211,24 @@ describe('AI writing assistant', () => {
     expect(status.data?.configured).toBe(false)
     expect(response.error?.type).toBe('not-configured')
     expect(response.error?.message).toContain('OPENAI_API_KEY')
+  })
+
+  it('normalizes Writing provider errors into scoped draft-only messages', () => {
+    expect(
+      normalizeWritingProviderError(
+        { type: 'openai-error', message: 'Provider rejected the request.' },
+        'Fallback writing provider error.',
+      ),
+    ).toEqual({
+      type: 'openai-error',
+      message: 'Provider rejected the request.',
+    })
+    expect(
+      normalizeWritingProviderError({ type: 'secret-key', message: 123 }, 'Fallback writing provider error.'),
+    ).toEqual({
+      type: 'unknown',
+      message: 'Fallback writing provider error.',
+    })
   })
 
   it('builds provider input with draft-only guardrails', () => {

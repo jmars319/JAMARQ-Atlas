@@ -37,13 +37,19 @@ export function useGithubRepositories(source: GithubRepositorySource) {
   const requestKey = useMemo(() => `repositories/${source}`, [source])
 
   const loadPage = useCallback(
-    async (page: number, mode: 'replace' | 'append', signal?: AbortSignal) => {
+    async (
+      page: number,
+      mode: 'replace' | 'append',
+      signal?: AbortSignal,
+      cache: 'default' | 'reload' = 'default',
+    ) => {
       setState((current) => ({ ...current, loading: true }))
 
       try {
         const response = await fetchGithubJson<GithubApiResponse<GithubRepositorySummary[]>>(
           repositoriesPath(source, page),
           signal,
+          { cache },
         )
 
         setState((current) => ({
@@ -101,7 +107,7 @@ export function useGithubRepositories(source: GithubRepositorySource) {
 
   return {
     ...state,
-    reload: () => loadPage(1, 'replace'),
+    reload: () => loadPage(1, 'replace', undefined, 'reload'),
     loadMore,
   }
 }

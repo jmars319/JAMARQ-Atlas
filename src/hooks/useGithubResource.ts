@@ -93,13 +93,19 @@ export function useGithubResource<K extends GithubResourceName>(
   )
 
   const loadPage = useCallback(
-    async (page: number, mode: 'replace' | 'append', signal?: AbortSignal) => {
+    async (
+      page: number,
+      mode: 'replace' | 'append',
+      signal?: AbortSignal,
+      cache: 'default' | 'reload' = 'default',
+    ) => {
       setState((current) => ({ ...current, loading: true }))
 
       try {
         const response = await fetchGithubJson<GithubApiResponse<GithubResourceData[K]>>(
           resourcePath({ owner, repo, resource, ref, page }),
           signal,
+          { cache },
         )
 
         setState((current) => ({
@@ -154,7 +160,7 @@ export function useGithubResource<K extends GithubResourceName>(
 
   return {
     ...state,
-    reload: () => loadPage(1, 'replace'),
+    reload: () => loadPage(1, 'replace', undefined, 'reload'),
     loadMore,
   }
 }

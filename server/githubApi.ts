@@ -87,11 +87,16 @@ function mapGithubError(
   }
 
   if (status === 403 && headers?.get('x-ratelimit-remaining') === '0') {
+    const reset = headers.get('x-ratelimit-reset')
+    const resetTimestamp = reset ? Number(reset) : 0
+    const resetLabel =
+      resetTimestamp > 0 ? new Date(resetTimestamp * 1000).toISOString() : 'unknown'
+
     return {
       type: 'rate-limited',
       status,
       resource,
-      message: `GitHub rate limit reached. Reset: ${headers.get('x-ratelimit-reset') ?? 'unknown'}.`,
+      message: `GitHub rate limit reached. Reset: ${resetLabel}.`,
     }
   }
 
@@ -503,7 +508,7 @@ async function handleConfiguredRepos(searchParams: URLSearchParams) {
       return githubRequest(`/repos/${fullName}`, 'repo', searchParams)
     }),
   )
-  const firstError = results.find((result) => result.error)?.error ?? null
+  const firstError = summarizeConfiguredRepoFailures(results, repos.length)
 
   return {
     data: results.flatMap((result) =>
@@ -520,6 +525,32 @@ async function handleConfiguredRepos(searchParams: URLSearchParams) {
             ? 'unknown'
             : 'available',
   } satisfies GithubRequestResult
+}
+
+export function summarizeConfiguredRepoFailures(
+  results: GithubRequestResult[],
+  configuredRepoCount: number,
+): GithubApiError | null {
+  const errors = results
+    .map((result) => result.error)
+    .filter((error): error is GithubApiError => error !== null)
+
+  if (errors.length === 0) {
+    return null
+  }
+
+  const firstError = errors[0]
+  const readableCount =
+    configuredRepoCount - errors.length > 0 ? `${configuredRepoCount - errors.length} readable` : 'none readable'
+
+  return {
+    ...firstError,
+    resource: 'configured-repos',
+    message:
+      errors.length === configuredRepoCount
+        ? `No configured GitHub repositories could be read. First issue: ${firstError.message}`
+        : `${errors.length} of ${configuredRepoCount} configured GitHub repositories could not be read; ${readableCount}. First issue: ${firstError.message}`,
+  }
 }
 
 async function handleViewerRepos(searchParams: URLSearchParams) {

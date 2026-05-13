@@ -7,7 +7,7 @@ export interface WritingProviderStatusResponse {
   message: string
 }
 
-interface WritingProviderApiError {
+export interface WritingProviderApiError {
   type: 'not-configured' | 'openai-error' | 'invalid-request' | 'unknown'
   message: string
 }
@@ -27,25 +27,89 @@ interface WritingProviderGenerateResponse {
   message: string
 }
 
+export function normalizeWritingProviderError(
+  value: unknown,
+  fallbackMessage: string,
+): WritingProviderApiError {
+  if (typeof value === 'object' && value !== null) {
+    const candidate = value as Partial<WritingProviderApiError>
+    const type =
+      candidate.type === 'not-configured' ||
+      candidate.type === 'openai-error' ||
+      candidate.type === 'invalid-request' ||
+      candidate.type === 'unknown'
+        ? candidate.type
+        : 'unknown'
+
+    return {
+      type,
+      message: typeof candidate.message === 'string' ? candidate.message : fallbackMessage,
+    }
+  }
+
+  return {
+    type: 'unknown',
+    message: fallbackMessage,
+  }
+}
+
+async function readWritingBody<T>(response: Response): Promise<WritingProviderApiResponse<T> | null> {
+  try {
+    return (await response.json()) as WritingProviderApiResponse<T>
+  } catch {
+    return null
+  }
+}
+
 async function fetchWritingJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<WritingProviderApiResponse<T>> {
-  const response = await fetch(path, init)
+  try {
+    const response = await fetch(path, init)
+    const body = await readWritingBody<T>(response)
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return {
+        ok: false,
+        configured: body?.configured ?? false,
+        data: null,
+        error: normalizeWritingProviderError(
+          body?.error,
+          `Atlas Writing API returned ${response.status}.`,
+        ),
+      }
+    }
+
+    if (body) {
+      return {
+        ...body,
+        error: body.error
+          ? normalizeWritingProviderError(body.error, 'Atlas Writing API returned an error.')
+          : null,
+      }
+    }
+
     return {
       ok: false,
       configured: false,
       data: null,
       error: {
         type: 'unknown',
-        message: `Atlas Writing API returned ${response.status}.`,
+        message: 'Atlas Writing API returned an unreadable response.',
+      },
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      configured: false,
+      data: null,
+      error: {
+        type: 'unknown',
+        message: error instanceof Error ? error.message : 'Atlas Writing API request failed.',
       },
     }
   }
-
-  return (await response.json()) as WritingProviderApiResponse<T>
 }
 
 export function normalizeWritingProviderResult(value: unknown): WritingProviderResult {

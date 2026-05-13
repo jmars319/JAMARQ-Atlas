@@ -2991,6 +2991,27 @@ h3 {
   padding: 10px;
 }
 
+.writing-provider-status {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid rgba(128, 213, 138, 0.26);
+  background: rgba(128, 213, 138, 0.08);
+  color: var(--success);
+  padding: 10px;
+}
+
+.writing-provider-status strong,
+.writing-provider-status span {
+  display: block;
+}
+
+.writing-provider-status span {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .writing-provider-suggestion textarea {
   width: 100%;
   min-height: 150px;

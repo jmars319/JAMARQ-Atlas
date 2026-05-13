@@ -431,6 +431,27 @@ export function WritingWorkbench({
                 </p>
               ) : null}
 
+              {selectedDraft.providerResult.status !== 'stub' ? (
+                <div
+                  className={
+                    selectedDraft.providerResult.status === 'generated'
+                      ? 'writing-provider-status'
+                      : 'writing-warning'
+                  }
+                >
+                  <ShieldAlert size={16} />
+                  <div>
+                    <strong>
+                      Provider {selectedDraft.providerResult.status}
+                      {selectedDraft.providerResult.model
+                        ? ` / ${selectedDraft.providerResult.model}`
+                        : ''}
+                    </strong>
+                    <span>{selectedDraft.providerResult.message}</span>
+                  </div>
+                </div>
+              ) : null}
+
               {selectedDraft.providerResult.generatedText ? (
                 <div className="writing-provider-suggestion" aria-label="Provider suggestion">
                   <div className="resource-panel-header">

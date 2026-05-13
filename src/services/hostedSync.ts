@@ -36,25 +36,90 @@ export interface HostedSyncDeleteResult {
   snapshotId: string
 }
 
+export function normalizeHostedSyncError(
+  value: unknown,
+  fallbackMessage: string,
+): HostedSyncApiError {
+  if (typeof value === 'object' && value !== null) {
+    const candidate = value as Partial<HostedSyncApiError>
+    const type =
+      candidate.type === 'not-configured' ||
+      candidate.type === 'supabase-error' ||
+      candidate.type === 'invalid-request' ||
+      candidate.type === 'not-found' ||
+      candidate.type === 'unknown'
+        ? candidate.type
+        : 'unknown'
+
+    return {
+      type,
+      message: typeof candidate.message === 'string' ? candidate.message : fallbackMessage,
+    }
+  }
+
+  return {
+    type: 'unknown',
+    message: fallbackMessage,
+  }
+}
+
+async function readHostedSyncBody<T>(response: Response): Promise<HostedSyncApiResponse<T> | null> {
+  try {
+    return (await response.json()) as HostedSyncApiResponse<T>
+  } catch {
+    return null
+  }
+}
+
 async function fetchHostedSyncJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<HostedSyncApiResponse<T>> {
-  const response = await fetch(path, init)
+  try {
+    const response = await fetch(path, init)
+    const body = await readHostedSyncBody<T>(response)
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return {
+        ok: false,
+        configured: body?.configured ?? false,
+        data: null,
+        error: normalizeHostedSyncError(
+          body?.error,
+          `Atlas Sync API returned ${response.status}.`,
+        ),
+      }
+    }
+
+    if (body) {
+      return {
+        ...body,
+        error: body.error
+          ? normalizeHostedSyncError(body.error, 'Atlas Sync API returned an error.')
+          : null,
+      }
+    }
+
     return {
       ok: false,
       configured: false,
       data: null,
       error: {
         type: 'unknown',
-        message: `Atlas Sync API returned ${response.status}.`,
+        message: 'Atlas Sync API returned an unreadable response.',
+      },
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      configured: false,
+      data: null,
+      error: {
+        type: 'unknown',
+        message: error instanceof Error ? error.message : 'Atlas Sync API request failed.',
       },
     }
   }
-
-  return (await response.json()) as HostedSyncApiResponse<T>
 }
 
 export function fetchHostedSyncStatus(signal?: AbortSignal) {

@@ -101,6 +101,16 @@ function readString(value: unknown) {
   return typeof value === 'string' ? value : ''
 }
 
+function safeOpenAIErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : ''
+
+  if (!message.trim()) {
+    return 'OpenAI provider request failed. Draft text was not changed.'
+  }
+
+  return `OpenAI provider request failed: ${message.replace(/sk-[A-Za-z0-9_-]+/g, '[redacted-key]')}`
+}
+
 async function readBody(request: IncomingMessage) {
   const chunks: Buffer[] = []
 
@@ -247,7 +257,7 @@ async function generateWritingSuggestion(request: IncomingMessage, config: Writi
       data: null,
       error: {
         type: 'openai-error',
-        message: error instanceof Error ? error.message : 'OpenAI provider request failed.',
+        message: safeOpenAIErrorMessage(error),
       },
     })
   }

@@ -25,6 +25,7 @@ import {
   getSyncConfig,
   snapshotToRemoteRow,
 } from '../server/syncApi'
+import { normalizeHostedSyncError } from '../src/services/hostedSync'
 
 const now = new Date('2026-05-10T12:00:00Z')
 const planning = emptyPlanningStore(now)
@@ -181,6 +182,22 @@ describe('sync snapshots', () => {
     expect(status.data?.configured).toBe(false)
     expect(response.error?.type).toBe('not-configured')
     expect(response.configured).toBe(false)
+  })
+
+  it('normalizes hosted sync errors into safe provider messages', () => {
+    expect(
+      normalizeHostedSyncError(
+        { type: 'supabase-error', message: 'Relation atlas_sync_snapshots does not exist.' },
+        'Fallback sync error.',
+      ),
+    ).toEqual({
+      type: 'supabase-error',
+      message: 'Relation atlas_sync_snapshots does not exist.',
+    })
+    expect(normalizeHostedSyncError({ type: 'password', message: 12 }, 'Fallback sync error.')).toEqual({
+      type: 'unknown',
+      message: 'Fallback sync error.',
+    })
   })
 
   it('builds Supabase push rows from Workspace, Dispatch, Writing, Planning, Reports, and Review only', () => {
