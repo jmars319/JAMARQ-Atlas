@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
 import type { AtlasRemoteSyncSnapshot, AtlasSyncProviderState, AtlasSyncSnapshot, AtlasSyncState } from '../domain/sync'
-import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addSyncSnapshot,
   deleteSyncSnapshot,
@@ -11,29 +9,18 @@ import {
   removeRemoteSyncSnapshot,
   updateSyncProviderState,
 } from '../services/syncSnapshots'
-
-const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.sync.localStorageKey
-
-function readSync(): AtlasSyncState {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return emptySyncState()
-    }
-
-    return normalizeSyncState(JSON.parse(stored))
-  } catch {
-    return emptySyncState()
-  }
-}
+import { useLocalStoreState } from './useLocalStore'
 
 export function useLocalSync() {
-  const [sync, setSync] = useState<AtlasSyncState>(() => readSync())
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sync))
-  }, [sync])
+  const {
+    state: sync,
+    setState: setSync,
+    resetState: resetSync,
+  } = useLocalStoreState<AtlasSyncState>({
+    storeId: 'sync',
+    fallback: emptySyncState,
+    normalize: normalizeSyncState,
+  })
 
   function addSnapshot(snapshot: AtlasSyncSnapshot) {
     setSync((current) => addSyncSnapshot(current, snapshot))
@@ -57,12 +44,6 @@ export function useLocalSync() {
 
   function removeRemoteSnapshot(snapshotId: string) {
     setSync((current) => removeRemoteSyncSnapshot(current, snapshotId))
-  }
-
-  function resetSync() {
-    const freshSync = emptySyncState()
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshSync))
-    setSync(freshSync)
   }
 
   return {

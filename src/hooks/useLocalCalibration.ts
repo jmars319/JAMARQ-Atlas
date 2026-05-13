@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
 import type {
   AtlasCalibrationState,
   CalibrationCredentialReference,
   CalibrationFieldStatus,
 } from '../domain/calibration'
-import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import type { CalibrationIssue } from '../services/calibration'
 import {
   deleteCredentialReference,
@@ -13,29 +11,18 @@ import {
   updateCalibrationFieldProgress,
   upsertCredentialReference,
 } from '../services/calibration'
-
-const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.calibration.localStorageKey
-
-function readCalibration(): AtlasCalibrationState {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return emptyCalibrationState()
-    }
-
-    return normalizeCalibrationState(JSON.parse(stored))
-  } catch {
-    return emptyCalibrationState()
-  }
-}
+import { useLocalStoreState } from './useLocalStore'
 
 export function useLocalCalibration() {
-  const [calibration, setCalibration] = useState<AtlasCalibrationState>(() => readCalibration())
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(calibration))
-  }, [calibration])
+  const {
+    state: calibration,
+    setState: setCalibration,
+    resetState: resetCalibration,
+  } = useLocalStoreState<AtlasCalibrationState>({
+    storeId: 'calibration',
+    fallback: emptyCalibrationState,
+    normalize: normalizeCalibrationState,
+  })
 
   function setFieldProgress(
     issue: CalibrationIssue,
@@ -72,12 +59,6 @@ export function useLocalCalibration() {
 
   function removeCredentialReference(referenceId: string, operatorLabel = '') {
     setCalibration((current) => deleteCredentialReference(current, referenceId, operatorLabel))
-  }
-
-  function resetCalibration() {
-    const freshCalibration = emptyCalibrationState()
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshCalibration))
-    setCalibration(freshCalibration)
   }
 
   return {

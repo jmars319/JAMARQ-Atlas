@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
 import type { ReportPacket, ReportsState } from '../domain/reports'
-import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addReportPacket,
   archiveReportPacket,
@@ -10,29 +8,18 @@ import {
   recordReportCopied,
   updateReportPacketMarkdown,
 } from '../services/reports'
-
-const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.reports.localStorageKey
-
-function readReports(): ReportsState {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return emptyReportsStore()
-    }
-
-    return normalizeReportsState(JSON.parse(stored))
-  } catch {
-    return emptyReportsStore()
-  }
-}
+import { useLocalStoreState } from './useLocalStore'
 
 export function useLocalReports() {
-  const [reports, setReports] = useState<ReportsState>(() => readReports())
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reports))
-  }, [reports])
+  const {
+    state: reports,
+    setState: setReports,
+    resetState: resetReports,
+  } = useLocalStoreState<ReportsState>({
+    storeId: 'reports',
+    fallback: emptyReportsStore,
+    normalize: normalizeReportsState,
+  })
 
   function addPacket(packet: ReportPacket) {
     setReports((current) => addReportPacket(current, packet))
@@ -52,12 +39,6 @@ export function useLocalReports() {
 
   function archivePacket(packetId: string) {
     setReports((current) => archiveReportPacket(current, packetId))
-  }
-
-  function resetReports() {
-    const freshReports = emptyReportsStore()
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshReports))
-    setReports(freshReports)
   }
 
   return {

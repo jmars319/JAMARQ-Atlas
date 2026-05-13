@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { seedDispatchState } from '../data/seedDispatch'
 import type {
   DeploymentTarget,
@@ -11,7 +10,6 @@ import type {
   DispatchState,
   DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
-import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addDispatchHostEvidenceRun,
   addDispatchPreflightRun,
@@ -30,39 +28,22 @@ import {
   updateDeploySession,
   updateDeploySessionStep,
 } from '../services/deploySessions'
-
-const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.dispatch.localStorageKey
+import { useLocalStoreState } from './useLocalStore'
 
 function cloneSeedDispatch(): DispatchState {
   return normalizeDispatchState(JSON.parse(JSON.stringify(seedDispatchState)))
 }
 
-function readDispatch(): DispatchState {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return cloneSeedDispatch()
-    }
-
-    return normalizeDispatchState(JSON.parse(stored))
-  } catch {
-    return cloneSeedDispatch()
-  }
-}
-
 export function useLocalDispatch() {
-  const [dispatch, setDispatch] = useState<DispatchState>(() => readDispatch())
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(dispatch))
-  }, [dispatch])
-
-  function resetDispatch() {
-    const freshDispatch = cloneSeedDispatch()
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshDispatch))
-    setDispatch(freshDispatch)
-  }
+  const {
+    state: dispatch,
+    setState: setDispatch,
+    resetState: resetDispatch,
+  } = useLocalStoreState<DispatchState>({
+    storeId: 'dispatch',
+    fallback: cloneSeedDispatch,
+    normalize: normalizeDispatchState,
+  })
 
   function updateTarget(targetId: string, update: Partial<DeploymentTarget>) {
     setDispatch((current) => ({

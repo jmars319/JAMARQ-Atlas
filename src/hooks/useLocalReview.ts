@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
 import type { ReviewNote, ReviewSavedFilter, ReviewSession, ReviewState } from '../domain/review'
-import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addReviewNote,
   addReviewSession,
@@ -9,29 +7,18 @@ import {
   normalizeReviewState,
   saveReviewFilter,
 } from '../services/review'
-
-const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.review.localStorageKey
-
-function readReview(): ReviewState {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return emptyReviewStore()
-    }
-
-    return normalizeReviewState(JSON.parse(stored))
-  } catch {
-    return emptyReviewStore()
-  }
-}
+import { useLocalStoreState } from './useLocalStore'
 
 export function useLocalReview() {
-  const [review, setReview] = useState<ReviewState>(() => readReview())
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(review))
-  }, [review])
+  const {
+    state: review,
+    setState: setReview,
+    resetState: resetReview,
+  } = useLocalStoreState<ReviewState>({
+    storeId: 'review',
+    fallback: emptyReviewStore,
+    normalize: normalizeReviewState,
+  })
 
   function addSession(session: ReviewSession) {
     setReview((current) => addReviewSession(current, session))
@@ -47,12 +34,6 @@ export function useLocalReview() {
 
   function deleteFilter(filterId: string) {
     setReview((current) => deleteReviewFilter(current, filterId))
-  }
-
-  function resetReview() {
-    const freshReview = emptyReviewStore()
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshReview))
-    setReview(freshReview)
   }
 
   return {

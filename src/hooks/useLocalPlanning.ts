@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import type { ProjectRecord } from '../domain/atlas'
 import type {
   PlanningItemKind,
@@ -6,7 +5,6 @@ import type {
   PlanningState,
   PlanningStatus,
 } from '../domain/planning'
-import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   addPlanningItem,
   annotatePlanningItemFromRecord,
@@ -17,29 +15,18 @@ import {
   type PlanningItemUpdate,
   updatePlanningItem,
 } from '../services/planning'
-
-const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.planning.localStorageKey
-
-function readPlanning(): PlanningState {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return emptyPlanningStore()
-    }
-
-    return normalizePlanningState(JSON.parse(stored))
-  } catch {
-    return emptyPlanningStore()
-  }
-}
+import { useLocalStoreState } from './useLocalStore'
 
 export function useLocalPlanning() {
-  const [planning, setPlanning] = useState<PlanningState>(() => readPlanning())
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(planning))
-  }, [planning])
+  const {
+    state: planning,
+    setState: setPlanning,
+    resetState: resetPlanning,
+  } = useLocalStoreState<PlanningState>({
+    storeId: 'planning',
+    fallback: emptyPlanningStore,
+    normalize: normalizePlanningState,
+  })
 
   function createItem({
     kind,
@@ -82,12 +69,6 @@ export function useLocalPlanning() {
 
   function deleteItem(kind: PlanningItemKind, itemId: string) {
     setPlanning((current) => deletePlanningItem(current, kind, itemId))
-  }
-
-  function resetPlanning() {
-    const freshPlanning = emptyPlanningStore()
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshPlanning))
-    setPlanning(freshPlanning)
   }
 
   return {

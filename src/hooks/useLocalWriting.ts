@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react'
 import type { WritingDraft, WritingWorkbenchState } from '../domain/writing'
 import { emptyWritingState } from '../domain/writing'
-import { ATLAS_STORE_DEFINITIONS_BY_ID } from '../domain/storeRegistry'
 import {
   applyWritingProviderSuggestion,
   approveWritingDraft,
@@ -15,29 +13,22 @@ import {
   updateWritingDraftText,
 } from '../services/aiWritingAssistant'
 import type { WritingProviderResult } from '../domain/writing'
+import { useLocalStoreState } from './useLocalStore'
 
-const STORAGE_KEY = ATLAS_STORE_DEFINITIONS_BY_ID.writing.localStorageKey
-
-function readWriting(): WritingWorkbenchState {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!stored) {
-      return { ...emptyWritingState }
-    }
-
-    return normalizeWritingState(JSON.parse(stored))
-  } catch {
-    return { ...emptyWritingState }
-  }
+function emptyWritingStore() {
+  return { ...emptyWritingState }
 }
 
 export function useLocalWriting() {
-  const [writing, setWriting] = useState<WritingWorkbenchState>(() => readWriting())
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(writing))
-  }, [writing])
+  const {
+    state: writing,
+    setState: setWriting,
+    resetState: resetWriting,
+  } = useLocalStoreState<WritingWorkbenchState>({
+    storeId: 'writing',
+    fallback: emptyWritingStore,
+    normalize: normalizeWritingState,
+  })
 
   function addDraft(draft: WritingDraft) {
     setWriting((current) => ({
@@ -107,11 +98,6 @@ export function useLocalWriting() {
       ...current,
       drafts: archiveWritingDraft(current.drafts, draftId),
     }))
-  }
-
-  function resetWriting() {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyWritingState))
-    setWriting({ ...emptyWritingState })
   }
 
   return {
