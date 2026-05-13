@@ -10,6 +10,7 @@ import {
   repositorySummaryToLink,
   unbindRepositoryFromProject,
 } from '../src/services/repoBinding'
+import { deriveRepoPlacementSuggestions } from '../src/services/repoSuggestions'
 
 function cloneWorkspace(): Workspace {
   return JSON.parse(JSON.stringify(seedWorkspace)) as Workspace
@@ -32,6 +33,17 @@ const repository: GithubRepositorySummary = {
   forksCount: 0,
   archived: false,
   disabled: false,
+}
+
+function repo(name: string, description: string | null): GithubRepositorySummary {
+  return {
+    ...repository,
+    id: name.length,
+    name,
+    fullName: `jmars319/${name}`,
+    description,
+    htmlUrl: `https://github.com/jmars319/${name}`,
+  }
 }
 
 describe('repo binding', () => {
@@ -106,5 +118,93 @@ describe('repo binding', () => {
 
     expect(result.created).toBe(false)
     expect(result.projectId).toBe('vaexcore-studio')
+  })
+})
+
+describe('repo placement suggestions', () => {
+  it('returns a high-confidence project suggestion for an exact repo/project name match', () => {
+    const projectRecords = flattenProjects(cloneWorkspace())
+    const [suggestion] = deriveRepoPlacementSuggestions(projectRecords, [
+      repo('midway-mobile-storage-website', 'Current Midway Mobile Storage site.'),
+    ])
+
+    expect(suggestion.confidence).toBe('high')
+    expect(suggestion.suggestedProjectId).toBe('midway-mobile-storage-site')
+    expect(suggestion.reasons.map((reason) => reason.type)).toContain('project-name')
+  })
+
+  it('returns a medium-confidence portfolio suggestion when only a section keyword is clear', () => {
+    const projectRecords = flattenProjects(cloneWorkspace())
+    const [suggestion] = deriveRepoPlacementSuggestions(projectRecords, [
+      repo('tenra-lab-notes', 'Tenra research sketches awaiting project placement.'),
+    ])
+
+    expect(suggestion.confidence).toBe('medium')
+    expect(suggestion.suggestedSectionName).toBe('Tenra')
+    expect(suggestion.suggestedProjectId).toBeNull()
+    expect(suggestion.reasons.map((reason) => reason.type)).toContain('portfolio-keyword')
+  })
+
+  it('guides unrelated repositories to Outliers with low confidence', () => {
+    const projectRecords = flattenProjects(cloneWorkspace())
+    const [suggestion] = deriveRepoPlacementSuggestions(projectRecords, [
+      repo('field-notes', 'Small utility awaiting triage.'),
+    ])
+
+    expect(suggestion.confidence).toBe('low')
+    expect(suggestion.suggestedSectionName).toBe('Outliers')
+    expect(suggestion.suggestedGroupName).toBe('One-off tools')
+    expect(suggestion.reasons.map((reason) => reason.type)).toContain('outliers')
+  })
+
+  it('excludes already-bound repositories from suggestions', () => {
+    const projectRecords = flattenProjects(cloneWorkspace())
+    const suggestions = deriveRepoPlacementSuggestions(projectRecords, [
+      repo('JAMARQ-Atlas', 'Local-first operator dashboard.'),
+      repo('new-utility', 'Small utility awaiting triage.'),
+    ])
+
+    expect(suggestions.map((suggestion) => suggestion.repository.name)).toEqual(['new-utility'])
+  })
+
+  it('does not mutate workspace records or GitHub repository objects', () => {
+    const projectRecords = flattenProjects(cloneWorkspace())
+    const repositories = [
+      repo('thunder-road-website', 'Thunder Road public site.'),
+      repo('new-utility', 'Small utility awaiting triage.'),
+    ]
+    const beforeRecords = JSON.stringify(projectRecords)
+    const beforeRepositories = JSON.stringify(repositories)
+
+    deriveRepoPlacementSuggestions(projectRecords, repositories)
+
+    expect(JSON.stringify(projectRecords)).toBe(beforeRecords)
+    expect(JSON.stringify(repositories)).toBe(beforeRepositories)
+  })
+
+  it('accepts a suggestion through the existing bind helper without changing manual status', () => {
+    const workspace = cloneWorkspace()
+    const [suggestion] = deriveRepoPlacementSuggestions(flattenProjects(workspace), [
+      repo('tenra-public-site', 'Tenra public site.'),
+    ])
+
+    expect(suggestion.suggestedProjectId).toBe('tenra-public-site')
+
+    const statusBefore = flattenProjects(workspace).find(
+      (record) => record.project.id === 'tenra-public-site',
+    )?.project.manual.status
+    const next = bindRepositoryToProject(
+      workspace,
+      suggestion.suggestedProjectId!,
+      repositorySummaryToLink(suggestion.repository),
+    )
+    const tenraSite = flattenProjects(next).find(
+      (record) => record.project.id === 'tenra-public-site',
+    )
+
+    expect(tenraSite?.project.repositories).toContainEqual(
+      expect.objectContaining({ name: 'tenra-public-site' }),
+    )
+    expect(tenraSite?.project.manual.status).toBe(statusBefore)
   })
 })

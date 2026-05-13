@@ -675,6 +675,126 @@ h3 {
   align-items: center;
 }
 
+.github-suggestion-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.github-suggestion-panel .resource-panel-header {
+  align-items: flex-start;
+}
+
+.github-suggestion-panel .resource-panel-header > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.github-suggestion-panel .resource-panel-header h2,
+.github-suggestion-card h3 {
+  margin: 0;
+}
+
+.github-suggestion-panel .resource-panel-header p,
+.github-suggestion-card p {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.github-suggestion-list {
+  display: grid;
+  gap: 10px;
+}
+
+.github-suggestion-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.github-suggestion-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 260px);
+  gap: 12px;
+  align-items: start;
+}
+
+.github-suggestion-target {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(9, 166, 214, 0.24);
+  background: rgba(9, 166, 214, 0.08);
+  padding: 9px;
+}
+
+.github-suggestion-target svg {
+  flex: 0 0 auto;
+  color: var(--accent-cyan);
+}
+
+.github-suggestion-target span,
+.suggestion-reasons {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.github-suggestion-target strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--paper-white);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.suggestion-reasons {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 17px;
+}
+
+.github-suggestion-actions {
+  display: grid;
+  grid-template-columns: minmax(230px, 360px) 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.github-suggestion-actions .github-card-actions {
+  justify-content: flex-end;
+}
+
+.confidence-chip {
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+  text-transform: capitalize;
+}
+
+.confidence-high {
+  border-color: rgba(128, 213, 138, 0.32);
+  color: var(--success);
+}
+
+.confidence-medium {
+  border-color: rgba(244, 199, 107, 0.32);
+  color: var(--warning);
+}
+
+.confidence-low {
+  border-color: rgba(154, 162, 176, 0.32);
+  color: var(--text-muted);
+}
+
 .github-intake-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -2800,6 +2920,8 @@ code {
   .github-repo-facts,
   .github-deep-summary,
   .github-health-grid,
+  .github-suggestion-summary,
+  .github-suggestion-actions,
   .verification-controls,
   .verification-row,
   .verification-row-meta,

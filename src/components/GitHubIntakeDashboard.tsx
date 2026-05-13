@@ -2,10 +2,12 @@ import {
   AlertTriangle,
   GitBranch,
   Inbox,
+  Lightbulb,
   Link2,
   RefreshCcw,
   Search,
   SquareArrowOutUpRight,
+  Target,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { GithubRepositorySource, GithubRepositorySummary } from '../services/githubIntegration'
@@ -13,6 +15,7 @@ import type { ProjectRecord } from '../domain/atlas'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import { findRepositoryBinding, repositorySummaryToLink } from '../services/repoBinding'
+import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
@@ -121,6 +124,7 @@ export function GitHubIntakeDashboard({
   const [filter, setFilter] = useState<IntakeFilter>('all')
   const [targetProjectId, setTargetProjectId] = useState(selectedProjectId)
   const [deepDiveRepo, setDeepDiveRepo] = useState('')
+  const [suggestionTargets, setSuggestionTargets] = useState<Record<string, string>>({})
 
   const repositories = useMemo(
     () => mergeRepositories(configuredRepos.data, viewerRepos.data),
@@ -144,6 +148,15 @@ export function GitHubIntakeDashboard({
       return matchesFilter && matchesQuery
     })
   }, [filter, projectRecords, query, repositories])
+
+  const placementSuggestions = useMemo(
+    () =>
+      deriveRepoPlacementSuggestions(
+        projectRecords,
+        repositories.map(({ repository }) => repository),
+      ),
+    [projectRecords, repositories],
+  )
 
   const boundCount = repositories.filter(({ repository }) =>
     findRepositoryBinding(projectRecords, repositorySummaryToLink(repository)),
@@ -270,6 +283,134 @@ export function GitHubIntakeDashboard({
         repository={selectedDeepDive?.repository ?? null}
         boundProjectName={selectedDeepDiveBinding?.project.name ?? null}
       />
+
+      <section
+        className="github-suggestion-panel"
+        aria-label="Suggested repository placement"
+      >
+        <div className="resource-panel-header">
+          <div>
+            <Lightbulb size={17} />
+            <div>
+              <h2>Suggested Placement</h2>
+              <p>
+                Deterministic local matches for unbound repos. Atlas will not bind or import until
+                you choose an action.
+              </p>
+            </div>
+          </div>
+          <span className="resource-pill">{placementSuggestions.length} unbound</span>
+        </div>
+
+        {placementSuggestions.length > 0 ? (
+          <div className="github-suggestion-list">
+            {placementSuggestions.map((suggestion) => {
+              const selectedSuggestionTarget =
+                suggestionTargets[suggestion.repositoryKey] ??
+                suggestion.suggestedProjectId ??
+                bindTarget
+              const suggestedLabel = suggestion.suggestedProjectName
+                ? suggestion.suggestedProjectName
+                : [suggestion.suggestedSectionName, suggestion.suggestedGroupName]
+                    .filter(Boolean)
+                    .join(' / ') || 'Outliers / One-off tools'
+
+              return (
+                <article
+                  key={suggestion.repositoryKey}
+                  className="github-suggestion-card"
+                >
+                  <div className="github-suggestion-summary">
+                    <div>
+                      <div className="card-topline">
+                        <span className={`confidence-chip confidence-${suggestion.confidence}`}>
+                          {suggestion.confidence}
+                        </span>
+                      </div>
+                      <h3>{suggestion.repository.fullName}</h3>
+                      <p>{suggestion.repository.description ?? 'No repository description provided.'}</p>
+                    </div>
+
+                    <div className="github-suggestion-target">
+                      <Target size={16} />
+                      <div>
+                        <span>Suggested</span>
+                        <strong>{suggestedLabel}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <ul className="suggestion-reasons">
+                    {suggestion.reasons.map((reason) => (
+                      <li key={`${suggestion.repositoryKey}-${reason.type}-${reason.detail}`}>
+                        {reason.detail}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="github-suggestion-actions">
+                    <label className="repo-selector">
+                      <Link2 size={16} />
+                      <span className="sr-only">
+                        Suggested target for {suggestion.repository.fullName}
+                      </span>
+                      <select
+                        value={selectedSuggestionTarget}
+                        onChange={(event) =>
+                          setSuggestionTargets((current) => ({
+                            ...current,
+                            [suggestion.repositoryKey]: event.target.value,
+                          }))
+                        }
+                        aria-label={`Suggested target for ${suggestion.repository.fullName}`}
+                      >
+                        {projectRecords.map((record) => (
+                          <option key={record.project.id} value={record.project.id}>
+                            {record.project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="github-card-actions">
+                      <button
+                        type="button"
+                        disabled={!selectedSuggestionTarget}
+                        onClick={() =>
+                          onBindRepository(selectedSuggestionTarget, suggestion.repository)
+                        }
+                      >
+                        <Link2 size={15} />
+                        {suggestion.suggestedProjectId
+                          ? `Bind to ${suggestion.suggestedProjectName}`
+                          : 'Bind selected project'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onCreateInboxProject(suggestion.repository)}
+                      >
+                        <Inbox size={15} />
+                        Create Inbox project
+                      </button>
+                      {suggestion.repository.htmlUrl ? (
+                        <a href={suggestion.repository.htmlUrl} target="_blank" rel="noreferrer">
+                          <SquareArrowOutUpRight size={15} />
+                          GitHub
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="empty-state">
+            No unbound repositories are available for placement suggestions in the current GitHub
+            inventory.
+          </p>
+        )}
+      </section>
 
       <div className="github-intake-grid">
         {visibleRepositories.map(({ repository, sources }) => {

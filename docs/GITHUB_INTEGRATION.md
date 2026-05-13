@@ -65,6 +65,21 @@ Intake actions are local Atlas actions only:
 - Create an explicit Inbox project from an unbound repo.
 - Open the repository on GitHub.
 
+## Placement Suggestions
+
+GitHub Intake derives placement suggestions for unbound repositories so the operator can review likely Atlas homes before binding or importing.
+
+Suggestions use deterministic local signals only:
+
+- Normalized repository name compared with project names and IDs.
+- Repository description compared with project summary, manual notes, and decisions.
+- Known portfolio keywords such as Midway, Thunder Road, Surplus, Tenra, VaexCore, JAMARQ, and Atlas.
+- Existing section and group labels.
+
+Each suggestion includes a confidence chip, suggested project or section/group, and plain-language reasons. High confidence usually means the repo name strongly matches a project. Medium confidence usually means a portfolio or section fit is clear. Low confidence points the repo toward `Outliers / One-off tools` for manual triage.
+
+Suggestions are not persisted as a separate source of truth. Accepting a suggestion reuses the existing binding helper, and creating an Inbox project reuses the existing explicit import flow. Ignoring a suggestion stores nothing. Suggestions do not change Atlas status, risk, priority, roadmap, Dispatch readiness, Verification, Planning, Writing, Reports, or GitHub data.
+
 The deep-dive panel can show overview, commits, PRs, issues, workflow runs, workflows, checks, releases, deployments, branches, and tags for the selected repository. Each resource reports its own missing-token, permission, private repo, rate-limit, or unavailable state.
 
 Created Inbox projects are placed under `Outliers / One-off tools` with `kind: "repo"` and `status: "Inbox"`. The imported repository description may seed the summary, but GitHub does not set status, priority, risk, roadmap, or Dispatch readiness.

@@ -975,6 +975,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
           ]
         : [
             repo('tenra.dev', 'Software systems platform.'),
+            repo('midway-mobile-storage-website', 'Midway Mobile Storage public website.'),
             repo('new-utility', 'Small utility awaiting triage.'),
           ]
 
@@ -1076,18 +1077,33 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await page.goto('/')
   await page.getByRole('button', { name: 'GitHub' }).click()
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
+  const placementSuggestions = page.getByLabel('Suggested repository placement')
+  await expect(placementSuggestions).toContainText('jmars319/midway-mobile-storage-website')
+  await expect(placementSuggestions).toContainText('Midway Mobile Storage website')
+  const mmsSuggestion = placementSuggestions
+    .locator('.github-suggestion-card')
+    .filter({ hasText: 'jmars319/midway-mobile-storage-website' })
+  await mmsSuggestion.getByRole('button', { name: 'Bind to Midway Mobile Storage website' }).click()
+  await expect(
+    page.locator('.github-intake-card').filter({ hasText: 'jmars319/midway-mobile-storage-website' }),
+  ).toContainText('Bound to Midway Mobile Storage website')
+  await page.reload()
+  await page.locator('button.project-row').filter({ hasText: 'Midway Mobile Storage' }).click()
+  await expect(page.locator('.repo-list')).toContainText('jmars319/midway-mobile-storage-website')
+  await page.getByRole('button', { name: 'GitHub' }).click()
   await expect(page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })).toBeVisible()
-  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('jmars319/JAMARQ-Atlas')
-  await page.getByRole('tab', { name: 'Branches' }).click()
-  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('Protected branch')
-  await page.getByRole('tab', { name: 'Tags' }).click()
-  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('v0.1.0')
-  await page.getByRole('tab', { name: 'Checks' }).click()
-  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('insufficient-permission')
-  await page.getByRole('tab', { name: 'Commits' }).click()
-  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('Commit page 1')
-  await page.getByRole('button', { name: 'Load more' }).click()
-  await expect(page.getByLabel('GitHub repo deep dive')).toContainText('Commit page 2')
+  const deepDive = page.getByLabel('GitHub repo deep dive')
+  await expect(deepDive).toContainText('jmars319/JAMARQ-Atlas')
+  await deepDive.getByRole('tab', { name: 'Branches' }).click()
+  await expect(deepDive).toContainText('Protected branch')
+  await deepDive.getByRole('tab', { name: 'Tags' }).click()
+  await expect(deepDive).toContainText('v0.1.0')
+  await deepDive.getByRole('tab', { name: 'Checks' }).click()
+  await expect(deepDive).toContainText('insufficient-permission')
+  await deepDive.getByRole('tab', { name: 'Commits' }).click()
+  await expect(deepDive).toContainText('Commit page 1')
+  await deepDive.getByRole('button', { name: 'Load more' }).click()
+  await expect(deepDive).toContainText('Commit page 2')
 
   await page.getByLabel('Target project').selectOption('vaexcore-studio')
   const tenraCard = page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })
@@ -1099,8 +1115,11 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await expect(page.locator('.repo-list')).toContainText('jmars319/tenra.dev')
 
   await page.getByRole('button', { name: 'GitHub' }).click()
+  const utilitySuggestion = placementSuggestions
+    .locator('.github-suggestion-card')
+    .filter({ hasText: 'jmars319/new-utility' })
+  await utilitySuggestion.getByRole('button', { name: 'Create Inbox project' }).click()
   const utilityCard = page.locator('.github-intake-card').filter({ hasText: 'jmars319/new-utility' })
-  await utilityCard.getByRole('button', { name: 'Create Inbox project' }).click()
   await expect(utilityCard).toContainText('Bound to new-utility')
 
   await page.getByRole('button', { name: 'Board', exact: true }).click()

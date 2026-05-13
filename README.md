@@ -15,7 +15,7 @@ The dashboard currently supports:
 - Board-level review of sections, project groups, and projects.
 - Project detail pages for status, next action, blockers, deferred work, not-doing items, notes, decisions, and last verification.
 - Timeline evidence ledger derived from Workspace, Dispatch, Writing, Sync, and existing activity events.
-- GitHub Intake for discovering repositories, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
+- GitHub Intake for discovering repositories, reviewing placement suggestions, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
 - GitHub health and deploy-delta summaries for latest commits, PRs, issues, workflow/check status, releases, deployments, and permission gaps.
 - Planning Center for manual objectives, milestones, work sessions, and planning notes.
@@ -162,6 +162,8 @@ GitHub Intake supports two read-only inventory sources:
 - Viewer repos from the authenticated token when `/user/repos` is available.
 
 Atlas stores only the resulting project repository bindings or explicitly created Inbox projects. It does not mirror full GitHub history into local storage.
+
+GitHub Intake also derives placement suggestions for unbound repositories. Suggestions use deterministic local matching against repo names/descriptions, project names/summaries/notes, known portfolio keywords, and existing section/group labels. A suggestion is not stored as truth and does not bind or import anything until a human clicks a bind or Inbox action.
 
 The GitHub tab also includes a selected-repo deep dive for overview, commits, PRs, issues, workflow runs, workflows, checks, releases, deployments, branches, and tags. Each resource is fetched live through the local API and reports permission gaps in place.
 
@@ -478,6 +480,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and Writing launchers.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
+- `src/services/repoSuggestions.ts` derives advisory placement suggestions for unbound GitHub repositories without mutating Workspace or GitHub data.
 - `src/services/planning.ts` normalizes Planning storage and applies manual planning record changes.
 - `src/services/reports.ts` builds report packet Markdown, normalizes Reports storage, and records report-only audit events.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
@@ -604,5 +607,5 @@ Sync is manual:
 
 ## Roadmap
 
-1. Expand GitHub Intake with optional repo grouping suggestions for human review.
+1. Add richer Dispatch closeout analytics after the current read-only queue evidence is used in live deploy sessions.
 2. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.
