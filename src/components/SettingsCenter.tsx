@@ -73,6 +73,7 @@ import {
   fetchWritingProviderStatus,
   type WritingProviderStatusResponse,
 } from '../services/writingProvider'
+import { createCalibrationWorkflow } from '../services/calibrationWorkflow'
 import {
   buildGithubCard,
   buildHostConnectionCard,
@@ -465,6 +466,17 @@ export function SettingsCenter({
         importPreview: calibrationImportPreview,
       }),
     [calibration, calibrationImportPreview, calibrationIssues],
+  )
+  const calibrationWorkflow = useMemo(
+    () =>
+      createCalibrationWorkflow({
+        workspace,
+        dispatch,
+        calibration,
+        sync,
+        issues: calibrationIssues,
+      }),
+    [calibration, calibrationIssues, dispatch, sync, workspace],
   )
   const calibrationProgressByIssue = useMemo(
     () =>
@@ -1025,6 +1037,28 @@ export function SettingsCenter({
             ) : (
               <p className="empty-state">No unresolved calibration items are currently visible.</p>
             )}
+          </div>
+          <div className="settings-calibration-readiness" aria-label="Guided calibration workflow">
+            <div className="settings-subpanel-heading">
+              <ClipboardList size={16} />
+              <strong>Guided workflow</strong>
+              <span>Step groups for real setup using existing local calibration state.</span>
+            </div>
+            <div className="settings-preview-grid">
+              {calibrationWorkflow.map((group) => (
+                <div key={group.id} className="settings-snapshot-summary">
+                  <strong>{group.label}</strong>
+                  <span className={`resource-pill state-${group.status}`}>
+                    {group.status}
+                  </span>
+                  {group.steps.map((workflowStep) => (
+                    <span key={workflowStep.id}>
+                      {workflowStep.label}: {workflowStep.detail}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
           <div className="settings-form-grid">
             <label className="field">
