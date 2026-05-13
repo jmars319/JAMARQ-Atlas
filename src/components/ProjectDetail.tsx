@@ -22,6 +22,7 @@ import {
   type ProjectRecord,
   type VerificationCadence,
 } from '../domain/atlas'
+import type { CalibrationCredentialReference } from '../domain/calibration'
 import type {
   DeploymentArtifact,
   DeploymentTarget,
@@ -61,6 +62,7 @@ interface ProjectDetailProps {
   planning: PlanningState
   reports: ReportsState
   review: ReviewState
+  credentialReferences: CalibrationCredentialReference[]
   writingDrafts: WritingDraft[]
   timelineEvents: TimelineEvent[]
   onManualChange: (manual: Partial<ManualOperationalState>) => void
@@ -168,6 +170,7 @@ export function ProjectDetail({
   planning,
   reports,
   review,
+  credentialReferences,
   writingDrafts,
   timelineEvents,
   onManualChange,
@@ -344,6 +347,7 @@ export function ProjectDetail({
           record={record}
           dispatch={dispatch}
           reports={reports}
+          credentialReferences={credentialReferences}
           onTargetChange={onDispatchTargetChange}
           onReadinessChange={onDispatchReadinessChange}
           onAutomationReadinessChange={onDispatchAutomationReadinessChange}

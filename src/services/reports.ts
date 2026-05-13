@@ -1,4 +1,5 @@
 import { formatDateLabel, type ProjectRecord } from '../domain/atlas'
+import type { AtlasCalibrationState } from '../domain/calibration'
 import { findReadiness, type DispatchState } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import {
@@ -21,6 +22,11 @@ import {
   deriveDispatchCloseoutForTarget,
   isDeploymentReportType,
 } from './dispatchCloseout'
+import {
+  createCalibrationReadinessReport,
+  summarizeCalibrationState,
+  type CalibrationIssue,
+} from './calibration'
 import { getPlanningForProject } from './planning'
 import { getReviewForProject } from './review'
 import { evaluateVerification } from './verification'
@@ -46,6 +52,8 @@ interface ReportContextInput {
   writingDraftIds: string[]
   reviewNoteIds?: string[]
   reviewSessionIds?: string[]
+  calibration?: AtlasCalibrationState
+  calibrationIssues?: CalibrationIssue[]
   now?: Date
 }
 
@@ -662,12 +670,77 @@ function buildReviewSection({
     : '_No Review Center notes or sessions are recorded for this report scope._'
 }
 
+function shouldIncludeCalibrationSection(type: ReportPacketType) {
+  return (
+    type === 'internal-weekly-packet' ||
+    type === 'project-handoff-packet' ||
+    isDeploymentReportType(type)
+  )
+}
+
+function buildCalibrationSection(
+  calibration: AtlasCalibrationState | undefined,
+  calibrationIssues: CalibrationIssue[] = [],
+) {
+  if (!calibration) {
+    return '_No Calibration Operations context was supplied._'
+  }
+
+  const summary = summarizeCalibrationState(calibration)
+  const readiness = createCalibrationReadinessReport({
+    issues: calibrationIssues,
+    calibration,
+  })
+  const unresolvedCategories = readiness.categoryCounts
+    .filter((category) => category.count > 0)
+    .map((category) => `${category.category}: ${category.count}`)
+
+  return [
+    `- Progress records: ${summary.progressRecords}`,
+    `- Entered: ${summary.entered}`,
+    `- Verified: ${summary.verified}`,
+    `- Deferred: ${summary.deferred}`,
+    `- Credential references: ${summary.credentialReferences}`,
+    `- Unregistered credential refs: ${readiness.unregisteredCredentialRefs}`,
+    '',
+    'Unresolved categories:',
+    list(unresolvedCategories, 'No unresolved categories were supplied.'),
+    '',
+    'Top affected targets/projects:',
+    list(
+      readiness.topAffectedItems.map((item) => `${item.label}: ${item.count} item(s)`),
+      'No affected targets or projects were supplied.',
+    ),
+    '',
+    'Latest calibration audit:',
+    list(
+      readiness.latestAuditEvents.map(
+        (event) => `${event.occurredAt}: ${event.type} - ${event.summary}`,
+      ),
+      'No calibration audit events recorded.',
+    ),
+    '',
+    'Registry status:',
+    list(
+      calibration.credentialReferences
+        .slice(0, 8)
+        .map(
+          (reference) =>
+            `${reference.label}: ${reference.provider || 'provider not set'} / ${reference.targetIds.length} target(s)`,
+        ),
+      'No credential references registered.',
+    ),
+  ].join('\n')
+}
+
 export function buildReportMarkdown({
   type,
   records,
   dispatch,
   reports = emptyReportsState,
   review,
+  calibration,
+  calibrationIssues = [],
   planning,
   writingDrafts,
   selectedReviewNotes = [],
@@ -679,6 +752,8 @@ export function buildReportMarkdown({
   dispatch: DispatchState
   reports?: ReportsState
   review?: ReviewState
+  calibration?: AtlasCalibrationState
+  calibrationIssues?: CalibrationIssue[]
   planning: PlanningState
   writingDrafts: WritingDraft[]
   selectedReviewNotes?: ReviewNote[]
@@ -753,6 +828,14 @@ export function buildReportMarkdown({
           '',
         ]
       : []),
+    ...(shouldIncludeCalibrationSection(type)
+      ? [
+          '## Calibration Operations',
+          '',
+          buildCalibrationSection(calibration, calibrationIssues),
+          '',
+        ]
+      : []),
   ].join('\n')
 }
 
@@ -768,6 +851,8 @@ export function createReportPacket({
   writingDraftIds,
   reviewNoteIds = [],
   reviewSessionIds = [],
+  calibration,
+  calibrationIssues = [],
   now = new Date(),
 }: ReportContextInput): ReportPacket {
   const records = selectedRecords(projectRecords, projectIds)
@@ -809,6 +894,8 @@ export function createReportPacket({
       dispatch,
       reports,
       review,
+      calibration,
+      calibrationIssues,
       planning,
       writingDrafts: selectedDrafts,
       selectedReviewNotes,

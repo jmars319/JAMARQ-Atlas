@@ -8,6 +8,12 @@ import {
   emptyPlanningStore,
 } from '../src/services/planning'
 import {
+  emptyCalibrationState,
+  scanAtlasCalibration,
+  updateCalibrationFieldProgress,
+  upsertCredentialReference,
+} from '../src/services/calibration'
+import {
   addReviewNote,
   addReviewSession,
   createReviewNote,
@@ -184,6 +190,52 @@ describe('report packet builder', () => {
     expect(packet.markdown).toContain('Review Center Notes')
     expect(packet.markdown).toContain('Review Center note for weekly packet.')
     expect(packet.markdown).toContain('Review Center notes are human-authored context only')
+  })
+
+  it('includes Calibration Operations summaries in operator and deployment packets', () => {
+    const issues = scanAtlasCalibration(seedWorkspace, seedDispatchState, [], [])
+    const issue = issues.find((candidate) => candidate.field === 'remoteHost')
+
+    if (!issue) {
+      throw new Error('Expected calibration issue.')
+    }
+
+    const progressed = updateCalibrationFieldProgress(
+      emptyCalibrationState(now),
+      issue,
+      'verified',
+      'Confirmed non-secret host label.',
+      'operator',
+      now,
+    )
+    const savedReference = upsertCredentialReference(progressed, {
+      label: 'godaddy-mmh-production',
+      provider: 'GoDaddy cPanel',
+      purpose: 'Production host reference label',
+      targetIds: ['midway-music-hall-production'],
+      now,
+    })
+    const calibration = savedReference.ok ? savedReference.state : progressed
+    const packet = createReportPacket({
+      type: 'internal-weekly-packet',
+      projectRecords,
+      dispatch: seedDispatchState,
+      reports: emptyReportsStore(now),
+      planning: emptyPlanningStore(now),
+      writingDrafts: [],
+      projectIds: ['midway-music-hall-site'],
+      writingDraftIds: [],
+      calibration,
+      calibrationIssues: issues,
+      now,
+    })
+
+    expect(packet.markdown).toContain('Calibration Operations')
+    expect(packet.markdown).toContain('Progress records: 1')
+    expect(packet.markdown).toContain('Verified: 1')
+    expect(packet.markdown).toContain('Credential references: 1')
+    expect(packet.markdown).toContain('Unregistered credential refs:')
+    expect(packet.markdown).toContain('godaddy-mmh-production: GoDaddy cPanel')
   })
 
   it('includes explicitly selected Review sessions and notes in report packets', () => {

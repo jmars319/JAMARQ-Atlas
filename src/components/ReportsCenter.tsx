@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatDateTimeLabel, type ProjectRecord } from '../domain/atlas'
+import type { AtlasCalibrationState } from '../domain/calibration'
 import type { DispatchState } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import {
@@ -22,6 +23,7 @@ import {
 import type { ReviewState } from '../domain/review'
 import type { WritingDraft, WritingWorkbenchState } from '../domain/writing'
 import { copyTextToClipboard } from '../services/aiWritingAssistant'
+import type { CalibrationIssue } from '../services/calibration'
 import { createReportPacket, reportFilename } from '../services/reports'
 
 type ReportScope = string | 'all'
@@ -33,6 +35,8 @@ interface ReportsCenterProps {
   dispatch: DispatchState
   planning: PlanningState
   writing: WritingWorkbenchState
+  calibration: AtlasCalibrationState
+  calibrationIssues: CalibrationIssue[]
   selectedProjectId: string
   onSelectProject: (projectId: string) => void
   onCreatePacket: (packet: ReportPacket) => void
@@ -152,6 +156,8 @@ export function ReportsCenter({
   dispatch,
   planning,
   writing,
+  calibration,
+  calibrationIssues,
   selectedProjectId,
   onSelectProject,
   onCreatePacket,
@@ -249,6 +255,8 @@ export function ReportsCenter({
       writingDraftIds: selectedWritingDraftIds,
       reviewNoteIds: selectedReviewNoteIds,
       reviewSessionIds: selectedReviewSessionIds,
+      calibration,
+      calibrationIssues,
     })
 
     onCreatePacket(packet)

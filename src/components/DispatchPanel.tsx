@@ -12,6 +12,7 @@ import {
 import { useState } from 'react'
 import type { ProjectRecord } from '../domain/atlas'
 import { formatDateLabel, formatDateTimeLabel } from '../domain/atlas'
+import type { CalibrationCredentialReference } from '../domain/calibration'
 import {
   DEPLOYMENT_STATUSES,
   formatDeploymentStatus,
@@ -71,12 +72,14 @@ import {
   MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
   type DeploySessionChecklistPresetId,
 } from '../services/deploySessions'
+import { canStoreCalibrationValue } from '../services/calibration'
 import { requestHostConnectionPreflight } from '../services/hostConnection'
 
 interface DispatchPanelProps {
   record: ProjectRecord
   dispatch: DispatchState
   reports: ReportsState
+  credentialReferences?: CalibrationCredentialReference[]
   onTargetChange: (targetId: string, update: Partial<DeploymentTarget>) => void
   onReadinessChange: (
     targetId: string,
@@ -181,6 +184,7 @@ export function DispatchPanel({
   record,
   dispatch,
   reports,
+  credentialReferences = [],
   onTargetChange,
   onReadinessChange,
   onAutomationReadinessChange,
@@ -210,8 +214,21 @@ export function DispatchPanel({
     Record<string, string>
   >({})
   const [deploySessionMessages, setDeploySessionMessages] = useState<Record<string, string>>({})
+  const [credentialMessages, setCredentialMessages] = useState<Record<string, string>>({})
   const [evidenceHistoryLimit, setEvidenceHistoryLimit] = useState(5)
   const targets = dispatch.targets.filter((target) => target.projectId === record.project.id)
+
+  function handleCredentialRefChange(targetId: string, value: string) {
+    const check = canStoreCalibrationValue(value)
+
+    if (!check.ok) {
+      setCredentialMessages((current) => ({ ...current, [targetId]: check.message }))
+      return
+    }
+
+    setCredentialMessages((current) => ({ ...current, [targetId]: '' }))
+    onTargetChange(targetId, { credentialRef: value })
+  }
 
   if (targets.length === 0) {
     return (
@@ -1380,13 +1397,34 @@ export function DispatchPanel({
               </label>
               <label className="field field-full">
                 <span>Credential reference label (not a secret)</span>
+                {credentialReferences.length > 0 ? (
+                  <select
+                    aria-label={`Registered credential reference for ${target.name}`}
+                    value={
+                      credentialReferences.some(
+                        (reference) => reference.label === target.credentialRef,
+                      )
+                        ? target.credentialRef
+                        : ''
+                    }
+                    onChange={(event) => handleCredentialRefChange(target.id, event.target.value)}
+                  >
+                    <option value="">Manual / unregistered label</option>
+                    {credentialReferences.map((reference) => (
+                      <option key={reference.id} value={reference.label}>
+                        {reference.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
                 <input
                   value={target.credentialRef}
                   placeholder="godaddy-mmh-production"
-                  onChange={(event) =>
-                    onTargetChange(target.id, { credentialRef: event.target.value })
-                  }
+                  onChange={(event) => handleCredentialRefChange(target.id, event.target.value)}
                 />
+                {credentialMessages[target.id] ? (
+                  <span className="field-warning">{credentialMessages[target.id]}</span>
+                ) : null}
               </label>
               <label className="field field-full">
                 <span>Remote frontend path</span>

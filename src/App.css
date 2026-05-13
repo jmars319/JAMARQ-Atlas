@@ -580,6 +580,12 @@ h3 {
   resize: vertical;
 }
 
+.field-warning {
+  color: var(--warning);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
 .verification-grid,
 .repo-overview-grid {
   display: grid;

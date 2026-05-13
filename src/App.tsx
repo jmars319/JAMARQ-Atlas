@@ -76,6 +76,7 @@ import { markProjectVerified, updateProjectVerificationCadence } from './service
 import {
   applyCalibrationImportPreview,
   recordCalibrationAuditEvent,
+  scanAtlasCalibration,
   type CalibrationImportPreview,
   type CalibrationIssue,
 } from './services/calibration'
@@ -228,6 +229,16 @@ function App() {
     deleteFilter: deleteReviewFilter,
   } = useLocalReview()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
+  const calibrationIssues = useMemo(
+    () =>
+      scanAtlasCalibration(
+        workspace,
+        dispatch,
+        undefined,
+        calibration.credentialReferences.map((reference) => reference.label),
+      ),
+    [calibration.credentialReferences, dispatch, workspace],
+  )
   const timelineEvents = useMemo(
     () =>
       deriveTimelineEvents({
@@ -417,6 +428,8 @@ function App() {
       review,
       projectIds: [projectId],
       writingDraftIds: [],
+      calibration,
+      calibrationIssues,
     })
 
     addReportPacket(packet)
@@ -809,6 +822,8 @@ function App() {
             dispatch={dispatch}
             planning={planning}
             writing={writing}
+            calibration={calibration}
+            calibrationIssues={calibrationIssues}
             selectedProjectId={selectedRecord?.project.id ?? ''}
             onSelectProject={selectProject}
             onCreatePacket={addReportPacket}
@@ -937,6 +952,7 @@ function App() {
               planning={planning}
               reports={reports}
               review={review}
+              credentialReferences={calibration.credentialReferences}
               writingDrafts={writing.drafts}
               timelineEvents={timelineEvents.filter(
                 (event) => event.projectId === selectedRecord.project.id,
