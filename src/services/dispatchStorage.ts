@@ -4,10 +4,12 @@ import type {
   DeploymentRunbook,
   DeploymentTarget,
   DeploymentOrderGroup,
+  DispatchHostEvidenceRun,
   DispatchPreflightRun,
   DispatchReadiness,
   DispatchState,
   DispatchAutomationReadiness,
+  DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
 import {
   findReadiness,
@@ -17,6 +19,12 @@ import {
 } from '../domain/dispatch'
 import { normalizeAutomationReadiness } from './dispatchAutomation'
 import { normalizeDeploySessions } from './deploySessions'
+import {
+  addHostEvidenceRun as appendHostEvidenceRun,
+  addVerificationEvidenceRun as appendVerificationEvidenceRun,
+  normalizeHostEvidenceRuns,
+  normalizeVerificationEvidenceRuns,
+} from './dispatchEvidence'
 
 const PREFLIGHT_HISTORY_LIMIT = 50
 
@@ -54,6 +62,11 @@ export function normalizeDispatchState(value: unknown, now = new Date()): Dispat
       ? (candidate.orderGroups as DeploymentOrderGroup[])
       : [],
     deploySessions: normalizeDeploySessions(candidate.deploySessions, now),
+    hostEvidenceRuns: normalizeHostEvidenceRuns(candidate.hostEvidenceRuns, now),
+    verificationEvidenceRuns: normalizeVerificationEvidenceRuns(
+      candidate.verificationEvidenceRuns,
+      now,
+    ),
   }
 }
 
@@ -153,6 +166,20 @@ export function addDispatchPreflightRun(
       ...state.preflightRuns.filter((existingRun) => existingRun.id !== run.id),
     ].slice(0, PREFLIGHT_HISTORY_LIMIT),
   }
+}
+
+export function addDispatchHostEvidenceRun(
+  state: DispatchState,
+  run: DispatchHostEvidenceRun,
+): DispatchState {
+  return appendHostEvidenceRun(state, run)
+}
+
+export function addDispatchVerificationEvidenceRun(
+  state: DispatchState,
+  run: DispatchVerificationEvidenceRun,
+): DispatchState {
+  return appendVerificationEvidenceRun(state, run)
 }
 
 export function replaceDispatchAutomationReadiness(

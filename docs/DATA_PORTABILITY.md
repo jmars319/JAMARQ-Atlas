@@ -47,7 +47,7 @@ Required fields:
 The backup includes only Atlas-owned stores:
 
 - Workspace: sections, groups, projects, manual fields, repo bindings, and activity events.
-- Dispatch: targets, records, readiness, and preflight evidence.
+- Dispatch: targets, records, readiness, preflight evidence, host evidence, verification evidence, runbooks, and deploy sessions.
 - Writing: drafts, context snapshots, provider result metadata, review status, notes, and Writing-only audit events.
 - Planning: objectives, milestones, work sessions, and planning notes.
 - Reports: report packets, source summaries, context warnings, Markdown, and report-only audit events.

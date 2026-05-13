@@ -52,6 +52,8 @@ function collectDispatchSummary(dispatch: DispatchState) {
     records: dispatch.records.length,
     readinessEntries: dispatch.readiness.length,
     preflightRuns: dispatch.preflightRuns.length,
+    hostEvidenceRuns: dispatch.hostEvidenceRuns.length,
+    verificationEvidenceRuns: dispatch.verificationEvidenceRuns.length,
   }
 }
 
@@ -365,7 +367,7 @@ Schema: ${envelope.schemaVersion}
 - Workspace: ${workspace.sections} sections, ${workspace.groups} groups, ${workspace.projects} projects
 - Repository bindings: ${workspace.repositoryBindings}
 - Activity events: ${workspace.activityEvents}
-- Dispatch: ${dispatch.targets} targets, ${dispatch.records} records, ${dispatch.readinessEntries} readiness entries, ${dispatch.preflightRuns} preflight runs
+- Dispatch: ${dispatch.targets} targets, ${dispatch.records} records, ${dispatch.readinessEntries} readiness entries, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns} host evidence runs, ${dispatch.verificationEvidenceRuns} verification evidence runs
 - Writing: ${writing.drafts} drafts, ${writing.reviewEvents} review events, ${writing.approvedDrafts} approved, ${writing.exportedDrafts} exported, ${writing.archivedDrafts} archived
 - Planning: ${planning.objectives} objectives, ${planning.milestones} milestones, ${planning.workSessions} work sessions, ${planning.notes} notes
 - Reports: ${reports.packets} packets, ${reports.auditEvents} audit events, ${reports.exportedPackets} exported, ${reports.archivedPackets} archived
@@ -398,7 +400,7 @@ Schema: ${envelope.schemaVersion}
 export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
   const { workspace, dispatch, writing, planning, reports, sync } = envelope.summary
 
-  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${sync.snapshots} sync snapshots.`
+  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${sync.snapshots} sync snapshots.`
 }
 
 export function canApplyAtlasRestore(confirmation: string) {

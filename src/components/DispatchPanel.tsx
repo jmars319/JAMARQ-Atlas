@@ -19,20 +19,27 @@ import {
   getActiveDeploySession,
   getHealthCheckSummary,
   getLatestDeploymentRecord,
+  getLatestHostEvidenceRun,
   getLatestPreflightRun,
+  getLatestVerificationEvidenceRun,
   getRunbookForTarget,
   getTargetDeploySessions,
+  getTargetHostEvidenceRuns,
   getTargetPreflightRuns,
   getTargetRecords,
+  getTargetVerificationEvidenceRuns,
   type DispatchAutomationDryRunPlan,
   type DispatchAutomationReadiness,
   type DispatchDeploySession,
   type DispatchDeploySessionStep,
+  type DispatchDeploySessionStepKind,
+  type DispatchHostEvidenceRun,
   type DeploymentArtifact,
   type DeploymentStatus,
   type DeploymentTarget,
   type DispatchReadiness,
   type DispatchState,
+  type DispatchVerificationEvidenceRun,
   type HostConnectionPreflightResult,
 } from '../domain/dispatch'
 import {
@@ -48,6 +55,10 @@ import {
   runDeploymentVerificationChecks,
   type DeploymentVerificationEvidence,
 } from '../services/deployPreflight'
+import {
+  createHostEvidenceRun,
+  createVerificationEvidenceRun,
+} from '../services/dispatchEvidence'
 import { MANUAL_DEPLOYMENT_RECORD_CONFIRMATION } from '../services/deploySessions'
 import { requestHostConnectionPreflight } from '../services/hostConnection'
 
@@ -97,6 +108,14 @@ interface DispatchPanelProps {
     sessionId: string,
     confirmation: string,
   ) => { ok: boolean; message: string; recordId: string | null }
+  onAttachDeploySessionEvidence: (
+    sessionId: string,
+    stepKind: DispatchDeploySessionStepKind,
+    label: string,
+    detail: string,
+  ) => void
+  onHostEvidenceRunAdd: (run: DispatchHostEvidenceRun) => void
+  onVerificationEvidenceRunAdd: (run: DispatchVerificationEvidenceRun) => void
   onRunPreflight: (targetId: string) => Promise<void>
   preflightRunningTargetId: string
 }
@@ -128,6 +147,20 @@ const DEPLOY_SESSION_STEP_STATUSES: DispatchDeploySessionStep['status'][] = [
   'blocked',
 ]
 
+function evidenceLinkDetail({
+  id,
+  status,
+  completedAt,
+  summary,
+}: {
+  id: string
+  status: string
+  completedAt: string
+  summary: string
+}) {
+  return `${id}: ${status} at ${completedAt}. ${summary}`
+}
+
 export function DispatchPanel({
   record,
   dispatch,
@@ -139,6 +172,9 @@ export function DispatchPanel({
   onDeploySessionChange,
   onDeploySessionStepChange,
   onRecordManualDeployment,
+  onAttachDeploySessionEvidence,
+  onHostEvidenceRunAdd,
+  onVerificationEvidenceRunAdd,
   onRunPreflight,
   preflightRunningTargetId,
 }: DispatchPanelProps) {
@@ -180,6 +216,14 @@ export function DispatchPanel({
         const deploymentRecords = getTargetRecords(dispatch, target.id)
         const latestPreflight = getLatestPreflightRun(dispatch, target.id)
         const runbook = getRunbookForTarget(dispatch, target.id)
+        const latestHostEvidence = getLatestHostEvidenceRun(dispatch, target.id)
+        const hostEvidenceRuns = getTargetHostEvidenceRuns(dispatch, target.id)
+        const latestVerificationEvidence = runbook
+          ? getLatestVerificationEvidenceRun(dispatch, target.id, runbook.id)
+          : undefined
+        const verificationEvidenceRuns = runbook
+          ? getTargetVerificationEvidenceRuns(dispatch, target.id, runbook.id)
+          : []
         const targetDeploySessions = getTargetDeploySessions(dispatch, target.id)
         const latestDeploySession = targetDeploySessions[0]
         const activeDeploySession = getActiveDeploySession(dispatch, target.id)
@@ -194,6 +238,16 @@ export function DispatchPanel({
         const dryRunPlan = dryRunPlans[target.id]
         const targetVerificationEvidence = verificationEvidence[target.id] ?? []
         const hostPreflightResult = hostPreflightResults[target.id]
+        const hostEvidenceStatus = hostPreflightResult?.status ?? latestHostEvidence?.status
+        const hostEvidenceCheckedAt =
+          hostPreflightResult?.checkedAt ?? latestHostEvidence?.completedAt ?? ''
+        const hostEvidenceChecks = hostPreflightResult?.checks ?? latestHostEvidence?.checks ?? []
+        const hostEvidenceSummary =
+          hostPreflightResult?.message ??
+          latestHostEvidence?.summary ??
+          'No host boundary evidence captured yet.'
+        const hostEvidenceCredentialRef =
+          hostPreflightResult?.credentialRef ?? latestHostEvidence?.credentialRef ?? ''
         const sessionMessage =
           (activeDeploySession ? deploySessionMessages[activeDeploySession.id] : '') ||
           (latestDeploySession ? deploySessionMessages[latestDeploySession.id] : '')
@@ -269,7 +323,11 @@ export function DispatchPanel({
                 </div>
                 <div>
                   <span>Host boundary</span>
-                  <strong>{hostPreflightResult ? hostPreflightResult.status : 'Not checked'}</strong>
+                  <strong>{hostEvidenceStatus ?? 'Not checked'}</strong>
+                </div>
+                <div>
+                  <span>Verification evidence</span>
+                  <strong>{latestVerificationEvidence?.status ?? 'Not checked'}</strong>
                 </div>
                 <div>
                   <span>Deploy session</span>
@@ -419,12 +477,20 @@ export function DispatchPanel({
                               target,
                               checks: runbook.verificationChecks,
                             })
-                              .then((evidence) =>
+                              .then((evidence) => {
+                                const run = createVerificationEvidenceRun({
+                                  projectId: target.projectId,
+                                  targetId: target.id,
+                                  runbookId: runbook.id,
+                                  evidence,
+                                })
+
+                                onVerificationEvidenceRunAdd(run)
                                 setVerificationEvidence((current) => ({
                                   ...current,
                                   [target.id]: evidence,
-                                })),
-                              )
+                                }))
+                              })
                               .finally(() => setVerificationRunningTargetId(''))
                           }}
                         >
@@ -473,6 +539,26 @@ export function DispatchPanel({
                           ))}
                         </ol>
                       ) : null}
+                      {latestVerificationEvidence ? (
+                        <div className="dispatch-preflight-history">
+                          <strong>Stored verification evidence</strong>
+                          <ol>
+                            {verificationEvidenceRuns.slice(0, 5).map((run) => (
+                              <li key={run.id}>
+                                <span className={`resource-pill state-${run.status}`}>
+                                  {run.status}
+                                </span>
+                                <span>{formatDateTimeLabel(run.completedAt)}</span>
+                                <span>{run.summary}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      ) : (
+                        <p className="empty-state">
+                          No stored runbook verification evidence yet.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <strong>Deploy notes</strong>
@@ -505,6 +591,14 @@ export function DispatchPanel({
                   <strong>{targetDeploySessions.length}</strong>
                   <span>Sessions tracked for this target</span>
                 </div>
+                <div>
+                  <strong>{latestHostEvidence?.status ?? 'Not captured'}</strong>
+                  <span>Latest host evidence</span>
+                </div>
+                <div>
+                  <strong>{latestVerificationEvidence?.status ?? 'Not captured'}</strong>
+                  <span>Latest verification evidence</span>
+                </div>
               </div>
 
               {activeDeploySession ? (
@@ -516,6 +610,67 @@ export function DispatchPanel({
                       delete, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write,
                       or touch production databases.
                     </p>
+                  </div>
+
+                  <div className="dispatch-manual-record">
+                    <div className="panel-heading">
+                      <ClipboardCheck size={17} />
+                      <h4>Closeout Evidence</h4>
+                    </div>
+                    <p>
+                      Attach stored read-only evidence to this manual session. This records what a
+                      human reviewed; it does not mark anything verified or deployed.
+                    </p>
+                    <div className="dispatch-preflight-actions">
+                      <button
+                        type="button"
+                        disabled={!latestHostEvidence}
+                        onClick={() => {
+                          if (!latestHostEvidence) {
+                            return
+                          }
+
+                          onAttachDeploySessionEvidence(
+                            activeDeploySession.id,
+                            'preflight',
+                            `Host evidence linked: ${latestHostEvidence.id}`,
+                            evidenceLinkDetail(latestHostEvidence),
+                          )
+                          setDeploySessionMessages((current) => ({
+                            ...current,
+                            [activeDeploySession.id]: 'Latest host evidence attached to session.',
+                          }))
+                        }}
+                      >
+                        <ClipboardCheck size={15} />
+                        Add latest host evidence to session notes
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!latestVerificationEvidence}
+                        onClick={() => {
+                          if (!latestVerificationEvidence) {
+                            return
+                          }
+
+                          onAttachDeploySessionEvidence(
+                            activeDeploySession.id,
+                            'verification-checks',
+                            `Verification evidence linked: ${latestVerificationEvidence.id}`,
+                            evidenceLinkDetail(latestVerificationEvidence),
+                          )
+                          setDeploySessionMessages((current) => ({
+                            ...current,
+                            [activeDeploySession.id]:
+                              'Latest verification evidence attached to session.',
+                          }))
+                        }}
+                      >
+                        <ClipboardCheck size={15} />
+                        Add latest verification evidence to session notes
+                      </button>
+                      <span>Evidence is advisory and remains local to Dispatch.</span>
+                    </div>
                   </div>
 
                   <div className="dispatch-session-steps">
@@ -759,20 +914,32 @@ export function DispatchPanel({
                 <div className="dispatch-preflight-history">
                   <strong>Session history</strong>
                   <ol>
-                    {targetDeploySessions.slice(0, 5).map((session) => (
-                      <li key={session.id}>
-                        <span className={`resource-pill state-${session.status}`}>
-                          {session.status}
-                        </span>
-                        <span>{formatDateTimeLabel(session.updatedAt)}</span>
-                        <span>
-                          {session.siteName}
-                          {session.recordedDeploymentRecordId
-                            ? ` / ${session.recordedDeploymentRecordId}`
-                            : ''}
-                        </span>
-                      </li>
-                    ))}
+                    {targetDeploySessions.slice(0, 5).map((session) => {
+                      const sessionEvidence = session.steps
+                        .map((step) => `${step.notes}\n${step.evidence}`)
+                        .join('\n')
+                      const hasHostEvidence = sessionEvidence.includes('host-evidence-')
+                      const hasVerificationEvidence = sessionEvidence.includes(
+                        'verification-evidence-',
+                      )
+
+                      return (
+                        <li key={session.id}>
+                          <span className={`resource-pill state-${session.status}`}>
+                            {session.status}
+                          </span>
+                          <span>{formatDateTimeLabel(session.updatedAt)}</span>
+                          <span>
+                            {session.siteName}
+                            {session.recordedDeploymentRecordId
+                              ? ` / ${session.recordedDeploymentRecordId}`
+                              : ''}
+                            {hasHostEvidence ? ' / host evidence' : ''}
+                            {hasVerificationEvidence ? ' / verification evidence' : ''}
+                          </span>
+                        </li>
+                      )
+                    })}
                   </ol>
                 </div>
               ) : null}
@@ -793,12 +960,18 @@ export function DispatchPanel({
                       target,
                       preservePaths: runbook?.preservePaths.map((preservePath) => preservePath.path) ?? [],
                     })
-                      .then((result) =>
+                      .then((result) => {
+                        onHostEvidenceRunAdd(
+                          createHostEvidenceRun({
+                            projectId: target.projectId,
+                            result,
+                          }),
+                        )
                         setHostPreflightResults((current) => ({
                           ...current,
                           [target.id]: result,
-                        })),
-                      )
+                        }))
+                      })
                       .finally(() => setHostPreflightRunningTargetId(''))
                   }}
                 >
@@ -810,24 +983,24 @@ export function DispatchPanel({
                 <span>Credential refs only. No SSH/SFTP write, upload, or writable check.</span>
               </div>
 
-              {hostPreflightResult ? (
+              {hostEvidenceStatus ? (
                 <>
                   <div className="dispatch-signal-grid">
                     <div>
-                      <strong>{hostPreflightResult.status}</strong>
-                      <span>{hostPreflightResult.message}</span>
+                      <strong>{hostEvidenceStatus}</strong>
+                      <span>{hostEvidenceSummary}</span>
                     </div>
                     <div>
-                      <strong>{formatDateTimeLabel(hostPreflightResult.checkedAt)}</strong>
-                      <span>{hostPreflightResult.checks.length} read-only checks</span>
+                      <strong>{formatDateTimeLabel(hostEvidenceCheckedAt)}</strong>
+                      <span>{hostEvidenceChecks.length} read-only checks</span>
                     </div>
                     <div>
-                      <strong>{hostPreflightResult.credentialRef || 'Not set'}</strong>
+                      <strong>{hostEvidenceCredentialRef || 'Not set'}</strong>
                       <span>Credential reference label</span>
                     </div>
                   </div>
                   <ol className="resource-list">
-                    {hostPreflightResult.checks.map((check) => (
+                    {hostEvidenceChecks.map((check) => (
                       <li key={check.id}>
                         <div className="resource-icon" aria-hidden="true">
                           {check.status === 'passing' ? (
@@ -853,6 +1026,22 @@ export function DispatchPanel({
                       </li>
                     ))}
                   </ol>
+                  {hostEvidenceRuns.length > 0 ? (
+                    <div className="dispatch-preflight-history">
+                      <strong>Host evidence history</strong>
+                      <ol>
+                        {hostEvidenceRuns.slice(0, 5).map((run) => (
+                          <li key={run.id}>
+                            <span className={`resource-pill state-${run.status}`}>
+                              {run.status}
+                            </span>
+                            <span>{formatDateTimeLabel(run.completedAt)}</span>
+                            <span>{run.summary}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <p className="empty-state">

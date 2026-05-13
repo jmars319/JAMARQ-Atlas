@@ -33,13 +33,13 @@ The host boundary card reads `/api/dispatch/host-status`. Missing `ATLAS_HOST_PR
 
 Settings also hosts manual Sync snapshot controls.
 
-Snapshots capture normalized Workspace, Dispatch, and Writing stores only. They do not include Settings, Sync, GitHub tokens, AI keys, deployment credentials, environment variables, unknown localStorage keys, or live GitHub history.
+Snapshots capture normalized Workspace, Dispatch, Writing, Planning, and Reports stores only. They do not include Settings, Sync, GitHub tokens, AI keys, deployment credentials, environment variables, unknown localStorage keys, or live GitHub history.
 
 Current snapshot actions:
 
 - Create a manual local snapshot.
 - Preview a snapshot restore.
-- Restore Workspace, Dispatch, and Writing after typing `RESTORE ATLAS`.
+- Restore Workspace, Dispatch, Writing, Planning, and Reports after typing `RESTORE ATLAS`.
 - Delete a local snapshot after explicit confirmation.
 - Check hosted sync status.
 - Push a manual remote snapshot when Supabase env vars are configured.

@@ -24,6 +24,8 @@ Report packets can include:
 - Verification due state.
 - Dispatch target count and warning/blocker posture.
 - cPanel runbook summaries, artifact readiness, preserve paths, and verification checks.
+- Stored host evidence and runbook verification evidence.
+- Deploy-session linked evidence and manual deployment record references.
 - Planning records linked to included projects.
 - Repository bindings, GitHub health/deploy-delta summary references, and any GitHub context captured inside selected Writing drafts.
 
@@ -42,6 +44,8 @@ Stored data includes:
 
 Reports do not mutate Workspace, Dispatch, Writing, Planning, Verification, GitHub bindings, Settings, or Sync stores.
 
+Dispatch evidence in reports is copied from existing local evidence history. Report creation does not run checks, attach evidence to sessions, create deployment records, or mark anything verified.
+
 ## Export Behavior
 
 Current export actions are local/browser-only:
@@ -50,6 +54,8 @@ Current export actions are local/browser-only:
 - Download Markdown packet.
 
 Exporting a report does not prove that a client update was sent, a release was published, work was shipped, or verification was completed.
+
+Deployment report export also does not prove Atlas deployed anything. Stored host evidence, runbook verification evidence, deploy-session notes, and manual deployment record references remain advisory/operator evidence.
 
 ## Guardrails
 

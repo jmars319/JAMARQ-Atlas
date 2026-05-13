@@ -39,7 +39,10 @@ import type {
   DispatchAutomationReadiness,
   DispatchDeploySession,
   DispatchDeploySessionStep,
+  DispatchDeploySessionStepKind,
+  DispatchHostEvidenceRun,
   DispatchReadiness,
+  DispatchVerificationEvidenceRun,
 } from './domain/dispatch'
 import type { AtlasBackupStores } from './domain/dataPortability'
 import type { AtlasSyncCoreStores } from './domain/sync'
@@ -90,6 +93,9 @@ function App() {
     updateDeploySessionFields,
     updateDeploySessionStepFields,
     recordManualDeployment,
+    attachDeploySessionEvidence,
+    addHostEvidenceRun,
+    addVerificationEvidenceRun,
     addPreflightRun,
   } = useLocalDispatch()
   const { settings, setSettings, updateLocalSettings } = useLocalSettings()
@@ -609,6 +615,16 @@ function App() {
               update: Partial<Pick<DispatchDeploySessionStep, 'status' | 'notes' | 'evidence'>>,
             ) => updateDeploySessionStepFields(sessionId, stepId, update)}
             onRecordManualDeployment={recordManualDeployment}
+            onAttachDeploySessionEvidence={(
+              sessionId: string,
+              stepKind: DispatchDeploySessionStepKind,
+              label: string,
+              detail: string,
+            ) => attachDeploySessionEvidence(sessionId, stepKind, label, detail)}
+            onHostEvidenceRunAdd={(run: DispatchHostEvidenceRun) => addHostEvidenceRun(run)}
+            onVerificationEvidenceRunAdd={(run: DispatchVerificationEvidenceRun) =>
+              addVerificationEvidenceRun(run)
+            }
             onRunDispatchPreflight={handleRunDispatchPreflight}
             preflightRunningTargetId={preflightRunningTargetId}
             onRepositoryUnbind={handleUnbindRepository}

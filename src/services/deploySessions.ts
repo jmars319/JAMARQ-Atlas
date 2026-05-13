@@ -509,6 +509,58 @@ export function canRecordManualDeployment(confirmation: string) {
   return confirmation === MANUAL_DEPLOYMENT_RECORD_CONFIRMATION
 }
 
+function appendEvidenceLine(value: string, line: string) {
+  return value.trim() ? `${value.trim()}\n${line}` : line
+}
+
+export function attachEvidenceToDeploySession(
+  state: DispatchState,
+  sessionId: string,
+  evidence: {
+    stepKind: DispatchDeploySessionStepKind
+    label: string
+    detail: string
+  },
+  now = new Date(),
+): DispatchState {
+  const updatedAt = stamp(now)
+
+  return {
+    ...state,
+    deploySessions: state.deploySessions.map((session) => {
+      if (session.id !== sessionId || session.status === 'recorded' || session.status === 'archived') {
+        return session
+      }
+
+      const steps = session.steps.map((step) =>
+        step.kind === evidence.stepKind
+          ? {
+              ...step,
+              notes: appendEvidenceLine(step.notes, evidence.label),
+              evidence: appendEvidenceLine(step.evidence, evidence.detail),
+              updatedAt,
+            }
+          : step,
+      )
+
+      return {
+        ...session,
+        steps,
+        updatedAt,
+        events: [
+          ...session.events,
+          createDeploySessionEvent({
+            sessionId,
+            type: 'session-updated',
+            detail: `Attached ${evidence.label} to deploy session evidence.`,
+            now,
+          }),
+        ],
+      }
+    }),
+  }
+}
+
 export function createDeploymentRecordFromSession(
   session: DispatchDeploySession,
   target: DeploymentTarget,

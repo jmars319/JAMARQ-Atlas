@@ -196,7 +196,8 @@ export function DataCenter({
           <h1 id="data-center-title">Backups & Restore</h1>
           <p>
             Export local Atlas state, inspect backup contents, and restore Workspace, Dispatch,
-            Writing, Settings, and Sync stores after explicit human confirmation.
+            Writing, Planning, Reports, Settings, and Sync stores after explicit human
+            confirmation.
           </p>
         </div>
         <div className="dashboard-stats" aria-label="Data inventory counts">
@@ -247,6 +248,8 @@ export function DataCenter({
                 { label: 'Records', value: summary.dispatch.records },
                 { label: 'Readiness', value: summary.dispatch.readinessEntries },
                 { label: 'Preflight runs', value: summary.dispatch.preflightRuns },
+                { label: 'Host evidence', value: summary.dispatch.hostEvidenceRuns },
+                { label: 'Verification evidence', value: summary.dispatch.verificationEvidenceRuns },
               ]}
             />
             <SummaryCard

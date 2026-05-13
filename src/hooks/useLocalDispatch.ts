@@ -5,17 +5,23 @@ import type {
   DeploymentArtifact,
   DispatchAutomationReadiness,
   DispatchDeploySessionStep,
+  DispatchHostEvidenceRun,
   DispatchPreflightRun,
   DispatchReadiness,
   DispatchState,
+  DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
 import {
+  addDispatchHostEvidenceRun,
   addDispatchPreflightRun,
+  addDispatchVerificationEvidenceRun,
   normalizeDispatchState,
   replaceDeploymentArtifact,
   replaceDispatchAutomationReadiness,
 } from '../services/dispatchStorage'
+import type { DispatchDeploySessionStepKind } from '../domain/dispatch'
 import {
+  attachEvidenceToDeploySession,
   recordManualDeploymentFromSession,
   startDeploySession,
   updateDeploySession,
@@ -66,6 +72,14 @@ export function useLocalDispatch() {
 
   function addPreflightRun(run: DispatchPreflightRun) {
     setDispatch((current) => addDispatchPreflightRun(current, run))
+  }
+
+  function addHostEvidenceRun(run: DispatchHostEvidenceRun) {
+    setDispatch((current) => addDispatchHostEvidenceRun(current, run))
+  }
+
+  function addVerificationEvidenceRun(run: DispatchVerificationEvidenceRun) {
+    setDispatch((current) => addDispatchVerificationEvidenceRun(current, run))
   }
 
   function updateReadiness(
@@ -155,6 +169,21 @@ export function useLocalDispatch() {
     }
   }
 
+  function attachDeploySessionEvidence(
+    sessionId: string,
+    stepKind: DispatchDeploySessionStepKind,
+    label: string,
+    detail: string,
+  ) {
+    setDispatch((current) =>
+      attachEvidenceToDeploySession(current, sessionId, {
+        stepKind,
+        label,
+        detail,
+      }),
+    )
+  }
+
   return {
     dispatch,
     setDispatch,
@@ -167,6 +196,9 @@ export function useLocalDispatch() {
     updateDeploySessionFields,
     updateDeploySessionStepFields,
     recordManualDeployment,
+    attachDeploySessionEvidence,
+    addHostEvidenceRun,
+    addVerificationEvidenceRun,
     addPreflightRun,
   }
 }

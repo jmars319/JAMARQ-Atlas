@@ -13,7 +13,7 @@ The app has these main surfaces:
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
 - Planning Center: human-authored objectives, milestones, work sessions, and notes.
 - Verification Center: cadence-based manual review queues and verification audit events.
-- Dispatch: deployment posture and read-only preflight evidence across configured targets.
+- Dispatch: deployment posture, read-only preflight, host evidence, verification evidence, and manual deploy sessions across configured targets.
 - Writing Workbench: local draft packets and reviewable operational writing.
 - Reports: local Markdown packet assembly from approved Writing and operational context.
 - Data Center: local backup export, restore preview, and typed-confirmation restore.
@@ -24,7 +24,7 @@ The important rule is separation. Atlas records manual intent. GitHub and Dispat
 
 ## Timeline Model
 
-Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight evidence, Writing audit events, Planning records, Report audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
+Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight/host/verification evidence, Writing audit events, Planning records, Report audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
 
 Timeline supports filtering by project, section, source, type, date range, and search. It does not mutate Workspace, Dispatch, Writing, Sync, Settings, GitHub bindings, verification, readiness, or project status.
 
@@ -126,6 +126,8 @@ Primary concepts:
 - Dispatch automation dry-run plan
 - Dispatch write automation gate
 - Read-only host connection check
+- Dispatch host evidence run
+- Dispatch verification evidence run
 - Dispatch deploy session
 - Dispatch deploy session step/event
 - Deployment runner phase
@@ -138,6 +140,8 @@ Dispatch Preflight stores short local evidence snapshots under the Dispatch stor
 The local `/api/dispatch/health` boundary performs timeout-bound read-only `http`/`https` probes without credentials or request bodies. Browser code receives normalized health results, so CORS and network failures are displayed as scoped evidence instead of breaking the app.
 
 The optional `/api/dispatch/host-status` and `/api/dispatch/host-preflight` boundaries prepare for future host checks while staying read-only. Atlas stores only credential reference labels on targets. Server-side `ATLAS_HOST_PREFLIGHT_CONFIG` may enable host reachability and read-only local-mirror path evidence, but no SSH/SFTP write, cPanel write, upload, deletion, extraction, writable check, backup, restore, or rollback is attempted.
+
+Dispatch stores host evidence and runbook verification evidence as short local histories. Host evidence captures read-only host-preflight results, including missing-config states. Verification evidence captures runbook checks such as `/`, `/api/health`, `/api/.env`, and `/api/logs/app.log`; protected paths are expected to return `403` or `404`. These evidence histories can be attached to deploy-session notes and included in Reports, but they do not create deployment records, stamp verification, or prove Atlas deployed anything.
 
 Dispatch Deploy Sessions are stored under the Dispatch key as manual evidence workflows tied to cPanel runbooks. They guide a human through preflight review, artifact inspection, preserve/create paths, backup readiness, outside-Atlas upload notes, verification checks, operator notes, and wrap-up. Creating a deployment record from a session requires the exact typed confirmation `RECORD MANUAL DEPLOYMENT`, and the record states that Atlas did not perform the deployment. Sessions do not change Atlas status, Dispatch readiness, Verification, Planning, GitHub bindings, Writing, or Reports automatically.
 
@@ -259,8 +263,12 @@ Supported packet types:
 - Internal weekly packet
 - Release packet
 - Project handoff packet
+- Deployment readiness packet
+- Post-deploy verification packet
+- Client site update packet
+- Internal deploy handoff packet
 
-Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, deploy-session evidence, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
+Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, stored host evidence, runbook verification evidence, deploy-session evidence, manual deployment record references, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
 
 Reports do not fetch full GitHub history and do not write externally. Copy and Markdown download are browser-local actions. Exporting a packet does not mean anything was sent, published, deployed, shipped, or verified.
 
@@ -283,7 +291,7 @@ The backup envelope contains:
 
 Backups intentionally exclude GitHub tokens, environment variables, credentials, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
 
-Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Settings, and Sync normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
+Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
 Data Center does not merge records, write to GitHub, sync to hosted storage, send external data, or change Atlas source-of-truth rules.
 
@@ -320,9 +328,9 @@ Current Sync is manual and snapshot-based. It supports:
 - Remote/local snapshot comparison by fingerprint, counts, created date, and device label.
 - Explicit remote snapshot deletion.
 
-Snapshots contain Workspace, Dispatch, and Writing only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
+Snapshots contain Workspace, Dispatch, Writing, Planning, and Reports only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
 
-Snapshot restore replaces Workspace, Dispatch, and Writing only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
+Snapshot restore replaces Workspace, Dispatch, Writing, Planning, and Reports only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
 
 Hosted sync runs through the local `/api/sync` boundary:
 

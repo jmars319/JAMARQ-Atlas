@@ -13,6 +13,8 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   })
   await page.route('**/api/dispatch/health?**', async (route) => {
     const url = new URL(route.request().url()).searchParams.get('url') ?? 'https://example.com'
+    const protectedPath = url.endsWith('/api/.env') || url.endsWith('/api/logs/app.log')
+    const statusCode = protectedPath ? 403 : 200
 
     await route.fulfill({
       contentType: 'application/json',
@@ -20,10 +22,12 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
         result: {
           id: 'health-e2e',
           url,
-          status: 'passing',
+          status: protectedPath ? 'warning' : 'passing',
           checkedAt: '2026-05-10T12:00:00Z',
-          statusCode: 200,
-          message: 'Health URL responded successfully.',
+          statusCode,
+          message: protectedPath
+            ? `Protected URL returned ${statusCode}.`
+            : 'Health URL responded successfully.',
         },
       }),
     })
@@ -324,6 +328,13 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(detail.getByLabel('Midway Music Hall production host connection')).toContainText(
     'Read-only host preflight is not configured',
   )
+  await expect(detail.getByLabel('Midway Music Hall production host connection')).toContainText(
+    'Host evidence history',
+  )
+  await detail.getByRole('button', { name: 'Run read-only checks' }).click()
+  await expect(detail.getByLabel('Midway Music Hall production deploy runbook')).toContainText(
+    'Stored verification evidence',
+  )
   await expect(detail.getByLabel('Midway Music Hall production automation readiness')).toContainText(
     'Automation Readiness',
   )
@@ -359,6 +370,12 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(detail.getByLabel('Midway Music Hall production preflight')).toContainText(
     'Preflight history',
   )
+  await expect(detail.getByLabel('Midway Music Hall production host connection')).toContainText(
+    'Host evidence history',
+  )
+  await expect(detail.getByLabel('Midway Music Hall production deploy runbook')).toContainText(
+    'Stored verification evidence',
+  )
 
   await page.getByRole('button', { name: 'Dispatch' }).click()
   const mmsDispatchCard = page
@@ -391,6 +408,26 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await mmsDetail
     .getByLabel('Outside-Atlas upload completed evidence')
     .fill('E2E operator noted cPanel upload outside Atlas.')
+  await mmsDetail.getByRole('button', { name: 'Run read-only host check' }).click()
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production host connection')).toContainText(
+    'Host evidence history',
+  )
+  await mmsDetail.getByRole('button', { name: 'Run read-only checks' }).click()
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy runbook')).toContainText(
+    'Stored verification evidence',
+  )
+  await mmsDetail
+    .getByRole('button', { name: 'Add latest host evidence to session notes' })
+    .click()
+  await mmsDetail
+    .getByRole('button', { name: 'Add latest verification evidence to session notes' })
+    .click()
+  await expect(mmsDetail.getByLabel('Read-only preflight reviewed evidence')).toHaveValue(
+    /host-evidence-/,
+  )
+  await expect(mmsDetail.getByLabel('Post-upload verification reviewed evidence')).toHaveValue(
+    /verification-evidence-/,
+  )
   await expect(mmsSessions).toContainText('completed')
   await page.reload()
   await page.getByRole('button', { name: 'Dispatch' }).click()
@@ -402,6 +439,12 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     mmsDetail.getByLabel('Outside-Atlas upload completed evidence'),
   ).toHaveValue(
     'E2E operator noted cPanel upload outside Atlas.',
+  )
+  await expect(mmsDetail.getByLabel('Read-only preflight reviewed evidence')).toHaveValue(
+    /host-evidence-/,
+  )
+  await expect(mmsDetail.getByLabel('Post-upload verification reviewed evidence')).toHaveValue(
+    /verification-evidence-/,
   )
   await mmsDetail
     .getByLabel('Type RECORD MANUAL DEPLOYMENT for MMS')
@@ -419,6 +462,12 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   )
   await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')).toContainText(
     'manual-deployment',
+  )
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')).toContainText(
+    'host evidence',
+  )
+  await expect(mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')).toContainText(
+    'verification evidence',
   )
 
   await page.getByRole('button', { name: 'Board', exact: true }).click()
@@ -533,6 +582,13 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Report packet history')).toContainText('Client update packet')
   await expect(reportMarkdownField).toHaveValue(/Human report edit from E2E/)
   await expect(page.getByLabel('Report audit timeline')).toContainText('copied')
+  await page.getByLabel('Report type').selectOption('deployment-readiness-packet')
+  await page.getByLabel('Report project').selectOption('midway-mobile-storage-site')
+  await page.getByRole('button', { name: 'Create report packet' }).click()
+  await expect(reportMarkdownField).toHaveValue(/Stored Dispatch Evidence/)
+  await expect(reportMarkdownField).toHaveValue(/host-evidence-/)
+  await expect(reportMarkdownField).toHaveValue(/verification-evidence-/)
+  await expect(reportMarkdownField).toHaveValue(/Manual deployment record/)
 
   await page.getByRole('button', { name: 'Data' }).click()
   await expect(page.getByRole('heading', { name: 'Backups & Restore' })).toBeVisible()

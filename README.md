@@ -22,6 +22,7 @@ The dashboard currently supports:
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - cPanel deploy runbooks for the current five-site deploy queue, including artifacts, preserve paths, and verification checks.
+- Dispatch evidence archive for persisted host-preflight and runbook verification check history.
 - Guided Dispatch deploy sessions for manual cPanel upload evidence, step notes, and explicit human-confirmed deployment records.
 - Read-only Dispatch host boundary checks for optional server-side host reachability and path evidence without exposing credentials or attempting writes.
 - Dispatch write automation gate showing future required safeguards while keeping execution locked.
@@ -44,7 +45,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Repository binding/import helpers that persist repo links only.
 - Separate Planning storage for human-authored objectives, milestones, work sessions, and notes.
 - Verification cadence helpers and manual verification audit events.
-- Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
+- Dispatch domain models, readiness evaluation, read-only preflight evidence, host evidence, runbook verification evidence, health checks, and safe no-op runner phases.
 - Optional read-only host boundary API under `/api/dispatch/host-status` and `/api/dispatch/host-preflight`.
 - Dispatch automation readiness helpers and no-op dry-run planning.
 - Dispatch deploy session helpers for manual session steps, evidence capture, and typed-confirmation deployment records.
@@ -63,7 +64,7 @@ Current Timeline sources:
 
 - Workspace activity.
 - Manual verification events.
-- Dispatch deployment records and preflight runs.
+- Dispatch deployment records, preflight runs, host evidence, and runbook verification evidence.
 - Writing review/audit events.
 - Local and loaded remote Sync snapshots.
 - Hosted Sync push/pull timestamps.
@@ -190,6 +191,8 @@ Current Dispatch data:
 - Host type and placeholder host/path configuration.
 - Public URL and health check URLs.
 - Read-only preflight runs and check evidence.
+- Read-only host evidence history.
+- Runbook verification evidence history.
 - Deployment notes, blockers, and target notes.
 - Last deployed and last verified dates.
 - Deployment records and health check results.
@@ -209,7 +212,11 @@ Dispatch Preflight collects short local evidence snapshots for human review:
 
 Preflight runs are stored under Dispatch state as evidence history only. They do not create deployment records, update Atlas project status, update Dispatch target status, mark readiness, stamp verification, or decide what should ship.
 
+Dispatch also persists host evidence from `/api/dispatch/host-preflight` and runbook verification evidence from cPanel checks such as `/`, `/api/health`, `/api/.env`, and `/api/logs/app.log`. Missing host configuration is stored as a scoped evidence result, not an app failure. Protected paths are expected to return `403` or `404`.
+
 Deploy Sessions sit between runbooks and deployment records. A session guides a human through preflight review, artifact inspection, preserve/create path checks, backup readiness, an outside-Atlas upload note, verification checks, operator notes, and wrap-up. Atlas does not perform the upload. Recording the final deployment requires typing `RECORD MANUAL DEPLOYMENT`, and the resulting record states that Atlas did not deploy, upload, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch databases.
+
+Active deploy sessions can explicitly attach the latest host or verification evidence to session notes. Attachment only updates the selected session evidence text. It does not mark anything deployed, ready, stable, or verified.
 
 Seed targets exist for:
 
@@ -330,8 +337,12 @@ Supported packet types:
 - Internal weekly packet
 - Release packet
 - Project handoff packet
+- Deployment readiness packet
+- Post-deploy verification packet
+- Client site update packet
+- Internal deploy handoff packet
 
-Report packets can include project manual status, verification state, Dispatch posture, Planning records, repository bindings, and GitHub warnings captured inside selected Writing drafts. Reports are stored separately under `jamarq-atlas.reports.v1`.
+Report packets can include project manual status, verification state, Dispatch posture, cPanel runbooks, stored host evidence, runbook verification evidence, deploy-session notes, manual deployment record references, Planning records, repository bindings, and GitHub warnings captured inside selected Writing drafts. Reports are stored separately under `jamarq-atlas.reports.v1`.
 
 Report actions are local-only:
 
@@ -354,18 +365,20 @@ It can export:
 The JSON backup is a versioned envelope:
 
 - `kind: "jamarq-atlas-backup"`
-- `schemaVersion: 2`
+- `schemaVersion: 3`
 - `exportedAt`
 - `appName`
 - `stores.workspace`
 - `stores.dispatch`
 - `stores.writing`
+- `stores.planning`
+- `stores.reports`
 - `stores.settings`
 - `stores.sync`
 
-Backups include Atlas Workspace, Dispatch, Writing, Settings, and Sync stores only. They exclude GitHub tokens, environment variables, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots. Schema v1 backups remain importable and receive default Settings and Sync stores during restore preview.
+Backups include Atlas Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync stores only. They exclude GitHub tokens, environment variables, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots. Schema v1/v2 backups remain importable and receive default missing stores during restore preview.
 
-Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, Writing, Settings, and Sync state. Restore does not merge records and remains separate from Reset seed.
+Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync state. Restore does not merge records and remains separate from Reset seed.
 
 ## Settings & Connections
 
@@ -387,16 +400,16 @@ Current Sync behavior:
 
 - Create manual snapshots.
 - Preview snapshot restore counts.
-- Restore Workspace, Dispatch, and Writing after typing `RESTORE ATLAS`.
+- Restore Workspace, Dispatch, Writing, Planning, and Reports after typing `RESTORE ATLAS`.
 - Delete snapshots after explicit confirmation.
 - Check Supabase hosted sync status through the local `/api/sync/status` route.
-- Push the current Workspace, Dispatch, and Writing stores as a remote snapshot when Supabase env vars are configured.
+- Push the current Workspace, Dispatch, Writing, Planning, and Reports stores as a remote snapshot when Supabase env vars are configured.
 - Load remote snapshot metadata.
 - Preview and restore a remote snapshot after typing `RESTORE ATLAS`.
 - Compare remote snapshots against current local stores by fingerprint and counts.
 - Delete one remote snapshot after explicit confirmation.
 
-Snapshots store Workspace, Dispatch, and Writing only. They do not store Settings, Sync, secrets, unknown localStorage keys, or full live GitHub history.
+Snapshots store Workspace, Dispatch, Writing, Planning, and Reports only. They do not store Settings, Sync, secrets, unknown localStorage keys, or full live GitHub history.
 
 Optional Supabase env vars:
 
@@ -465,6 +478,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
 - `src/services/dispatchPreflight.ts` assembles read-only preflight evidence without mutating status or readiness.
+- `src/services/dispatchEvidence.ts` normalizes and stores host/runbook verification evidence histories.
 - `src/services/dispatchHealthChecks.ts` calls the local read-only Dispatch health API.
 - `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
@@ -536,6 +550,7 @@ Dispatch activity is advisory:
 
 - Readiness does not change Atlas status.
 - Preflight evidence does not change Atlas or Dispatch status.
+- Host and runbook verification evidence does not mean Atlas deployed, verified, uploaded, or changed production.
 - Automation readiness and dry-run plans do not change Atlas or Dispatch status.
 - Health checks do not mark a project stable.
 - Backup warnings do not change priority.
@@ -564,7 +579,7 @@ Settings is local/manual:
 Sync is manual:
 
 - Snapshots are created only by explicit action.
-- Snapshot restore is preview-first and full-replace for Workspace, Dispatch, and Writing.
+- Snapshot restore is preview-first and full-replace for Workspace, Dispatch, Writing, Planning, and Reports.
 - Hosted push/pull is optional and snapshot-based; it never runs automatically.
 - Supabase credentials stay server-side.
 - Sync does not merge records or change Atlas source-of-truth rules.

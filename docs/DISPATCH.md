@@ -18,6 +18,8 @@ Dispatch currently supports:
 - Preserve/create-on-server path checklists
 - Read-only preflight evidence history
 - Read-only host boundary status checks
+- Read-only host evidence archive
+- Runbook verification evidence archive
 - Automation readiness runbook notes and checklist posture
 - Last deployed and last verified dates
 - Readiness blockers and warnings
@@ -59,6 +61,8 @@ Dispatch records reference Atlas projects by `projectId`. Dispatch readiness mus
 
 Preflight runs are stored in the same Dispatch storage document as short evidence snapshots. They contain target IDs, timestamps, check results, scoped GitHub snippets, warnings, and errors. They do not store deployment artifacts or full GitHub history.
 
+Host evidence and runbook verification evidence are stored in the Dispatch document as short history lists. They contain project/target/runbook references, timestamps, normalized check statuses, warnings, and human-readable summaries. They do not store credentials, response bodies, server files, artifacts, database data, logs, or secrets.
+
 Deploy sessions are also stored in the Dispatch document. They contain session IDs, runbook and target references, step states, human notes, evidence text, session events, and optional links to manually created deployment records. They do not store credentials or server files.
 
 ## Service Boundary
@@ -71,6 +75,7 @@ Dispatch services live under `src/services`.
 - `dispatchHealthChecks.ts`: read-only local health probe client.
 - `dispatchRunner.ts`: no-op future deployment runner boundary.
 - `dispatchAutomation.ts`: advisory automation readiness and no-op dry-run planning.
+- `dispatchEvidence.ts`: normalized host and runbook verification evidence history.
 - `deploySessions.ts`: manual deploy-session creation, step updates, typed-confirmation deployment record creation, and storage normalization.
 - `hostConnection.ts`: browser client for server-side read-only host boundary status/preflight.
 
@@ -121,6 +126,8 @@ Session steps are manual:
 
 Each step can be `pending`, `in-progress`, `confirmed`, `skipped`, or `blocked`, and each step supports human notes and evidence text. These fields are evidence for an operator, not proof that Atlas performed any action.
 
+When host or runbook verification evidence has been captured, the active session can explicitly attach the latest evidence IDs and summaries to the relevant session steps. Attachment updates only the selected session notes/evidence fields. It does not change target status, readiness, verification, or deployment records.
+
 After review, a human can create one manual `DeploymentRecord` from a session. This requires typing `RECORD MANUAL DEPLOYMENT`. The record defaults to `verification` status and includes safety notes stating that Atlas did not upload, extract, delete, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch production databases.
 
 Deploy Sessions must not:
@@ -132,6 +139,18 @@ Deploy Sessions must not:
 - Perform upload, deployment, backup, restore, rollback, SSH/SFTP, cPanel, GoDaddy, file, or database operations.
 
 Session evidence differs from deployment records: a session is an operator checklist and notes trail; a deployment record is a human-confirmed summary that something was done outside Atlas.
+
+## Evidence Archive
+
+Dispatch now keeps three related but separate evidence trails:
+
+- Preflight evidence: advisory target configuration, health, backup/rollback, and optional GitHub signal snapshots.
+- Host evidence: read-only `/api/dispatch/host-preflight` results, including missing-config states, host reachability, and optional read-only mirror path checks.
+- Runbook verification evidence: read-only checks from cPanel runbooks, such as `/`, `/api/health`, `/api/.env`, and `/api/logs/app.log`.
+
+Evidence archive entries are local Dispatch records. They can be displayed on dashboard cards, reviewed on project Dispatch panels, attached to deploy-session notes, and included in report packets.
+
+Evidence archive entries are not deployment records. They do not prove Atlas uploaded files, changed production, verified a site automatically, or made a shipping decision.
 
 ## Preflight Evidence
 
@@ -147,6 +166,8 @@ Dispatch Preflight is a read-only review aid. A preflight run can check:
 Health probing is local-server-side to avoid browser CORS limits. It supports only `http` and `https`, sends no credentials or request body, uses a timeout-bound `HEAD` request with safe `GET` fallback, and converts network failures into check results instead of app errors.
 
 Runbook verification checks can also probe the current public URL and protected paths such as `/api/.env` and `/api/logs/app.log`. Protected paths are expected to return `403` or `404`; those statuses are considered successful evidence for the protection check even though the underlying health probe classifies them as warnings.
+
+Runbook verification results are persisted as verification evidence history after a check run completes or returns a scoped failure. The stored history contains statuses and messages only, not response bodies.
 
 GitHub permission gaps are scoped to the affected check. Missing tokens, private repos, rate limits, and insufficient permissions produce warnings without breaking Dispatch, Atlas status editing, Verification, Writing, or GitHub Intake.
 
@@ -177,6 +198,8 @@ When configured, the boundary can collect read-only evidence for:
 - Preserve-path existence through an optional read-only local mirror.
 
 When not configured, Dispatch shows a scoped missing-config state. Path checks are skipped unless a read-only mirror is configured; Atlas does not attempt SSH/SFTP, cPanel writes, writable checks, uploads, deletes, extraction, backups, restores, or rollbacks.
+
+Host preflight results are persisted as host evidence history after each run, including missing-config results. This makes closeout/reporting possible without treating missing credentials as an application failure.
 
 ## Runner Phases
 

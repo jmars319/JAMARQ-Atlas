@@ -409,6 +409,12 @@ function buildDeploySessionSection(records: ProjectRecord[], dispatch: DispatchS
     .map((session) => {
       const confirmedSteps = session.steps.filter((step) => step.status === 'confirmed')
       const evidenceSteps = session.steps.filter((step) => step.notes || step.evidence)
+      const linkedEvidenceCount = evidenceSteps.reduce(
+        (total, step) =>
+          total +
+          (step.evidence.match(/host-evidence-|verification-evidence-/g)?.length ?? 0),
+        0,
+      )
 
       return [
         `### ${session.siteName} / ${session.status}`,
@@ -417,6 +423,7 @@ function buildDeploySessionSection(records: ProjectRecord[], dispatch: DispatchS
         `- Updated: ${session.updatedAt}`,
         `- Manual deployment record: ${session.recordedDeploymentRecordId ?? 'not recorded'}`,
         `- Record status target: ${session.recordStatus}`,
+        `- Linked evidence references: ${linkedEvidenceCount}`,
         '',
         session.summary || 'No session summary recorded.',
         '',
@@ -448,6 +455,40 @@ function buildDeploySessionSection(records: ProjectRecord[], dispatch: DispatchS
       ].join('\n')
     })
     .join('\n\n')
+}
+
+function buildStoredDispatchEvidenceSection(records: ProjectRecord[], dispatch: DispatchState) {
+  const projectIds = new Set(records.map((record) => record.project.id))
+  const hostRuns = dispatch.hostEvidenceRuns
+    .filter((run) => projectIds.has(run.projectId))
+    .sort((left, right) => right.completedAt.localeCompare(left.completedAt))
+  const verificationRuns = dispatch.verificationEvidenceRuns
+    .filter((run) => projectIds.has(run.projectId))
+    .sort((left, right) => right.completedAt.localeCompare(left.completedAt))
+
+  return [
+    'Host evidence:',
+    list(
+      hostRuns
+        .slice(0, 8)
+        .map(
+          (run) =>
+            `${run.id}: ${run.status} at ${run.completedAt}; ${run.checks.length} checks; ${run.summary}`,
+        ),
+      'No stored host evidence in report scope.',
+    ),
+    '',
+    'Runbook verification evidence:',
+    list(
+      verificationRuns
+        .slice(0, 8)
+        .map(
+          (run) =>
+            `${run.id}: ${run.status} at ${run.completedAt}; ${run.checks.length} checks; ${run.summary}`,
+        ),
+      'No stored runbook verification evidence in report scope.',
+    ),
+  ].join('\n')
 }
 
 function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
@@ -517,6 +558,10 @@ export function buildReportMarkdown({
     '## Deploy Session Evidence',
     '',
     buildDeploySessionSection(records, dispatch),
+    '',
+    '## Stored Dispatch Evidence',
+    '',
+    buildStoredDispatchEvidenceSection(records, dispatch),
     '',
     '## GitHub Context',
     '',

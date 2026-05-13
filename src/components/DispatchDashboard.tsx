@@ -7,8 +7,10 @@ import {
   formatPreflightStatus,
   getHealthCheckSummary,
   getActiveDeploySession,
+  getLatestHostEvidenceRun,
   getLatestDeploymentRecord,
   getLatestPreflightRun,
+  getLatestVerificationEvidenceRun,
   getRunbookForTarget,
   getTargetDeploySessions,
   type DispatchState,
@@ -139,6 +141,10 @@ export function DispatchDashboard({
           const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
           const latestPreflight = getLatestPreflightRun(dispatch, target.id)
           const runbook = getRunbookForTarget(dispatch, target.id)
+          const latestHostEvidence = getLatestHostEvidenceRun(dispatch, target.id)
+          const latestVerificationEvidence = runbook
+            ? getLatestVerificationEvidenceRun(dispatch, target.id, runbook.id)
+            : undefined
           const activeSession = getActiveDeploySession(dispatch, target.id)
           const sessionCount = getTargetDeploySessions(dispatch, target.id).length
           const automationReadiness = findAutomationReadiness(
@@ -211,6 +217,14 @@ export function DispatchDashboard({
                   <strong>{activeSession?.status ?? (sessionCount > 0 ? `${sessionCount} recent` : 'None')}</strong>
                 </div>
                 <div>
+                  <span>Host evidence</span>
+                  <strong>{latestHostEvidence?.status ?? 'None'}</strong>
+                </div>
+                <div>
+                  <span>Verification evidence</span>
+                  <strong>{latestVerificationEvidence?.status ?? 'None'}</strong>
+                </div>
+                <div>
                   <span>Automation</span>
                   <strong>
                     {automationEvaluation.completeChecklistItems}/
@@ -229,6 +243,18 @@ export function DispatchDashboard({
                   Preflight:{' '}
                   {latestPreflight ? formatDateTimeLabel(latestPreflight.completedAt) : 'not run'}
                 </span>
+                <span>
+                  Host:{' '}
+                  {latestHostEvidence ? formatDateTimeLabel(latestHostEvidence.completedAt) : 'not run'}
+                </span>
+                <span>
+                  Verify:{' '}
+                  {latestVerificationEvidence
+                    ? formatDateTimeLabel(latestVerificationEvidence.completedAt)
+                    : 'not run'}
+                </span>
+              </div>
+              <div className="card-footer">
                 <span>
                   Automation:{' '}
                   {automationEvaluation.ready

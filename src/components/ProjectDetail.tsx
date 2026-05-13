@@ -28,8 +28,11 @@ import type {
   DispatchAutomationReadiness,
   DispatchDeploySession,
   DispatchDeploySessionStep,
+  DispatchDeploySessionStepKind,
+  DispatchHostEvidenceRun,
   DispatchReadiness,
   DispatchState,
+  DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import type { TimelineEvent } from '../domain/timeline'
@@ -98,6 +101,14 @@ interface ProjectDetailProps {
     sessionId: string,
     confirmation: string,
   ) => { ok: boolean; message: string; recordId: string | null }
+  onAttachDeploySessionEvidence: (
+    sessionId: string,
+    stepKind: DispatchDeploySessionStepKind,
+    label: string,
+    detail: string,
+  ) => void
+  onHostEvidenceRunAdd: (run: DispatchHostEvidenceRun) => void
+  onVerificationEvidenceRunAdd: (run: DispatchVerificationEvidenceRun) => void
   onRunDispatchPreflight: (targetId: string) => Promise<void>
   preflightRunningTargetId: string
   onRepositoryUnbind: (projectId: string, repository: GithubRepositoryLink) => void
@@ -154,6 +165,9 @@ export function ProjectDetail({
   onDeploySessionChange,
   onDeploySessionStepChange,
   onRecordManualDeployment,
+  onAttachDeploySessionEvidence,
+  onHostEvidenceRunAdd,
+  onVerificationEvidenceRunAdd,
   onRunDispatchPreflight,
   preflightRunningTargetId,
   onRepositoryUnbind,
@@ -320,6 +334,9 @@ export function ProjectDetail({
           onDeploySessionChange={onDeploySessionChange}
           onDeploySessionStepChange={onDeploySessionStepChange}
           onRecordManualDeployment={onRecordManualDeployment}
+          onAttachDeploySessionEvidence={onAttachDeploySessionEvidence}
+          onHostEvidenceRunAdd={onHostEvidenceRunAdd}
+          onVerificationEvidenceRunAdd={onVerificationEvidenceRunAdd}
           onRunPreflight={onRunDispatchPreflight}
           preflightRunningTargetId={preflightRunningTargetId}
         />

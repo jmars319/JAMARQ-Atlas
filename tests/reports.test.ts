@@ -179,10 +179,43 @@ describe('report packet builder', () => {
       MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
       new Date('2026-05-10T11:50:00Z'),
     )
+    const dispatchWithEvidence = {
+      ...recorded.state,
+      hostEvidenceRuns: [
+        {
+          id: 'host-evidence-report',
+          source: 'host-preflight' as const,
+          projectId: 'midway-mobile-storage-site',
+          targetId: 'midway-mobile-storage-production',
+          startedAt: '2026-05-10T11:40:00Z',
+          completedAt: '2026-05-10T11:40:00Z',
+          status: 'not-configured' as const,
+          summary: 'Read-only host preflight is not configured for this target.',
+          credentialRef: 'godaddy-mms-production',
+          checks: [],
+          warnings: ['Read-only host preflight is not configured for this target.'],
+        },
+      ],
+      verificationEvidenceRuns: [
+        {
+          id: 'verification-evidence-report',
+          source: 'runbook-verification' as const,
+          projectId: 'midway-mobile-storage-site',
+          targetId: 'midway-mobile-storage-production',
+          runbookId: 'mms-cpanel-runbook',
+          startedAt: '2026-05-10T11:42:00Z',
+          completedAt: '2026-05-10T11:42:00Z',
+          status: 'passing' as const,
+          summary: 'Runbook verification checks matched expected statuses.',
+          checks: [],
+          warnings: [],
+        },
+      ],
+    }
     const packet = createReportPacket({
       type: 'deployment-readiness-packet',
       projectRecords,
-      dispatch: recorded.state,
+      dispatch: dispatchWithEvidence,
       planning: emptyPlanningStore(now),
       writingDrafts: [],
       projectIds: ['midway-mobile-storage-site'],
@@ -200,6 +233,9 @@ describe('report packet builder', () => {
     expect(packet.markdown).toContain('Outside-Atlas upload completed')
     expect(packet.markdown).toContain('operator note 2026-05-10')
     expect(packet.markdown).toContain(recorded.recordId ?? 'manual-deployment')
+    expect(packet.markdown).toContain('Stored Dispatch Evidence')
+    expect(packet.markdown).toContain('host-evidence-report')
+    expect(packet.markdown).toContain('verification-evidence-report')
     expect(packet.markdown).toContain('Export does not mean anything was sent')
     expect(packet.auditEvents).toHaveLength(1)
   })

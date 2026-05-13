@@ -21,11 +21,18 @@ import {
   runDeploymentVerificationChecks,
 } from '../src/services/deployPreflight'
 import {
+  attachEvidenceToDeploySession,
   MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
   recordManualDeploymentFromSession,
   startDeploySession,
   updateDeploySessionStep,
 } from '../src/services/deploySessions'
+import {
+  addHostEvidenceRun,
+  addVerificationEvidenceRun,
+  createHostEvidenceRun,
+  createVerificationEvidenceRun,
+} from '../src/services/dispatchEvidence'
 import {
   createHostConnectionStatus,
   getHostConnectionConfig,
@@ -174,6 +181,8 @@ describe('dispatch readiness', () => {
 
     expect(normalized.preflightRuns).toEqual([])
     expect(normalized.deploySessions).toEqual([])
+    expect(normalized.hostEvidenceRuns).toEqual([])
+    expect(normalized.verificationEvidenceRuns).toEqual([])
   })
 
   it('returns safe preflight evidence when no target is configured', () => {
@@ -257,6 +266,8 @@ describe('dispatch readiness', () => {
       runbooks: [],
       orderGroups: [],
       deploySessions: [],
+      hostEvidenceRuns: [],
+      verificationEvidenceRuns: [],
     }
 
     if (!record) {
@@ -325,6 +336,8 @@ describe('dispatch readiness', () => {
       runbooks: [],
       orderGroups: [],
       deploySessions: [],
+      hostEvidenceRuns: [],
+      verificationEvidenceRuns: [],
     }
     const before = JSON.stringify(dispatch)
 
@@ -368,6 +381,8 @@ describe('dispatch readiness', () => {
       runbooks: [],
       orderGroups: [],
       deploySessions: [],
+      hostEvidenceRuns: [],
+      verificationEvidenceRuns: [],
     }
     const before = JSON.stringify(dispatch)
     const plan = createDispatchAutomationDryRunPlan({
@@ -603,6 +618,50 @@ describe('dispatch readiness', () => {
     expect(artifactStep?.detail).not.toContain('backend-deploy.zip')
   })
 
+  it('attaches stored evidence only to the selected deploy session', () => {
+    const state = startDeploySession(
+      startDeploySession(seedDispatchState, 'mms-cpanel-runbook', new Date('2026-05-10T12:00:00Z')),
+      'mmh-cpanel-runbook',
+      new Date('2026-05-10T12:05:00Z'),
+    )
+    const mmsSession = state.deploySessions.find(
+      (session) => session.runbookId === 'mms-cpanel-runbook',
+    )
+    const mmhSession = state.deploySessions.find(
+      (session) => session.runbookId === 'mmh-cpanel-runbook',
+    )
+    const targetsBefore = JSON.stringify(state.targets)
+    const readinessBefore = JSON.stringify(state.readiness)
+    const recordsBefore = JSON.stringify(state.records)
+
+    if (!mmsSession || !mmhSession) {
+      throw new Error('Expected deploy sessions')
+    }
+
+    const updated = attachEvidenceToDeploySession(
+      state,
+      mmsSession.id,
+      {
+        stepKind: 'verification-checks',
+        label: 'Verification evidence linked: verification-evidence-e2e',
+        detail: 'verification-evidence-e2e: passing at 2026-05-10T12:10:00Z.',
+      },
+      new Date('2026-05-10T12:15:00Z'),
+    )
+    const updatedMms = updated.deploySessions.find((session) => session.id === mmsSession.id)
+    const updatedMmh = updated.deploySessions.find((session) => session.id === mmhSession.id)
+
+    expect(
+      updatedMms?.steps.find((step) => step.kind === 'verification-checks')?.evidence,
+    ).toContain('verification-evidence-e2e')
+    expect(
+      updatedMmh?.steps.find((step) => step.kind === 'verification-checks')?.evidence,
+    ).toBe('')
+    expect(JSON.stringify(updated.targets)).toBe(targetsBefore)
+    expect(JSON.stringify(updated.readiness)).toBe(readinessBefore)
+    expect(JSON.stringify(updated.records)).toBe(recordsBefore)
+  })
+
   it('inspects deployment artifacts locally for filename, checksum, entries, and warnings', async () => {
     const runbook = getRunbookForTarget(seedDispatchState, 'midway-music-hall-production')
     const artifact = runbook?.artifacts.find((candidate) => candidate.role === 'frontend')
@@ -676,6 +735,64 @@ describe('dispatch readiness', () => {
     )
   })
 
+  it('stores runbook verification evidence with protected 403/404 results as passing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'http://localhost')
+        const targetUrl = url.searchParams.get('url') ?? ''
+        const statusCode = targetUrl.endsWith('/api/.env') ? 403 : 200
+
+        return new Response(
+          JSON.stringify({
+            result: {
+              id: 'deploy-check',
+              url: targetUrl,
+              status: statusCode === 403 ? 'warning' : 'passing',
+              checkedAt: '2026-05-10T12:00:00Z',
+              statusCode,
+              message: `Health URL returned ${statusCode}.`,
+            },
+          }),
+          { status: 200 },
+        )
+      }),
+    )
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-music-hall-production')
+    const target = seedDispatchState.targets.find(
+      (candidate) => candidate.id === 'midway-music-hall-production',
+    )
+
+    if (!runbook || !target) {
+      throw new Error('Expected MMH runbook and target')
+    }
+
+    const evidence = await runDeploymentVerificationChecks({
+      target,
+      checks: runbook.verificationChecks.filter((check) =>
+        ['/', '/api/.env'].includes(check.urlPath),
+      ),
+    })
+    const run = createVerificationEvidenceRun({
+      projectId: target.projectId,
+      targetId: target.id,
+      runbookId: runbook.id,
+      evidence,
+      now: new Date('2026-05-10T12:05:00Z'),
+    })
+    const updated = addVerificationEvidenceRun(seedDispatchState, run)
+
+    expect(run.status).toBe('passing')
+    expect(run.checks.find((check) => check.urlPath === '/api/.env')).toMatchObject({
+      status: 'passing',
+      observedStatusCode: 403,
+    })
+    expect(updated.verificationEvidenceRuns[0].id).toBe(run.id)
+    expect(updated.targets).toBe(seedDispatchState.targets)
+    expect(updated.readiness).toBe(seedDispatchState.readiness)
+    expect(updated.records).toBe(seedDispatchState.records)
+  })
+
   it('returns a scoped not-configured host preflight result when credentials are missing', async () => {
     const config = getHostConnectionConfig({})
     const status = createHostConnectionStatus(config)
@@ -690,6 +807,34 @@ describe('dispatch readiness', () => {
     expect(result.status).toBe('not-configured')
     expect(result.message).toContain('not configured')
     expect(result.checks[0].status).toBe('not-configured')
+  })
+
+  it('stores missing host config as scoped host evidence without mutating dispatch posture', async () => {
+    const result = await runHostConnectionPreflight({
+      target,
+      preservePaths: ['/api/.env'],
+      config: getHostConnectionConfig({}),
+      now: new Date('2026-05-10T12:00:00Z'),
+    })
+    const run = createHostEvidenceRun({
+      projectId: target.projectId,
+      result,
+      now: new Date('2026-05-10T12:01:00Z'),
+    })
+    const updated = addHostEvidenceRun(seedDispatchState, run)
+
+    expect(run).toMatchObject({
+      source: 'host-preflight',
+      projectId: target.projectId,
+      targetId: target.id,
+      status: 'not-configured',
+    })
+    expect(run.warnings.join(' ')).toContain('configured')
+    expect(updated.hostEvidenceRuns[0].id).toBe(run.id)
+    expect(updated.targets).toBe(seedDispatchState.targets)
+    expect(updated.readiness).toBe(seedDispatchState.readiness)
+    expect(updated.records).toBe(seedDispatchState.records)
+    expect(updated.deploySessions).toBe(seedDispatchState.deploySessions)
   })
 
   it('runs read-only host and preserve-path checks without write probes', async () => {

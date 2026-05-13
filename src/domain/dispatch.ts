@@ -303,6 +303,52 @@ export interface HostConnectionPreflightResult {
   warnings: string[]
 }
 
+export type DispatchEvidenceSource = 'host-preflight' | 'runbook-verification'
+
+export type DispatchEvidenceStatus = HostConnectionCheckStatus
+
+export interface DispatchHostEvidenceRun {
+  id: string
+  source: 'host-preflight'
+  projectId: string
+  targetId: string
+  startedAt: string
+  completedAt: string
+  status: DispatchEvidenceStatus
+  summary: string
+  credentialRef: string
+  checks: HostConnectionCheck[]
+  warnings: string[]
+}
+
+export interface DispatchVerificationEvidenceCheck {
+  id: string
+  label: string
+  method: 'HEAD' | 'GET'
+  url: string
+  urlPath: string
+  expectedStatuses: number[]
+  protectedResource: boolean
+  status: DispatchEvidenceStatus
+  observedStatusCode?: number
+  message: string
+  checkedAt: string
+}
+
+export interface DispatchVerificationEvidenceRun {
+  id: string
+  source: 'runbook-verification'
+  projectId: string
+  targetId: string
+  runbookId: string
+  startedAt: string
+  completedAt: string
+  status: DispatchEvidenceStatus
+  summary: string
+  checks: DispatchVerificationEvidenceCheck[]
+  warnings: string[]
+}
+
 export type DispatchDeploySessionStatus =
   | 'active'
   | 'blocked'
@@ -387,6 +433,8 @@ export interface DispatchState {
   runbooks: DeploymentRunbook[]
   orderGroups: DeploymentOrderGroup[]
   deploySessions: DispatchDeploySession[]
+  hostEvidenceRuns: DispatchHostEvidenceRun[]
+  verificationEvidenceRuns: DispatchVerificationEvidenceRun[]
 }
 
 export type DeploymentRunnerPhase =
@@ -453,6 +501,34 @@ export function getActiveDeploySession(state: DispatchState, targetId: string) {
   return getTargetDeploySessions(state, targetId).find((session) =>
     ['active', 'blocked', 'completed'].includes(session.status),
   )
+}
+
+export function getTargetHostEvidenceRuns(state: DispatchState, targetId: string) {
+  return state.hostEvidenceRuns
+    .filter((run) => run.targetId === targetId)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+}
+
+export function getLatestHostEvidenceRun(state: DispatchState, targetId: string) {
+  return getTargetHostEvidenceRuns(state, targetId)[0]
+}
+
+export function getTargetVerificationEvidenceRuns(
+  state: DispatchState,
+  targetId: string,
+  runbookId?: string,
+) {
+  return state.verificationEvidenceRuns
+    .filter((run) => run.targetId === targetId && (!runbookId || run.runbookId === runbookId))
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+}
+
+export function getLatestVerificationEvidenceRun(
+  state: DispatchState,
+  targetId: string,
+  runbookId?: string,
+) {
+  return getTargetVerificationEvidenceRuns(state, targetId, runbookId)[0]
 }
 
 export function summarizePreflightStatus(checks: DispatchPreflightCheck[]): DispatchPreflightStatus {
