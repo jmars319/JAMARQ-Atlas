@@ -153,6 +153,22 @@ Future deployment automation is shaped around these phases:
 
 Every phase currently returns a structured no-op result. No deployment command is executed.
 
+## Write Automation Gate
+
+Write-capable deployment automation is locked. Dispatch may show evidence for future approval, but it does not expose execution actions.
+
+Required future gates before uploads, releases, rollbacks, cPanel writes, SSH/SFTP writes, file overwrites, or database operations can be considered:
+
+1. Verified backup.
+2. Artifact checksum.
+3. Preserve path confirmation.
+4. Rollback reference.
+5. Typed confirmation.
+6. Dry-run pass.
+7. Post-deploy verification plan.
+
+The current UI shows these gates as evidence requirements only. The gate status remains `locked`, and `canExecuteWriteAutomation` returns `false`. The existing runner phases remain no-op safety stubs.
+
 ## Automation Readiness
 
 Automation readiness prepares Dispatch for future safe deployment workflows without enabling deployment automation.

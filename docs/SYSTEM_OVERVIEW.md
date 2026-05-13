@@ -124,6 +124,7 @@ Primary concepts:
 - Dispatch preflight check
 - Dispatch automation readiness
 - Dispatch automation dry-run plan
+- Dispatch write automation gate
 - Read-only host connection check
 - Deployment runner phase
 - Deployment runner result
@@ -137,6 +138,8 @@ The local `/api/dispatch/health` boundary performs timeout-bound read-only `http
 The optional `/api/dispatch/host-status` and `/api/dispatch/host-preflight` boundaries prepare for future host checks while staying read-only. Atlas stores only credential reference labels on targets. Server-side `ATLAS_HOST_PREFLIGHT_CONFIG` may enable host reachability and read-only local-mirror path evidence, but no SSH/SFTP write, cPanel write, upload, deletion, extraction, writable check, backup, restore, or rollback is attempted.
 
 Dispatch Automation Readiness is advisory documentation for future automation. It stores per-target runbook notes, required confirmations, checklist items, artifact expectations, backup requirements, rollback requirements, and dry-run notes. The dry-run planner returns no-op phase output only and does not execute deployment commands.
+
+The Dispatch write automation gate is always locked in this phase. It documents future approval gates such as verified backup, artifact checksum, preserve path confirmation, rollback reference, typed confirmation, dry-run pass, and post-deploy verification plan. It does not expose upload, release, rollback, SSH/SFTP write, cPanel write, file overwrite, or database actions.
 
 ## GitHub Boundary
 

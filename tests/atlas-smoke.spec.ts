@@ -336,6 +336,12 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(
     detail.locator('label.field').filter({ hasText: 'Status' }).locator('select'),
   ).toHaveValue(statusBeforePreflight)
+  await expect(detail.getByLabel('Midway Music Hall production write automation gate')).toContainText(
+    'Write Automation Locked',
+  )
+  await expect(detail.getByLabel('Midway Music Hall production write automation gate')).toContainText(
+    'No execution action is available',
+  )
 
   const deploymentNotesField = detail
     .locator('label.field')

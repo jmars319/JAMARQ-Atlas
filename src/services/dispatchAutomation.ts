@@ -1,10 +1,15 @@
 import type {
   DeploymentRunnerPhase,
   DeploymentTarget,
+  DeploymentRecord,
+  DeploymentRunbook,
   DispatchAutomationChecklistItem,
   DispatchAutomationDryRunPlan,
   DispatchAutomationDryRunStep,
   DispatchAutomationReadiness,
+  DispatchReadiness,
+  DispatchWriteAutomationGate,
+  DispatchWriteAutomationGateEvaluation,
 } from '../domain/dispatch'
 import { deploymentRunnerPhases } from './dispatchRunner'
 
@@ -238,4 +243,128 @@ export function createDispatchAutomationDryRunPlan({
     warnings: evaluation.warnings,
     steps,
   }
+}
+
+function hasRealConfirmation(value: string) {
+  const lower = value.toLowerCase()
+  return Boolean(value.trim()) && !lower.includes('not configured') && !lower.includes('placeholder')
+}
+
+export function evaluateDispatchWriteAutomationGate({
+  target,
+  readiness,
+  automationReadiness,
+  latestDeployment,
+  runbook,
+  dryRunPlan,
+}: {
+  target: DeploymentTarget
+  readiness?: DispatchReadiness
+  automationReadiness: DispatchAutomationReadiness
+  latestDeployment?: DeploymentRecord
+  runbook?: DeploymentRunbook
+  dryRunPlan?: DispatchAutomationDryRunPlan
+}): DispatchWriteAutomationGateEvaluation {
+  const requiredArtifacts = runbook?.artifacts.filter((artifact) => artifact.required) ?? []
+  const requiredPreservePaths = runbook?.preservePaths.filter((path) => path.required) ?? []
+  const verificationChecks = runbook?.verificationChecks ?? []
+  const gates: DispatchWriteAutomationGate[] = [
+    {
+      id: 'verified-backup',
+      label: 'Verified backup',
+      required: target.backupRequired,
+      satisfied: !target.backupRequired || Boolean(readiness?.backupReady),
+      evidence: target.backupRequired
+        ? readiness?.backupReady
+          ? 'Backup is manually marked ready.'
+          : 'Backup is required and not manually marked ready.'
+        : 'Backup is not required by current target settings.',
+    },
+    {
+      id: 'artifact-checksum',
+      label: 'Artifact checksum',
+      required: true,
+      satisfied:
+        requiredArtifacts.length > 0 &&
+        requiredArtifacts.every((artifact) => artifact.checksum.startsWith('sha256-')),
+      evidence:
+        requiredArtifacts.length > 0
+          ? `${requiredArtifacts.filter((artifact) => artifact.checksum.startsWith('sha256-')).length}/${requiredArtifacts.length} required artifacts have local checksum evidence.`
+          : 'No required artifacts are defined.',
+    },
+    {
+      id: 'preserve-path-confirmation',
+      label: 'Preserve path confirmation',
+      required: true,
+      satisfied: requiredPreservePaths.length > 0,
+      evidence:
+        requiredPreservePaths.length > 0
+          ? `${requiredPreservePaths.length} preserve/create paths are documented.`
+          : 'No preserve/create paths are documented.',
+    },
+    {
+      id: 'rollback-reference',
+      label: 'Rollback reference',
+      required: true,
+      satisfied: Boolean(latestDeployment?.rollbackRef),
+      evidence: latestDeployment?.rollbackRef
+        ? `Latest deployment has rollback ref ${latestDeployment.rollbackRef}.`
+        : 'No rollback reference is recorded on the latest deployment record.',
+    },
+    {
+      id: 'typed-confirmation',
+      label: 'Typed confirmation',
+      required: target.destructiveOperationsRequireConfirmation,
+      satisfied:
+        !target.destructiveOperationsRequireConfirmation ||
+        automationReadiness.requiredConfirmations.some(hasRealConfirmation),
+      evidence: target.destructiveOperationsRequireConfirmation
+        ? automationReadiness.requiredConfirmations.some(hasRealConfirmation)
+          ? 'A non-placeholder typed confirmation requirement is documented.'
+          : 'Typed confirmation is required but not documented with a real phrase.'
+        : 'Target does not currently require destructive typed confirmation.',
+    },
+    {
+      id: 'dry-run-pass',
+      label: 'Dry-run pass',
+      required: true,
+      satisfied: dryRunPlan?.status === 'advisory',
+      evidence:
+        dryRunPlan?.status === 'advisory'
+          ? 'Latest no-op dry-run plan has no readiness blockers.'
+          : 'No passing dry-run evidence is persisted for write automation.',
+    },
+    {
+      id: 'post-deploy-verification-plan',
+      label: 'Post-deploy verification plan',
+      required: true,
+      satisfied: verificationChecks.length > 0,
+      evidence:
+        verificationChecks.length > 0
+          ? `${verificationChecks.length} post-deploy verification checks are documented.`
+          : 'No post-deploy verification checks are documented.',
+    },
+  ]
+  const incompleteRequired = gates.filter((gate) => gate.required && !gate.satisfied)
+
+  return {
+    targetId: target.id,
+    projectId: target.projectId,
+    locked: true,
+    status: 'locked',
+    summary: `Write automation locked. ${gates.filter((gate) => gate.satisfied).length}/${gates.length} gates have evidence.`,
+    gates,
+    blockers: [
+      'Write-capable deployment automation is intentionally locked in this Atlas phase.',
+      ...incompleteRequired.map((gate) => `Required gate incomplete: ${gate.label}`),
+    ],
+    warnings: [
+      'Future approval must happen before upload, release, rollback, SSH/SFTP write, cPanel write, or database operation code is added.',
+    ],
+  }
+}
+
+export function canExecuteWriteAutomation(evaluation: DispatchWriteAutomationGateEvaluation) {
+  void evaluation
+  return false
 }

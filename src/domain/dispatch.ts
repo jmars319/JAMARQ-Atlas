@@ -175,6 +175,34 @@ export interface DispatchAutomationDryRunPlan {
   steps: DispatchAutomationDryRunStep[]
 }
 
+export type DispatchWriteAutomationGateId =
+  | 'verified-backup'
+  | 'artifact-checksum'
+  | 'preserve-path-confirmation'
+  | 'rollback-reference'
+  | 'typed-confirmation'
+  | 'dry-run-pass'
+  | 'post-deploy-verification-plan'
+
+export interface DispatchWriteAutomationGate {
+  id: DispatchWriteAutomationGateId
+  label: string
+  required: boolean
+  satisfied: boolean
+  evidence: string
+}
+
+export interface DispatchWriteAutomationGateEvaluation {
+  targetId: string
+  projectId: string
+  locked: true
+  status: 'locked'
+  summary: string
+  gates: DispatchWriteAutomationGate[]
+  blockers: string[]
+  warnings: string[]
+}
+
 export type DeploymentArtifactRole = 'frontend' | 'backend' | 'placeholder'
 
 export interface DeploymentArtifact {

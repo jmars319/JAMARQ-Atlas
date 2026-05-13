@@ -23,6 +23,7 @@ The dashboard currently supports:
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - cPanel deploy runbooks for the current five-site deploy queue, including artifacts, preserve paths, and verification checks.
 - Read-only Dispatch host boundary checks for optional server-side host reachability and path evidence without exposing credentials or attempting writes.
+- Dispatch write automation gate showing future required safeguards while keeping execution locked.
 - Dispatch automation readiness for runbook notes, confirmations, checklist posture, artifact expectations, backup requirements, rollback requirements, and no-op dry-run planning.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Reports for assembling local Markdown update packets from approved Writing drafts and operational context.

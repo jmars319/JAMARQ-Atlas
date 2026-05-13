@@ -31,8 +31,10 @@ import {
 } from '../domain/dispatch'
 import {
   createDispatchAutomationDryRunPlan,
+  evaluateDispatchWriteAutomationGate,
   evaluateAutomationReadiness,
   findAutomationReadiness,
+  canExecuteWriteAutomation,
 } from '../services/dispatchAutomation'
 import { evaluateDispatchReadiness } from '../services/dispatchReadiness'
 import {
@@ -139,6 +141,14 @@ export function DispatchPanel({
         const dryRunPlan = dryRunPlans[target.id]
         const targetVerificationEvidence = verificationEvidence[target.id] ?? []
         const hostPreflightResult = hostPreflightResults[target.id]
+        const writeGateEvaluation = evaluateDispatchWriteAutomationGate({
+          target,
+          readiness,
+          automationReadiness,
+          latestDeployment,
+          runbook,
+          dryRunPlan,
+        })
         const evaluation = evaluateDispatchReadiness({
           target,
           readiness,
@@ -956,6 +966,62 @@ export function DispatchPanel({
                   </ol>
                 </div>
               ) : null}
+            </div>
+
+            <div className="dispatch-automation" aria-label={`${target.name} write automation gate`}>
+              <div className="panel-heading">
+                <Shield size={17} />
+                <h3>Write Automation Locked</h3>
+              </div>
+              <div className="dispatch-signal-grid">
+                <div>
+                  <strong>{writeGateEvaluation.status}</strong>
+                  <span>{writeGateEvaluation.summary}</span>
+                </div>
+                <div>
+                  <strong>
+                    {writeGateEvaluation.gates.filter((gate) => gate.satisfied).length}/
+                    {writeGateEvaluation.gates.length}
+                  </strong>
+                  <span>Future gates with evidence</span>
+                </div>
+                <div>
+                  <strong>
+                    {canExecuteWriteAutomation(writeGateEvaluation) ? 'Unlocked' : 'Locked'}
+                  </strong>
+                  <span>No execution action is available</span>
+                </div>
+              </div>
+              <ul className="dispatch-list dispatch-warning-list">
+                {writeGateEvaluation.blockers.map((blocker) => (
+                  <li key={blocker}>{blocker}</li>
+                ))}
+              </ul>
+              <ol className="resource-list">
+                {writeGateEvaluation.gates.map((gate) => (
+                  <li key={gate.id}>
+                    <div className="resource-icon" aria-hidden="true">
+                      {gate.satisfied ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+                    </div>
+                    <div>
+                      <div className="resource-line">
+                        <strong>{gate.label}</strong>
+                        <span
+                          className={`resource-pill ${
+                            gate.satisfied ? 'state-passing' : 'state-warning'
+                          }`}
+                        >
+                          {gate.satisfied ? 'evidence' : 'needed'}
+                        </span>
+                      </div>
+                      <p>{gate.evidence}</p>
+                      <div className="resource-meta">
+                        <span>{gate.required ? 'required gate' : 'optional gate'}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </div>
 
             <div className="dispatch-history">

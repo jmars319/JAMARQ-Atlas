@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -7,7 +7,9 @@ import { seedDispatchState } from '../src/data/seedDispatch'
 import {
   createDefaultAutomationReadiness,
   createDispatchAutomationDryRunPlan,
+  canExecuteWriteAutomation,
   evaluateAutomationReadiness,
+  evaluateDispatchWriteAutomationGate,
 } from '../src/services/dispatchAutomation'
 import { evaluateDispatchReadiness } from '../src/services/dispatchReadiness'
 import { probeHealthChecks } from '../src/services/dispatchHealthChecks'
@@ -367,6 +369,48 @@ describe('dispatch readiness', () => {
     expect(plan.steps.every((step) => step.message.includes('No SSH'))).toBe(true)
     expect(plan.steps.some((step) => step.requiresConfirmation)).toBe(true)
     expect(JSON.stringify(dispatch)).toBe(before)
+  })
+
+  it('keeps write-capable deployment automation locked behind future gates', () => {
+    const automation = createDefaultAutomationReadiness(target, new Date('2026-05-10T12:00:00Z'))
+    const dryRunPlan = createDispatchAutomationDryRunPlan({
+      target,
+      readiness: automation,
+      now: new Date('2026-05-10T13:00:00Z'),
+    })
+    const gate = evaluateDispatchWriteAutomationGate({
+      target,
+      readiness,
+      automationReadiness: automation,
+      latestDeployment: undefined,
+      runbook: undefined,
+      dryRunPlan,
+    })
+
+    expect(gate.status).toBe('locked')
+    expect(gate.locked).toBe(true)
+    expect(canExecuteWriteAutomation(gate)).toBe(false)
+    expect(gate.blockers).toContain(
+      'Write-capable deployment automation is intentionally locked in this Atlas phase.',
+    )
+    expect(gate.gates.map((candidate) => candidate.id)).toEqual([
+      'verified-backup',
+      'artifact-checksum',
+      'preserve-path-confirmation',
+      'rollback-reference',
+      'typed-confirmation',
+      'dry-run-pass',
+      'post-deploy-verification-plan',
+    ])
+  })
+
+  it('keeps the deployment runner free of production write primitives', () => {
+    const runnerSource = readFileSync(
+      new URL('../src/services/dispatchRunner.ts', import.meta.url),
+      'utf8',
+    )
+
+    expect(runnerSource).not.toMatch(/writeFile|unlink|rm\(|rmdir|sftp\.put|ssh2|exec\(/i)
   })
 
   it('seeds cPanel deploy runbooks for the current five-site deploy queue', () => {
