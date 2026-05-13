@@ -902,6 +902,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await clickAtlasNav(page, 'Data')
   await expect(page.getByRole('heading', { name: 'Backups & Restore' })).toBeVisible()
+  await expect(page.getByLabel('Local store diagnostics')).toContainText('Restore Compatibility')
   const jsonDownload = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download JSON backup' }).click()
   expect((await jsonDownload).suggestedFilename()).toMatch(/jamarq-atlas-backup/)
@@ -950,6 +951,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     buffer: Buffer.from(restoreBackup),
   })
   await expect(page.getByLabel('Restore preview')).toContainText('Incoming Backup')
+  await expect(page.getByLabel('Backup restore diff')).toContainText('Projects')
   await page.getByLabel('Type RESTORE ATLAS to replace local stores').fill('RESTORE ATLAS')
   await page.getByRole('button', { name: 'Restore backup' }).click()
   await expect(page.getByText('Backup restored locally')).toBeVisible()

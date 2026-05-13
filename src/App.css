@@ -2776,7 +2776,9 @@ h3 {
 }
 
 .data-summary-grid,
-.data-preview-grid {
+.data-preview-grid,
+.data-diagnostics-grid,
+.data-diff-list {
   display: grid;
   gap: 10px;
 }
@@ -2787,6 +2789,10 @@ h3 {
 
 .data-preview-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.data-diagnostics-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .data-summary-card {
@@ -2826,6 +2832,84 @@ h3 {
   margin: 0;
   color: var(--paper-white);
   font-weight: 700;
+}
+
+.data-diagnostic-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 10px;
+}
+
+.data-diagnostic-heading,
+.data-diff-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.data-diagnostic-heading strong,
+.data-diff-row strong {
+  color: var(--paper-white);
+  font-size: 0.84rem;
+}
+
+.data-diagnostic-heading span,
+.data-diagnostic-card p,
+.data-diagnostic-card li,
+.data-diagnostic-card small,
+.data-diff-row span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.data-diagnostic-card ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.data-diagnostic-card small {
+  color: var(--text-soft);
+}
+
+.data-diagnostic-warning {
+  border-color: rgba(244, 199, 107, 0.28);
+}
+
+.data-diagnostic-danger {
+  border-color: rgba(249, 115, 115, 0.34);
+}
+
+.data-diff-list {
+  margin-top: 10px;
+}
+
+.data-diff-row {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px 10px;
+}
+
+.data-diff-warning {
+  border-color: rgba(244, 199, 107, 0.32);
+}
+
+.data-diff-danger {
+  border-color: rgba(249, 115, 115, 0.36);
+}
+
+.data-diff-warning span:last-child {
+  color: var(--warning);
+}
+
+.data-diff-danger span:last-child {
+  color: var(--danger);
 }
 
 .data-actions {
@@ -3300,6 +3384,7 @@ code {
   .dispatch-runbook-grid,
   .data-summary-grid,
   .data-preview-grid,
+  .data-diagnostics-grid,
   .settings-form-grid,
   .settings-bulk-calibration,
   .settings-calibration-card,

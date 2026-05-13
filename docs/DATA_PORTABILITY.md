@@ -11,10 +11,11 @@ Data Center supports:
 - JSON backup download.
 - Markdown inventory report download.
 - Compact backup summary copy.
+- Local store diagnostics with schema versions, counts, repair hints, and reset cautions.
 - JSON backup import.
-- Restore preview.
+- Restore preview with current vs incoming counts and count-diff rows.
 - Full local restore after typed confirmation.
-- Backup schema v1/v2/v3 import compatibility.
+- Backup schema v1/v2/v3/v4 import compatibility.
 
 It does not support:
 
@@ -58,6 +59,18 @@ The backup includes only Atlas-owned stores:
 
 Schema v1/v2/v3 backups that contain only earlier store sets remain importable. Atlas normalizes missing Planning, Reports, Review, Settings, and Sync stores to safe local defaults during restore preview.
 
+## Store Diagnostics
+
+Data Center shows local diagnostics before restore:
+
+- Store schema version or normalization boundary.
+- Current record counts.
+- Warnings for empty or incomplete stores.
+- Provider error and missing-label notes when available.
+- Repair hints that keep Reset seed separate from backup/restore.
+
+Diagnostics are informational. They do not repair, reset, migrate, merge, or mutate Atlas state by themselves.
+
 ## Excluded Data
 
 Backups intentionally exclude:
@@ -80,8 +93,9 @@ The import flow:
 2. Validate the backup envelope.
 3. Normalize compatible older store shapes.
 4. Show current local counts beside incoming backup counts.
-5. Require the exact typed confirmation `RESTORE ATLAS`.
-6. Replace Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores together.
+5. Show count diffs for projects, repo bindings, Dispatch evidence, Writing drafts, Planning records, Reports, Review sessions, and Sync snapshots.
+6. Require the exact typed confirmation `RESTORE ATLAS`.
+7. Replace Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores together.
 
 Restore does not merge records. Reset seed remains a separate action.
 

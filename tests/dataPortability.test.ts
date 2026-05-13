@@ -11,6 +11,7 @@ import {
   canApplyAtlasRestore,
   createAtlasBackupEnvelope,
   createAtlasBackupMarkdownReport,
+  createAtlasStoreDiagnostics,
   createBackupSummaryText,
   createRestorePreview,
   parseAtlasBackupJson,
@@ -185,7 +186,26 @@ describe('data portability', () => {
 
     expect(preview.currentSummary.writing.drafts).toBe(1)
     expect(preview.incomingSummary.writing.drafts).toBe(0)
+    expect(preview.diffs.find((diff) => diff.id === 'writing-drafts')).toMatchObject({
+      current: 1,
+      incoming: 0,
+      delta: -1,
+      status: 'danger',
+    })
     expect(JSON.stringify(stores)).toBe(currentBefore)
+  })
+
+  it('creates local store diagnostics with schema versions and repair hints', () => {
+    const diagnostics = createAtlasStoreDiagnostics(stores)
+
+    expect(diagnostics.find((item) => item.id === 'restore-compatibility')).toMatchObject({
+      schemaVersion: 'backup v4',
+      status: 'ok',
+    })
+    expect(diagnostics.find((item) => item.id === 'planning')?.schemaVersion).toBe('v2')
+    expect(diagnostics.find((item) => item.id === 'reports')?.schemaVersion).toBe('v2')
+    expect(diagnostics.find((item) => item.id === 'review')?.schemaVersion).toBe('v2')
+    expect(diagnostics.every((item) => item.repairHint.length > 0)).toBe(true)
   })
 
   it('requires exact typed confirmation before restore can apply', () => {

@@ -2,19 +2,24 @@ import {
   ATLAS_BACKUP_KIND,
   ATLAS_BACKUP_SCHEMA_VERSION,
   type AtlasBackupEnvelope,
+  type AtlasBackupDiffItem,
   type AtlasBackupStoreSummary,
   type AtlasBackupStores,
   type AtlasBackupValidationResult,
   type AtlasRestorePreview,
   type AtlasRestoreWarning,
+  type AtlasStoreDiagnostic,
 } from '../domain/dataPortability'
 import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
-import type { AtlasPlanningState } from '../domain/planning'
-import type { ReportsState } from '../domain/reports'
-import type { ReviewState } from '../domain/review'
-import type { AtlasSettingsState } from '../domain/settings'
-import type { AtlasSyncState } from '../domain/sync'
+import {
+  ATLAS_PLANNING_SCHEMA_VERSION,
+  type AtlasPlanningState,
+} from '../domain/planning'
+import { ATLAS_REPORTS_SCHEMA_VERSION, type ReportsState } from '../domain/reports'
+import { ATLAS_REVIEW_SCHEMA_VERSION, type ReviewState } from '../domain/review'
+import { ATLAS_SETTINGS_SCHEMA_VERSION, type AtlasSettingsState } from '../domain/settings'
+import { ATLAS_SYNC_SCHEMA_VERSION, type AtlasSyncState } from '../domain/sync'
 import type { WritingWorkbenchState } from '../domain/writing'
 import { normalizeWorkspaceVerificationCadence } from './verification'
 import { normalizeDispatchState } from './dispatchStorage'
@@ -99,7 +104,7 @@ function collectSettingsSummary(settings: AtlasSettingsState) {
 function collectSyncSummary(sync: AtlasSyncState) {
   return {
     snapshots: sync.snapshots.length,
-    providerConfigured: 0,
+    providerConfigured: sync.provider.status === 'configured' ? 1 : 0,
   }
 }
 
@@ -373,9 +378,259 @@ export function createRestorePreview(
   return {
     currentSummary: summarizeAtlasStores(currentStores),
     incomingSummary: summarizeAtlasStores(normalized.stores),
+    diffs: createBackupDiffItems(
+      summarizeAtlasStores(currentStores),
+      summarizeAtlasStores(normalized.stores),
+    ),
     warnings: normalized.warnings,
     normalizedStores: normalized.stores,
   }
+}
+
+function planningTotal(summary: AtlasBackupStoreSummary) {
+  return (
+    summary.planning.objectives +
+    summary.planning.milestones +
+    summary.planning.workSessions +
+    summary.planning.notes
+  )
+}
+
+function diffStatus(current: number, incoming: number) {
+  if (current > 0 && incoming === 0) {
+    return 'danger' as const
+  }
+
+  if (incoming < current) {
+    return 'warning' as const
+  }
+
+  return 'ok' as const
+}
+
+export function createBackupDiffItems(
+  currentSummary: AtlasBackupStoreSummary,
+  incomingSummary: AtlasBackupStoreSummary,
+): AtlasBackupDiffItem[] {
+  const items = [
+    {
+      id: 'projects',
+      label: 'Projects',
+      current: currentSummary.workspace.projects,
+      incoming: incomingSummary.workspace.projects,
+    },
+    {
+      id: 'repository-bindings',
+      label: 'Repository bindings',
+      current: currentSummary.workspace.repositoryBindings,
+      incoming: incomingSummary.workspace.repositoryBindings,
+    },
+    {
+      id: 'dispatch-targets',
+      label: 'Dispatch targets',
+      current: currentSummary.dispatch.targets,
+      incoming: incomingSummary.dispatch.targets,
+    },
+    {
+      id: 'dispatch-evidence',
+      label: 'Dispatch evidence',
+      current:
+        currentSummary.dispatch.preflightRuns +
+        currentSummary.dispatch.hostEvidenceRuns +
+        currentSummary.dispatch.verificationEvidenceRuns,
+      incoming:
+        incomingSummary.dispatch.preflightRuns +
+        incomingSummary.dispatch.hostEvidenceRuns +
+        incomingSummary.dispatch.verificationEvidenceRuns,
+    },
+    {
+      id: 'writing-drafts',
+      label: 'Writing drafts',
+      current: currentSummary.writing.drafts,
+      incoming: incomingSummary.writing.drafts,
+    },
+    {
+      id: 'planning-records',
+      label: 'Planning records',
+      current: planningTotal(currentSummary),
+      incoming: planningTotal(incomingSummary),
+    },
+    {
+      id: 'report-packets',
+      label: 'Report packets',
+      current: currentSummary.reports.packets,
+      incoming: incomingSummary.reports.packets,
+    },
+    {
+      id: 'review-sessions',
+      label: 'Review sessions',
+      current: currentSummary.review.sessions,
+      incoming: incomingSummary.review.sessions,
+    },
+    {
+      id: 'sync-snapshots',
+      label: 'Sync snapshots',
+      current: currentSummary.sync.snapshots,
+      incoming: incomingSummary.sync.snapshots,
+    },
+  ]
+
+  return items.map((item) => ({
+    ...item,
+    delta: item.incoming - item.current,
+    status: diffStatus(item.current, item.incoming),
+  }))
+}
+
+function diagnosticStatus(messages: string[], danger = false) {
+  if (danger) {
+    return 'danger' as const
+  }
+
+  return messages.length > 0 ? ('warning' as const) : ('ok' as const)
+}
+
+export function createAtlasStoreDiagnostics(
+  stores: AtlasBackupStores,
+): AtlasStoreDiagnostic[] {
+  const summary = summarizeAtlasStores(stores)
+  const planningRecords = planningTotal(summary)
+  const dispatchEvidence =
+    summary.dispatch.preflightRuns +
+    summary.dispatch.hostEvidenceRuns +
+    summary.dispatch.verificationEvidenceRuns
+  const diagnostics: AtlasStoreDiagnostic[] = []
+
+  const workspaceMessages = [
+    ...(summary.workspace.projects === 0 ? ['Workspace has no projects.'] : []),
+    ...(summary.workspace.repositoryBindings === 0
+      ? ['No repository bindings are currently stored.']
+      : []),
+  ]
+  diagnostics.push({
+    id: 'workspace',
+    label: 'Workspace',
+    schemaVersion: 'normalized workspace',
+    status: diagnosticStatus(workspaceMessages, summary.workspace.projects === 0),
+    countSummary: `${summary.workspace.projects} projects / ${summary.workspace.repositoryBindings} repo bindings`,
+    messages: workspaceMessages,
+    repairHint:
+      'Use Board/GitHub Intake to add projects or bindings. Export a backup before Reset seed.',
+  })
+
+  const dispatchMessages = [
+    ...(summary.dispatch.targets === 0 ? ['No Dispatch targets are configured.'] : []),
+    ...(dispatchEvidence === 0 ? ['No Dispatch evidence has been captured yet.'] : []),
+  ]
+  diagnostics.push({
+    id: 'dispatch',
+    label: 'Dispatch',
+    schemaVersion: 'normalized dispatch v1',
+    status: diagnosticStatus(dispatchMessages, summary.dispatch.targets === 0),
+    countSummary: `${summary.dispatch.targets} targets / ${dispatchEvidence} evidence runs`,
+    messages: dispatchMessages,
+    repairHint:
+      'Use Dispatch runbooks, preflight, host evidence, and manual sessions to build evidence history.',
+  })
+
+  diagnostics.push({
+    id: 'writing',
+    label: 'Writing',
+    schemaVersion: 'normalized writing v1',
+    status: 'ok',
+    countSummary: `${summary.writing.drafts} drafts / ${summary.writing.reviewEvents} audit events`,
+    messages:
+      summary.writing.drafts === 0
+        ? ['No Writing drafts exist yet; this is safe for a fresh local store.']
+        : [],
+    repairHint: 'Writing drafts are optional and remain separate from Workspace status.',
+  })
+
+  diagnostics.push({
+    id: 'planning',
+    label: 'Planning',
+    schemaVersion: `v${ATLAS_PLANNING_SCHEMA_VERSION}`,
+    status: 'ok',
+    countSummary: `${planningRecords} planning records`,
+    messages:
+      planningRecords === 0
+        ? ['No Planning records exist yet; Review can create Planning notes explicitly.']
+        : [],
+    repairHint: 'Planning is manual-only. Missing records do not block Atlas operation.',
+  })
+
+  diagnostics.push({
+    id: 'reports',
+    label: 'Reports',
+    schemaVersion: `v${ATLAS_REPORTS_SCHEMA_VERSION}`,
+    status: 'ok',
+    countSummary: `${summary.reports.packets} packets / ${summary.reports.auditEvents} audit events`,
+    messages:
+      summary.reports.packets === 0
+        ? ['No Report packets exist yet; exports are local-only when created.']
+        : [],
+    repairHint: 'Reports can be regenerated from current local context when needed.',
+  })
+
+  diagnostics.push({
+    id: 'review',
+    label: 'Review',
+    schemaVersion: `v${ATLAS_REVIEW_SCHEMA_VERSION}`,
+    status: 'ok',
+    countSummary: `${summary.review.sessions} sessions / ${summary.review.notes} notes`,
+    messages:
+      summary.review.sessions === 0
+        ? ['No Review sessions have been stored yet; the queue remains derived.']
+        : [],
+    repairHint: 'Review sessions and notes are manual context only.',
+  })
+
+  const settingsMessages = [
+    ...(stores.settings.operatorLabel ? [] : ['Operator label is not set.']),
+    ...(stores.settings.deviceLabel ? [] : ['Device label is not set.']),
+  ]
+  diagnostics.push({
+    id: 'settings',
+    label: 'Settings',
+    schemaVersion: `v${ATLAS_SETTINGS_SCHEMA_VERSION}`,
+    status: diagnosticStatus(settingsMessages),
+    countSummary: `${summary.settings.configured} device label / ${summary.settings.hasOperatorLabel} operator label`,
+    messages: settingsMessages,
+    repairHint: 'Use Settings to label this local Atlas device and operator.',
+  })
+
+  const syncMessages = [
+    ...(summary.sync.snapshots === 0 ? ['No local sync snapshots exist yet.'] : []),
+    ...(stores.sync.provider.status === 'error'
+      ? [`Sync provider error: ${stores.sync.provider.message}`]
+      : []),
+  ]
+  diagnostics.push({
+    id: 'sync',
+    label: 'Sync',
+    schemaVersion: `v${ATLAS_SYNC_SCHEMA_VERSION}`,
+    status: diagnosticStatus(syncMessages, stores.sync.provider.status === 'error'),
+    countSummary: `${summary.sync.snapshots} local snapshots / provider ${stores.sync.provider.status}`,
+    messages: syncMessages,
+    repairHint:
+      'Create a local snapshot before risky restore testing. Hosted sync remains manual push/pull.',
+  })
+
+  diagnostics.push({
+    id: 'restore-compatibility',
+    label: 'Restore Compatibility',
+    schemaVersion: `backup v${ATLAS_BACKUP_SCHEMA_VERSION}`,
+    status: 'ok',
+    countSummary: 'accepts backup schemas v1-v4',
+    messages: [
+      'Restore is preview-first and full-replace.',
+      'Older backups normalize missing Planning, Reports, Review, Settings, and Sync stores.',
+    ],
+    repairHint:
+      'If restore counts look wrong, cancel restore and export the current local backup first.',
+  })
+
+  return diagnostics
 }
 
 export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {

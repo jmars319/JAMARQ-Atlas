@@ -33,7 +33,7 @@ The dashboard currently supports:
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Reports for assembling local Markdown update packets from approved Writing drafts and operational context.
 - Deployment report packets for readiness, post-deploy verification, client site updates, and internal deploy handoffs.
-- Data Center for local JSON backups, Markdown inventory reports, restore previews, and typed-confirmation restore.
+- Data Center for local JSON backups, Markdown inventory reports, store diagnostics, restore diffs, and typed-confirmation restore.
 - Settings & Connections Center for local workspace labels, calibration checks, and integration-readiness status without storing secrets.
 - Manual local Sync snapshots and optional Supabase hosted snapshot push/pull.
 
@@ -146,6 +146,22 @@ npm run test:e2e
 ```
 
 The app runs without GitHub credentials. Repo panels show a clear missing-token state instead of failing the dashboard.
+
+## Daily Use
+
+1. Open `Review` to scan due verification, blockers, Dispatch follow-up, unbound repos, draft/report follow-up, and backup/sync attention.
+2. Open the relevant project from Review or Board and update human-authored status, next action, blockers, notes, or verification only when you decide to.
+3. Use GitHub, Timeline, Dispatch, Verification, Writing, Reports, Data, and Settings as supporting evidence.
+4. Create Planning notes, Writing drafts, Dispatch sessions, or Reports only through explicit actions.
+5. Before restore testing or large data cleanup, use Data Center JSON export or Settings Sync snapshots.
+
+Atlas should be treated as a calm operator console: it helps organize evidence and notes, but it does not decide what ships, what is important, or what is complete.
+
+## Release And Deployment
+
+CI is configured in `.github/workflows/ci.yml` for lint, build, unit tests, and Playwright smoke tests on `main` and pull requests.
+
+Deployment guidance lives in [docs/ATLAS_DEPLOYMENT.md](docs/ATLAS_DEPLOYMENT.md). The short version: static hosting can serve the built UI, but optional GitHub, Dispatch host checks, Supabase sync, and OpenAI Writing require a Node/Vite-compatible server boundary that keeps credentials server-side.
 
 ## GitHub Connection
 

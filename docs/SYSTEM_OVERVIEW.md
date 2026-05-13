@@ -327,7 +327,7 @@ The backup envelope contains:
 
 Backups intentionally exclude GitHub tokens, environment variables, credentials, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
 
-Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
+Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync normalizers, and compared against current local counts before restore. Data Center also shows store diagnostics, schema versions, repair hints, and count-diff rows before typed confirmation. Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
 Data Center does not merge records, write to GitHub, sync to hosted storage, send external data, or change Atlas source-of-truth rules.
 

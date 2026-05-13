@@ -86,6 +86,27 @@ export interface AtlasBackupEnvelope {
   summary: AtlasBackupStoreSummary
 }
 
+export type AtlasStoreDiagnosticStatus = 'ok' | 'warning' | 'danger'
+
+export interface AtlasStoreDiagnostic {
+  id: string
+  label: string
+  schemaVersion: string
+  status: AtlasStoreDiagnosticStatus
+  countSummary: string
+  messages: string[]
+  repairHint: string
+}
+
+export interface AtlasBackupDiffItem {
+  id: string
+  label: string
+  current: number
+  incoming: number
+  delta: number
+  status: AtlasStoreDiagnosticStatus
+}
+
 export type AtlasRestoreWarningType =
   | 'empty-store'
   | 'missing-writing'
@@ -112,6 +133,7 @@ export interface AtlasBackupValidationResult {
 export interface AtlasRestorePreview {
   currentSummary: AtlasBackupStoreSummary
   incomingSummary: AtlasBackupStoreSummary
+  diffs: AtlasBackupDiffItem[]
   warnings: AtlasRestoreWarning[]
   normalizedStores: AtlasBackupStores
 }

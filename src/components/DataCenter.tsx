@@ -1,5 +1,13 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { ArchiveRestore, ClipboardCopy, Download, FileJson, FileText, ShieldCheck } from 'lucide-react'
+import {
+  ArchiveRestore,
+  ClipboardCopy,
+  DatabaseZap,
+  Download,
+  FileJson,
+  FileText,
+  ShieldCheck,
+} from 'lucide-react'
 import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasBackupStores, AtlasRestorePreview } from '../domain/dataPortability'
@@ -12,6 +20,7 @@ import type { WritingWorkbenchState } from '../domain/writing'
 import {
   createAtlasBackupEnvelope,
   createAtlasBackupMarkdownReport,
+  createAtlasStoreDiagnostics,
   createBackupSummaryText,
   createRestorePreview,
   canApplyAtlasRestore,
@@ -70,36 +79,62 @@ function SummaryCard({
 
 function PreviewComparison({ preview }: { preview: AtlasRestorePreview }) {
   return (
-    <div className="data-preview-grid" aria-label="Restore preview">
-      <SummaryCard
-        title="Current Local Data"
-        items={[
-          { label: 'Projects', value: preview.currentSummary.workspace.projects },
-          { label: 'Repo bindings', value: preview.currentSummary.workspace.repositoryBindings },
-          { label: 'Dispatch targets', value: preview.currentSummary.dispatch.targets },
-          { label: 'Preflight runs', value: preview.currentSummary.dispatch.preflightRuns },
-          { label: 'Writing drafts', value: preview.currentSummary.writing.drafts },
-          { label: 'Planning records', value: preview.currentSummary.planning.objectives + preview.currentSummary.planning.milestones + preview.currentSummary.planning.workSessions + preview.currentSummary.planning.notes },
-          { label: 'Report packets', value: preview.currentSummary.reports.packets },
-          { label: 'Review sessions', value: preview.currentSummary.review.sessions },
-          { label: 'Sync snapshots', value: preview.currentSummary.sync.snapshots },
-        ]}
-      />
-      <SummaryCard
-        title="Incoming Backup"
-        items={[
-          { label: 'Projects', value: preview.incomingSummary.workspace.projects },
-          { label: 'Repo bindings', value: preview.incomingSummary.workspace.repositoryBindings },
-          { label: 'Dispatch targets', value: preview.incomingSummary.dispatch.targets },
-          { label: 'Preflight runs', value: preview.incomingSummary.dispatch.preflightRuns },
-          { label: 'Writing drafts', value: preview.incomingSummary.writing.drafts },
-          { label: 'Planning records', value: preview.incomingSummary.planning.objectives + preview.incomingSummary.planning.milestones + preview.incomingSummary.planning.workSessions + preview.incomingSummary.planning.notes },
-          { label: 'Report packets', value: preview.incomingSummary.reports.packets },
-          { label: 'Review sessions', value: preview.incomingSummary.review.sessions },
-          { label: 'Sync snapshots', value: preview.incomingSummary.sync.snapshots },
-        ]}
-      />
-    </div>
+    <>
+      <div className="data-preview-grid" aria-label="Restore preview">
+        <SummaryCard
+          title="Current Local Data"
+          items={[
+            { label: 'Projects', value: preview.currentSummary.workspace.projects },
+            { label: 'Repo bindings', value: preview.currentSummary.workspace.repositoryBindings },
+            { label: 'Dispatch targets', value: preview.currentSummary.dispatch.targets },
+            { label: 'Preflight runs', value: preview.currentSummary.dispatch.preflightRuns },
+            { label: 'Writing drafts', value: preview.currentSummary.writing.drafts },
+            {
+              label: 'Planning records',
+              value:
+                preview.currentSummary.planning.objectives +
+                preview.currentSummary.planning.milestones +
+                preview.currentSummary.planning.workSessions +
+                preview.currentSummary.planning.notes,
+            },
+            { label: 'Report packets', value: preview.currentSummary.reports.packets },
+            { label: 'Review sessions', value: preview.currentSummary.review.sessions },
+            { label: 'Sync snapshots', value: preview.currentSummary.sync.snapshots },
+          ]}
+        />
+        <SummaryCard
+          title="Incoming Backup"
+          items={[
+            { label: 'Projects', value: preview.incomingSummary.workspace.projects },
+            { label: 'Repo bindings', value: preview.incomingSummary.workspace.repositoryBindings },
+            { label: 'Dispatch targets', value: preview.incomingSummary.dispatch.targets },
+            { label: 'Preflight runs', value: preview.incomingSummary.dispatch.preflightRuns },
+            { label: 'Writing drafts', value: preview.incomingSummary.writing.drafts },
+            {
+              label: 'Planning records',
+              value:
+                preview.incomingSummary.planning.objectives +
+                preview.incomingSummary.planning.milestones +
+                preview.incomingSummary.planning.workSessions +
+                preview.incomingSummary.planning.notes,
+            },
+            { label: 'Report packets', value: preview.incomingSummary.reports.packets },
+            { label: 'Review sessions', value: preview.incomingSummary.review.sessions },
+            { label: 'Sync snapshots', value: preview.incomingSummary.sync.snapshots },
+          ]}
+        />
+      </div>
+      <div className="data-diff-list" aria-label="Backup restore diff">
+        {preview.diffs.map((diff) => (
+          <div key={diff.id} className={`data-diff-row data-diff-${diff.status}`}>
+            <strong>{diff.label}</strong>
+            <span>Current {diff.current}</span>
+            <span>Incoming {diff.incoming}</span>
+            <span>{diff.delta >= 0 ? `+${diff.delta}` : diff.delta}</span>
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -124,6 +159,7 @@ export function DataCenter({
   )
   const envelope = useMemo(() => createAtlasBackupEnvelope(stores), [stores])
   const summary = useMemo(() => summarizeAtlasStores(stores), [stores])
+  const diagnostics = useMemo(() => createAtlasStoreDiagnostics(stores), [stores])
   const restoreReady = preview !== null && canApplyAtlasRestore(confirmation)
 
   function exportJson() {
@@ -323,6 +359,37 @@ export function DataCenter({
               <ClipboardCopy size={15} />
               Copy summary
             </button>
+          </div>
+        </section>
+
+        <section className="data-panel">
+          <div className="panel-heading">
+            <DatabaseZap size={17} />
+            <h2>Store Diagnostics</h2>
+          </div>
+          <div className="data-diagnostics-grid" aria-label="Local store diagnostics">
+            {diagnostics.map((diagnostic) => (
+              <article
+                key={diagnostic.id}
+                className={`data-diagnostic-card data-diagnostic-${diagnostic.status}`}
+              >
+                <div className="data-diagnostic-heading">
+                  <strong>{diagnostic.label}</strong>
+                  <span>{diagnostic.schemaVersion}</span>
+                </div>
+                <p>{diagnostic.countSummary}</p>
+                {diagnostic.messages.length > 0 ? (
+                  <ul>
+                    {diagnostic.messages.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="resource-pill">No repair warning</span>
+                )}
+                <small>{diagnostic.repairHint}</small>
+              </article>
+            ))}
           </div>
         </section>
 
