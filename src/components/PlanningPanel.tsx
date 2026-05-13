@@ -70,6 +70,12 @@ export function PlanningPanel({ planning, projectId, onOpenPlanning }: PlanningP
               </div>
               <strong>{item.title}</strong>
               <p>{item.kind === 'note' ? item.body : item.detail || 'No detail recorded.'}</p>
+              {item.sourceLinks.length > 0 ? (
+                <small>
+                  <ClipboardList size={13} />
+                  Source: {item.sourceLinks.map((link) => link.label).join(', ')}
+                </small>
+              ) : null}
               <small>
                 <CalendarDays size={13} />
                 {formatDateLabel(itemDate(item))}

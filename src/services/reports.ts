@@ -14,7 +14,7 @@ import {
   type ReportProjectSummary,
   type ReportsState,
 } from '../domain/reports'
-import type { ReviewState } from '../domain/review'
+import type { ReviewNote, ReviewSession, ReviewState } from '../domain/review'
 import type { WritingDraft } from '../domain/writing'
 import {
   closeoutStateLabels,
@@ -44,6 +44,8 @@ interface ReportContextInput {
   writingDrafts: WritingDraft[]
   projectIds: string[]
   writingDraftIds: string[]
+  reviewNoteIds?: string[]
+  reviewSessionIds?: string[]
   now?: Date
 }
 
@@ -198,6 +200,8 @@ export function normalizeReportPacket(value: unknown, now = new Date()): ReportP
     status: readStatus(value.status),
     projectIds: readStringArray(value.projectIds),
     writingDraftIds: readStringArray(value.writingDraftIds),
+    reviewNoteIds: readStringArray(value.reviewNoteIds),
+    reviewSessionIds: readStringArray(value.reviewSessionIds),
     markdown: readString(value.markdown),
     sourceSummary: normalizeSourceSummary(value.sourceSummary),
     contextWarnings: readStringArray(value.contextWarnings),
@@ -280,6 +284,29 @@ function reportTitle(type: ReportPacketType, records: ProjectRecord[], now: Date
         : 'No project scope'
 
   return `${packetType.label} - ${scope} - ${now.toISOString().slice(0, 10)}`
+}
+
+function buildReportTemplateFocus(type: ReportPacketType) {
+  const focusLines: Partial<Record<ReportPacketType, string[]>> = {
+    'client-update-packet': [
+      'Keep language client-safe, concrete, and free of internal-only uncertainty.',
+      'Use Dispatch, GitHub, and Review context as background only; do not imply anything shipped unless a human says so.',
+    ],
+    'internal-weekly-packet': [
+      'Emphasize operator review, blocked work, verification due state, Dispatch follow-up, and pending report/draft work.',
+      'This is an internal planning artifact, not an automated prioritization decision.',
+    ],
+    'internal-deploy-handoff-packet': [
+      'Emphasize runbook order, preserve paths, evidence captured, closeout posture, and remaining manual checks.',
+      'Do not imply Atlas uploaded artifacts or changed production state.',
+    ],
+    'dispatch-closeout-summary-packet': [
+      'Emphasize closeout state, evidence IDs, manual deployment records, report packet context, and follow-up gaps.',
+      'Closeout state is advisory and does not prove deployment or verification.',
+    ],
+  }
+
+  return list(focusLines[type] ?? [getReportPacketType(type).intent], 'No template focus recorded.')
 }
 
 function buildProjectSection(record: ProjectRecord, planning: PlanningState) {
@@ -565,9 +592,38 @@ function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
   ].join('\n')
 }
 
-function buildReviewSection(records: ProjectRecord[], review?: ReviewState) {
+function buildReviewSection({
+  records,
+  review,
+  selectedNotes = [],
+  selectedSessions = [],
+}: {
+  records: ProjectRecord[]
+  review?: ReviewState
+  selectedNotes?: ReviewNote[]
+  selectedSessions?: ReviewSession[]
+}) {
   if (!review) {
     return '_No Review Center context was supplied._'
+  }
+
+  if (selectedNotes.length > 0 || selectedSessions.length > 0) {
+    return [
+      'Selected Review sessions:',
+      list(
+        selectedSessions.map(
+          (session) =>
+            `${session.title} (${session.outcome}, ${session.itemIds.length} item(s), ${session.updatedAt})`,
+        ),
+        'No selected Review sessions.',
+      ),
+      '',
+      'Selected Review notes:',
+      list(
+        selectedNotes.map((note) => `${note.outcome}: ${note.body} (${note.createdAt})`),
+        'No selected Review notes.',
+      ),
+    ].join('\n')
   }
 
   const sections = records.flatMap((record) => {
@@ -614,6 +670,8 @@ export function buildReportMarkdown({
   review,
   planning,
   writingDrafts,
+  selectedReviewNotes = [],
+  selectedReviewSessions = [],
   now = new Date(),
 }: {
   type: ReportPacketType
@@ -623,6 +681,8 @@ export function buildReportMarkdown({
   review?: ReviewState
   planning: PlanningState
   writingDrafts: WritingDraft[]
+  selectedReviewNotes?: ReviewNote[]
+  selectedReviewSessions?: ReviewSession[]
   now?: Date
 }) {
   const packetType = getReportPacketType(type)
@@ -632,6 +692,10 @@ export function buildReportMarkdown({
     '',
     `Report type: ${packetType.label}`,
     `Generated locally: ${now.toISOString()}`,
+    '',
+    '## Template Focus',
+    '',
+    buildReportTemplateFocus(type),
     '',
     '## Guardrails',
     '',
@@ -673,8 +737,21 @@ export function buildReportMarkdown({
     '',
     buildGithubSection(records, writingDrafts),
     '',
-    ...(type === 'internal-weekly-packet' || type === 'project-handoff-packet'
-      ? ['## Review Center Notes', '', buildReviewSection(records, review), '']
+    ...(type === 'internal-weekly-packet' ||
+    type === 'project-handoff-packet' ||
+    selectedReviewNotes.length > 0 ||
+    selectedReviewSessions.length > 0
+      ? [
+          '## Review Center Notes',
+          '',
+          buildReviewSection({
+            records,
+            review,
+            selectedNotes: selectedReviewNotes,
+            selectedSessions: selectedReviewSessions,
+          }),
+          '',
+        ]
       : []),
   ].join('\n')
 }
@@ -689,6 +766,8 @@ export function createReportPacket({
   writingDrafts,
   projectIds,
   writingDraftIds,
+  reviewNoteIds = [],
+  reviewSessionIds = [],
   now = new Date(),
 }: ReportContextInput): ReportPacket {
   const records = selectedRecords(projectRecords, projectIds)
@@ -697,6 +776,14 @@ export function createReportPacket({
     (draft) =>
       draftIdSet.has(draft.id) && ['approved', 'exported'].includes(draft.status),
   )
+  const reviewNoteIdSet = new Set(reviewNoteIds)
+  const reviewSessionIdSet = new Set(reviewSessionIds)
+  const selectedReviewNotes = review
+    ? review.notes.filter((note) => reviewNoteIdSet.has(note.id))
+    : []
+  const selectedReviewSessions = review
+    ? review.sessions.filter((session) => reviewSessionIdSet.has(session.id))
+    : []
   const sourceSummary = records.map((record) => summarizeProject(record, dispatch, planning, now))
   const contextWarnings = [
     ...(records.length === 0 ? ['No project records are included in this report packet.'] : []),
@@ -714,6 +801,8 @@ export function createReportPacket({
     status: 'draft',
     projectIds: records.map((record) => record.project.id),
     writingDraftIds: selectedDrafts.map((draft) => draft.id),
+    reviewNoteIds: selectedReviewNotes.map((note) => note.id),
+    reviewSessionIds: selectedReviewSessions.map((session) => session.id),
     markdown: buildReportMarkdown({
       type,
       records,
@@ -722,6 +811,8 @@ export function createReportPacket({
       review,
       planning,
       writingDrafts: selectedDrafts,
+      selectedReviewNotes,
+      selectedReviewSessions,
       now,
     }),
     sourceSummary,

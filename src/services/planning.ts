@@ -11,6 +11,8 @@ import {
   type PlanningObjective,
   type PlanningState,
   type PlanningStatus,
+  type PlanningSourceLink,
+  type PlanningSourceLinkType,
   type PlanningWorkSession,
 } from '../domain/planning'
 
@@ -26,6 +28,7 @@ export interface PlanningItemUpdate {
   scheduledFor?: string
   completedAt?: string
   body?: string
+  sourceLinks?: PlanningSourceLink[]
 }
 
 export interface PlanningSummary {
@@ -59,6 +62,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readString(value: unknown) {
   return typeof value === 'string' ? value : ''
+}
+
+function readSourceLinkType(value: unknown): PlanningSourceLinkType {
+  return [
+    'review-note',
+    'review-session',
+    'dispatch-session',
+    'report-packet',
+    'timeline-event',
+  ].includes(readString(value))
+    ? (value as PlanningSourceLinkType)
+    : 'timeline-event'
+}
+
+function normalizeSourceLinks(value: unknown): PlanningSourceLink[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.flatMap((item): PlanningSourceLink[] => {
+    if (!isRecord(item)) {
+      return []
+    }
+
+    const id = readString(item.id)
+
+    if (!id) {
+      return []
+    }
+
+    return [
+      {
+        type: readSourceLinkType(item.type),
+        id,
+        label: readString(item.label) || id,
+      },
+    ]
+  })
 }
 
 function readStatus(value: unknown): PlanningStatus {
@@ -105,6 +146,7 @@ function normalizeBase(
     status: readStatus(value.status),
     createdAt,
     updatedAt: safeDate(value.updatedAt, new Date(createdAt)),
+    sourceLinks: normalizeSourceLinks(value.sourceLinks),
   }
 }
 
@@ -250,6 +292,7 @@ export function createPlanningItem({
   title,
   detail = '',
   status = 'planned',
+  sourceLinks = [],
   date = '',
   id,
   now = new Date(),
@@ -261,6 +304,7 @@ export function createPlanningItem({
   title: string
   detail?: string
   status?: PlanningStatus
+  sourceLinks?: PlanningSourceLink[]
   date?: string
   id?: string
   now?: Date
@@ -274,6 +318,7 @@ export function createPlanningItem({
     title: title.trim() || 'Untitled planning item',
     detail: detail.trim(),
     status,
+    sourceLinks,
     createdAt: timestamp,
     updatedAt: timestamp,
   }

@@ -1,8 +1,20 @@
-export const ATLAS_PLANNING_SCHEMA_VERSION = 1
+export const ATLAS_PLANNING_SCHEMA_VERSION = 2
 
 export type AtlasPlanningSchemaVersion = typeof ATLAS_PLANNING_SCHEMA_VERSION
 export type PlanningStatus = 'idea' | 'planned' | 'active' | 'waiting' | 'done' | 'deferred'
 export type PlanningItemKind = 'objective' | 'milestone' | 'work-session' | 'note'
+export type PlanningSourceLinkType =
+  | 'review-note'
+  | 'review-session'
+  | 'dispatch-session'
+  | 'report-packet'
+  | 'timeline-event'
+
+export interface PlanningSourceLink {
+  type: PlanningSourceLinkType
+  id: string
+  label: string
+}
 
 export interface PlanningItemBase {
   id: string
@@ -14,6 +26,7 @@ export interface PlanningItemBase {
   status: PlanningStatus
   createdAt: string
   updatedAt: string
+  sourceLinks: PlanningSourceLink[]
 }
 
 export interface PlanningObjective extends PlanningItemBase {

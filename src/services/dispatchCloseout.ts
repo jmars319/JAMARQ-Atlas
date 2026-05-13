@@ -72,6 +72,7 @@ export const deploymentReportPacketTypes: ReportPacketType[] = [
   'post-deploy-verification-packet',
   'client-site-update-packet',
   'internal-deploy-handoff-packet',
+  'dispatch-closeout-summary-packet',
 ]
 
 export const closeoutStateLabels: Record<DispatchCloseoutState, string> = {

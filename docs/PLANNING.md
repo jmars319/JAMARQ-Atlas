@@ -13,6 +13,7 @@ Planning records include:
 - Manual planning status: idea, planned, active, waiting, done, or deferred.
 - Human-authored title and detail.
 - Optional target, due, scheduled, or completed dates.
+- Optional source links back to Review notes, Dispatch sessions, Report packets, or Timeline events that a human explicitly used as context.
 - Created and updated timestamps.
 
 ## Source Of Truth
@@ -39,13 +40,14 @@ The top-level Planning tab provides:
 
 Project detail pages include a compact Planning panel with per-project counts and the most recent planning records.
 
+Planning cards show source-link labels when a record was created from Review or another operator surface. These links are context only; they do not synchronize state back to the source module.
+
 ## Future Work
 
 Likely next improvements:
 
 - Planning templates for recurring client/site work.
-- Optional relationship links between milestones and Writing/Report packets.
-- Data Center backup schema expansion for Planning and Reports stores.
+- Optional relationship links between milestones, Writing drafts, and Report packets.
 - Better rollups by section and project group.
 
 Any future automation must stay advisory. Planning remains a human decision surface.

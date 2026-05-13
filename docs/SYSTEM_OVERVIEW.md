@@ -73,7 +73,7 @@ Primary concepts:
 - Planning note
 - Manual planning status
 
-Planning records reference Atlas projects by `projectId` and may carry section/group IDs for rollups. They are not part of Workspace manual status and do not update Workspace fields.
+Planning records reference Atlas projects by `projectId` and may carry section/group IDs for rollups. They may also carry source links back to an explicit Review note, Dispatch session, Report packet, or Timeline event. They are not part of Workspace manual status and do not update Workspace fields.
 
 Manual planning statuses:
 
@@ -96,6 +96,8 @@ Primary concepts:
 - Review note
 - Review cadence/scope
 - Review outcome
+- Saved review filter
+- Session preset
 - Derived review queue item
 
 Review outcomes are:
@@ -107,7 +109,7 @@ Review outcomes are:
 
 The Review queue is derived and not persisted as operational truth. It combines Verification due state, Dispatch queue/closeout posture, Workspace blockers/risk/stale verification, unbound GitHub repositories and placement suggestions, recent Timeline evidence, due Planning records, pending Writing/Reports work, and Data/Sync attention states.
 
-Review sessions and notes are manual records only. They do not change Workspace manual state, Verification, Dispatch readiness/status, GitHub bindings, Writing drafts, Reports, Settings, or Sync. Creating a Planning note from Review is an explicit action and goes through the Planning helpers.
+Review sessions and notes are manual records only. Saved filters and presets are local review shortcuts, not decisions. They do not change Workspace manual state, Verification, Dispatch readiness/status, GitHub bindings, Writing drafts, Reports, Settings, or Sync. Creating a Planning note from Review is an explicit action and goes through the Planning helpers with a source link back to the Review note.
 
 ## Verification Model
 
@@ -297,8 +299,9 @@ Supported packet types:
 - Post-deploy verification packet
 - Client site update packet
 - Internal deploy handoff packet
+- Dispatch closeout summary packet
 
-Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session evidence, manual deployment record references, Planning records, Review sessions/notes, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
+Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session evidence, manual deployment record references, Planning records, selected Review sessions/notes, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
 
 Reports do not fetch full GitHub history and do not write externally. Copy and Markdown download are browser-local actions. Exporting a packet does not mean anything was sent, published, deployed, shipped, or verified.
 

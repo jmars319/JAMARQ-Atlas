@@ -10,9 +10,13 @@ import {
   addReviewNote,
   addReviewSession,
   createReviewNote,
+  createReviewSavedFilter,
   createReviewSession,
+  createReviewSessionFromPreset,
+  deleteReviewFilter,
   deriveReviewQueue,
   emptyReviewStore,
+  saveReviewFilter,
   normalizeReviewState,
   summarizeReviewQueue,
 } from '../src/services/review'
@@ -103,9 +107,10 @@ describe('operator review center', () => {
   it('normalizes missing Review storage into a safe empty store', () => {
     const review = normalizeReviewState(null, now)
 
-    expect(review.schemaVersion).toBe(1)
+    expect(review.schemaVersion).toBe(2)
     expect(review.sessions).toEqual([])
     expect(review.notes).toEqual([])
+    expect(review.savedFilters).toEqual([])
   })
 
   it('derives review queue items from existing advisory stores without mutating them', () => {
@@ -159,6 +164,49 @@ describe('operator review center', () => {
     expect(updated.sessions).toHaveLength(1)
     expect(updated.notes).toHaveLength(1)
     expect(updated.notes[0].outcome).toBe('needs-follow-up')
+    expect(seedWorkspace.sections[0].groups[0].projects[0].manual.status).toBe('Active')
+  })
+
+  it('saves filters and creates preset sessions without mutating source stores', () => {
+    const repoSuggestions = deriveRepoPlacementSuggestions(projectRecords, [unboundRepository])
+    const queue = deriveReviewQueue({
+      projectRecords,
+      dispatch: seedDispatchState,
+      planning: emptyPlanningStore(now),
+      reports: emptyReportsStore(now),
+      writing,
+      sync: emptySyncState(now),
+      timelineEvents: [],
+      repoSuggestions,
+      now,
+    })
+    const filter = createReviewSavedFilter({
+      id: 'review-filter-dispatch',
+      label: 'Dispatch only',
+      sourceFilter: 'dispatch',
+      severityFilter: 'high',
+      dueFilter: 'blocked',
+      now,
+    })
+    const saved = saveReviewFilter(emptyReviewStore(now), filter)
+    const deleted = deleteReviewFilter(saved, filter.id, now)
+    const deploySession = createReviewSessionFromPreset({
+      presetId: 'deploy-follow-up',
+      queue,
+      now,
+    })
+    const githubSession = createReviewSessionFromPreset({
+      presetId: 'github-intake-review',
+      queue,
+      now,
+    })
+
+    expect(saved.savedFilters[0]).toMatchObject({ label: 'Dispatch only' })
+    expect(deleted.savedFilters).toEqual([])
+    expect(deploySession?.scope).toBe('dispatch')
+    expect(deploySession?.itemIds.every((id) => id.startsWith('dispatch-'))).toBe(true)
+    expect(githubSession?.scope).toBe('github')
+    expect(githubSession?.itemIds.every((id) => id.startsWith('github-'))).toBe(true)
     expect(seedWorkspace.sections[0].groups[0].projects[0].manual.status).toBe('Active')
   })
 })

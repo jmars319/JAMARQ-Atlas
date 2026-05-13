@@ -24,12 +24,41 @@ describe('planning center', () => {
   it('normalizes missing planning storage into an empty local store', () => {
     const planning = normalizePlanningState(null, now)
 
-    expect(planning.schemaVersion).toBe(1)
+    expect(planning.schemaVersion).toBe(2)
     expect(planning.objectives).toEqual([])
     expect(planning.milestones).toEqual([])
     expect(planning.workSessions).toEqual([])
     expect(planning.notes).toEqual([])
     expect(planning.updatedAt).toBe(now.toISOString())
+  })
+
+  it('stores source links on planning records without mutating workspace status', () => {
+    const item = createPlanningItem({
+      id: 'planning-note-source-link',
+      kind: 'note',
+      projectId: vaexcoreStudio.project.id,
+      title: 'Review-linked note',
+      detail: 'Planning note linked back to a Review note.',
+      sourceLinks: [
+        {
+          type: 'review-note',
+          id: 'review-note-source',
+          label: 'Review note source',
+        },
+      ],
+      now,
+    })
+    const planning = addPlanningItem(emptyPlanningStore(now), item, now)
+    const note = getPlanningForProject(planning, vaexcoreStudio.project.id).notes[0]
+
+    expect(note.sourceLinks).toEqual([
+      {
+        type: 'review-note',
+        id: 'review-note-source',
+        label: 'Review note source',
+      },
+    ])
+    expect(vaexcoreStudio.project.manual.status).toBe('Active')
   })
 
   it('normalizes older records while preserving manual fields', () => {

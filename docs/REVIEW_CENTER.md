@@ -9,11 +9,13 @@ Review Center supports:
 - Derived daily/weekly review queues.
 - Manual review sessions.
 - Manual review notes.
+- Saved filters for repeatable review views.
+- Session presets for daily sweep, weekly ops review, deploy follow-up, and GitHub intake review.
 - Review outcomes: `noted`, `needs-follow-up`, `no-action`, and `planned`.
 - Optional explicit Planning note creation from a review item.
 - Project detail review history and quick review notes.
 
-The derived queue is not persisted. Only sessions and notes are stored under `jamarq-atlas.review.v1`.
+The derived queue is not persisted. Sessions, notes, and saved filter definitions are stored under `jamarq-atlas.review.v1`.
 
 ## Queue Inputs
 
@@ -37,12 +39,24 @@ Review state stores:
 
 - Review sessions with scope, cadence, selected item IDs, outcome, notes, and timestamps.
 - Review notes with optional project ID, source, outcome, note body, and timestamp.
+- Saved filters with section, source, severity, due-state, and search criteria.
 
 Review state does not store GitHub tokens, host credentials, AI keys, raw server files, deployment artifacts, or full GitHub history.
 
+## Session Presets And Filters
+
+Review presets are local operator shortcuts. They create a manual review session from the current derived queue using a named scope:
+
+- Daily sweep
+- Weekly ops review
+- Deploy follow-up
+- GitHub intake review
+
+Saved filters preserve the visible queue criteria so common review views can be reused. Neither presets nor filters store derived queue rows as source-of-truth data, and neither can change Atlas project status, Dispatch readiness, verification, Planning, Writing, Reports, Settings, or Sync.
+
 ## Planning Handoff
 
-Review can create a Planning note only when the operator explicitly chooses that action. The Planning note is stored through the Planning service, and the original Review note/session remains review-only context.
+Review can create a Planning note only when the operator explicitly chooses that action. The Planning note is stored through the Planning service with a source link back to the Review note, and the original Review note/session remains review-only context.
 
 Creating a Planning note from Review does not change project status, risk, next action, verification, Dispatch readiness, Writing state, Reports, GitHub bindings, Settings, or Sync.
 

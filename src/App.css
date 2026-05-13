@@ -2169,6 +2169,24 @@ h3 {
   justify-content: space-between;
 }
 
+.review-preset-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.review-preset-grid button {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  text-align: left;
+}
+
+.review-preset-grid span {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .review-item-heading h2 {
   margin: 6px 0 0;
   color: var(--paper-white);

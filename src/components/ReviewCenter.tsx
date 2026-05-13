@@ -18,8 +18,10 @@ import {
   type ReviewNote,
   type ReviewOutcome,
   type ReviewQueueItem,
+  type ReviewSavedFilter,
   type ReviewSeverity,
   type ReviewSession,
+  type ReviewSessionPresetId,
   type ReviewState,
 } from '../domain/review'
 import type { ReportsState } from '../domain/reports'
@@ -31,8 +33,11 @@ import type { GithubRepositorySource, GithubRepositorySummary } from '../service
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import {
   createReviewNote,
+  createReviewSavedFilter,
   createReviewSession,
+  createReviewSessionFromPreset,
   deriveReviewQueue,
+  REVIEW_SESSION_PRESETS,
   summarizeReviewQueue,
   summarizeReviewState,
 } from '../services/review'
@@ -59,7 +64,14 @@ interface ReviewCenterProps {
   onSelectProject: (projectId: string) => void
   onAddReviewSession: (session: ReviewSession) => void
   onAddReviewNote: (note: ReviewNote) => void
-  onCreatePlanningNote: (projectId: string, title: string, detail: string) => void
+  onSaveReviewFilter: (filter: ReviewSavedFilter) => void
+  onDeleteReviewFilter: (filterId: string) => void
+  onCreatePlanningNote: (
+    projectId: string,
+    title: string,
+    detail: string,
+    sourceLinks?: Array<{ type: 'review-note'; id: string; label: string }>,
+  ) => void
   onOpenGitHub: () => void
   onOpenPlanning: (projectId: string) => void
 }
@@ -193,6 +205,8 @@ export function ReviewCenter({
   onSelectProject,
   onAddReviewSession,
   onAddReviewNote,
+  onSaveReviewFilter,
+  onDeleteReviewFilter,
   onCreatePlanningNote,
   onOpenGitHub,
   onOpenPlanning,
@@ -269,6 +283,41 @@ export function ReviewCenter({
     setMessage('Review session started locally.')
   }
 
+  function startPresetSession(presetId: ReviewSessionPresetId) {
+    const session = createReviewSessionFromPreset({ presetId, queue })
+
+    if (!session) {
+      setMessage('No review queue items match that preset right now.')
+      return
+    }
+
+    onAddReviewSession(session)
+    setMessage(`${session.title} started locally.`)
+  }
+
+  function saveCurrentFilter() {
+    const filter = createReviewSavedFilter({
+      label: `Review filter - ${new Date().toISOString().slice(0, 10)}`,
+      query,
+      sectionFilter,
+      sourceFilter,
+      severityFilter,
+      dueFilter,
+    })
+
+    onSaveReviewFilter(filter)
+    setMessage('Review filter saved locally.')
+  }
+
+  function applySavedFilter(filter: ReviewSavedFilter) {
+    setQuery(filter.query)
+    setSectionFilter(filter.sectionFilter)
+    setSourceFilter(filter.sourceFilter)
+    setSeverityFilter(filter.severityFilter)
+    setDueFilter(filter.dueFilter)
+    setMessage(`Applied saved filter: ${filter.label}.`)
+  }
+
   function addNote(item: ReviewQueueItem, outcome: ReviewOutcome) {
     const body = noteDrafts[item.id]?.trim()
 
@@ -298,16 +347,22 @@ export function ReviewCenter({
       return
     }
 
-    onCreatePlanningNote(item.projectId, `Review follow-up: ${item.title}`, body)
-    onAddReviewNote(
-      createReviewNote({
-        itemId: item.id,
-        projectId: item.projectId,
-        source: item.source,
-        outcome: 'planned',
-        body: `Created explicit Planning note from Review Center.\n\n${body}`,
-      }),
-    )
+    const note = createReviewNote({
+      itemId: item.id,
+      projectId: item.projectId,
+      source: item.source,
+      outcome: 'planned',
+      body: `Created explicit Planning note from Review Center.\n\n${body}`,
+    })
+
+    onCreatePlanningNote(item.projectId, `Review follow-up: ${item.title}`, body, [
+      {
+        type: 'review-note',
+        id: note.id,
+        label: `Review note ${note.id}`,
+      },
+    ])
+    onAddReviewNote(note)
     setNoteDrafts((current) => ({ ...current, [item.id]: '' }))
     setMessage('Planning note created from Review. Project operational status was not changed.')
   }
@@ -451,11 +506,48 @@ export function ReviewCenter({
               <ClipboardList size={15} />
               Start review session
             </button>
+            <button type="button" onClick={saveCurrentFilter}>
+              <NotebookPen size={15} />
+              Save filter
+            </button>
             <button type="button" onClick={onOpenGitHub}>
               <GitBranch size={15} />
               Open GitHub intake
             </button>
           </div>
+          <div className="review-preset-grid" aria-label="Review session presets">
+            {REVIEW_SESSION_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => startPresetSession(preset.id)}
+              >
+                <strong>{preset.label}</strong>
+                <span>{preset.detail}</span>
+              </button>
+            ))}
+          </div>
+          {review.savedFilters.length > 0 ? (
+            <div className="review-history-list" aria-label="Saved review filters">
+              {review.savedFilters.slice(0, 6).map((filter) => (
+                <article key={filter.id}>
+                  <strong>{filter.label}</strong>
+                  <p>
+                    {labelize(filter.sourceFilter)} / {labelize(filter.severityFilter)} /{' '}
+                    {labelize(filter.dueFilter)}
+                  </p>
+                  <div className="review-actions">
+                    <button type="button" onClick={() => applySavedFilter(filter)}>
+                      Apply
+                    </button>
+                    <button type="button" onClick={() => onDeleteReviewFilter(filter.id)}>
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : null}
           <p className="empty-state">
             Starting a session records what the operator reviewed. It does not change source-of-truth
             project, Dispatch, Verification, Writing, Reports, or Sync state.

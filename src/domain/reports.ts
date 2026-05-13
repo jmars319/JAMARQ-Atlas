@@ -1,4 +1,4 @@
-export const ATLAS_REPORTS_SCHEMA_VERSION = 1
+export const ATLAS_REPORTS_SCHEMA_VERSION = 2
 
 export type AtlasReportsSchemaVersion = typeof ATLAS_REPORTS_SCHEMA_VERSION
 
@@ -43,6 +43,11 @@ export const REPORT_PACKET_TYPES = [
     label: 'Internal deploy handoff packet',
     intent: 'Assemble internal deployment handoff context for another operator.',
   },
+  {
+    id: 'dispatch-closeout-summary-packet',
+    label: 'Dispatch closeout summary packet',
+    intent: 'Assemble closeout posture, evidence, and follow-up notes for deployment review.',
+  },
 ] as const
 
 export type ReportPacketType = (typeof REPORT_PACKET_TYPES)[number]['id']
@@ -81,6 +86,8 @@ export interface ReportPacket {
   status: ReportPacketStatus
   projectIds: string[]
   writingDraftIds: string[]
+  reviewNoteIds: string[]
+  reviewSessionIds: string[]
   markdown: string
   sourceSummary: ReportProjectSummary[]
   contextWarnings: string[]

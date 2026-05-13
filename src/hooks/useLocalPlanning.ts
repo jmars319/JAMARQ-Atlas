@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ProjectRecord } from '../domain/atlas'
-import type { PlanningItemKind, PlanningState, PlanningStatus } from '../domain/planning'
+import type {
+  PlanningItemKind,
+  PlanningSourceLink,
+  PlanningState,
+  PlanningStatus,
+} from '../domain/planning'
 import {
   addPlanningItem,
   annotatePlanningItemFromRecord,
@@ -40,6 +45,7 @@ export function useLocalPlanning() {
     record,
     title,
     detail,
+    sourceLinks,
     date,
     status = 'planned',
   }: {
@@ -47,6 +53,7 @@ export function useLocalPlanning() {
     record: ProjectRecord
     title: string
     detail: string
+    sourceLinks?: PlanningSourceLink[]
     date?: string
     status?: PlanningStatus
   }) {
@@ -58,6 +65,7 @@ export function useLocalPlanning() {
         groupId: record.group.id,
         title,
         detail,
+        sourceLinks,
         date,
         status,
       }),

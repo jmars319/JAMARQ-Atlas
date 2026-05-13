@@ -1,6 +1,6 @@
 import type { ProjectRecord } from './atlas'
 
-export const ATLAS_REVIEW_SCHEMA_VERSION = 1
+export const ATLAS_REVIEW_SCHEMA_VERSION = 2
 
 export type AtlasReviewSchemaVersion = typeof ATLAS_REVIEW_SCHEMA_VERSION
 
@@ -63,6 +63,32 @@ export interface ReviewSession {
   completedAt: string | null
 }
 
+export type ReviewSessionPresetId =
+  | 'daily-sweep'
+  | 'weekly-ops-review'
+  | 'deploy-follow-up'
+  | 'github-intake-review'
+
+export interface ReviewSessionPreset {
+  id: ReviewSessionPresetId
+  label: string
+  detail: string
+  scope: ReviewScope
+  cadence: ReviewCadence
+}
+
+export interface ReviewSavedFilter {
+  id: string
+  label: string
+  query: string
+  sectionFilter: string
+  sourceFilter: ReviewItemSource | 'all'
+  severityFilter: ReviewSeverity | 'all'
+  dueFilter: ReviewDueState | 'all'
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ReviewQueueItem {
   id: string
   source: ReviewItemSource
@@ -95,6 +121,7 @@ export interface ReviewState {
   schemaVersion: AtlasReviewSchemaVersion
   sessions: ReviewSession[]
   notes: ReviewNote[]
+  savedFilters: ReviewSavedFilter[]
   updatedAt: string
 }
 
@@ -102,6 +129,7 @@ export const emptyReviewState: ReviewState = {
   schemaVersion: ATLAS_REVIEW_SCHEMA_VERSION,
   sessions: [],
   notes: [],
+  savedFilters: [],
   updatedAt: '',
 }
 

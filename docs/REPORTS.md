@@ -14,6 +14,7 @@ Supported report packet types:
 - Post-deploy verification packet
 - Client site update packet
 - Internal deploy handoff packet
+- Dispatch closeout summary packet
 
 ## Included Context
 
@@ -28,7 +29,7 @@ Report packets can include:
 - Stored host evidence and runbook verification evidence.
 - Deploy-session linked evidence and manual deployment record references.
 - Planning records linked to included projects.
-- Review sessions and notes for internal weekly and project handoff packets.
+- Selected Review sessions and notes for internal weekly, project handoff, closeout, and operator-review packets.
 - Repository bindings, GitHub health/deploy-delta summary references, and any GitHub context captured inside selected Writing drafts.
 
 Reports do not fetch or store full GitHub history. They use local Atlas data and short already-captured snippets.
@@ -40,7 +41,7 @@ Reports are stored separately under `jamarq-atlas.reports.v1`.
 Stored data includes:
 
 - Packet title, type, status, Markdown body, timestamps, and source summary.
-- Included project IDs and Writing draft IDs.
+- Included project IDs, Writing draft IDs, Review session IDs, and Review note IDs.
 - Context warnings.
 - Report-only audit events.
 
@@ -48,7 +49,9 @@ Reports do not mutate Workspace, Dispatch, Writing, Planning, Review, Verificati
 
 Dispatch evidence in reports is copied from existing local evidence history. Report creation does not run checks, attach evidence to sessions, create deployment records, or mark anything verified.
 
-Deployment report packet types also include Dispatch closeout analytics when a project has Dispatch targets. Closeout sections summarize derived state, requirements, latest evidence IDs, manual deployment record references, and related report packet presence. This is copied context only; it does not update closeout state or prove that anything was deployed, sent, verified, or completed.
+Deployment report packet types and the Dispatch closeout summary packet also include Dispatch closeout analytics when a project has Dispatch targets. Closeout sections summarize derived state, requirements, latest evidence IDs, manual deployment record references, and related report packet presence. This is copied context only; it does not update closeout state or prove that anything was deployed, sent, verified, or completed.
+
+Selected Review context is copied into the packet as human-authored notes and session summaries. Report creation does not change Review outcomes, create Planning records, or mark review items resolved.
 
 The Dispatch Queue Command Center can create a deployment-readiness packet for one queued cPanel project. That action only assembles local Markdown from the selected project scope and switches the UI to Reports. It does not send, approve, deploy, verify, or change Dispatch state.
 

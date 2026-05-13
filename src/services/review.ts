@@ -11,7 +11,10 @@ import {
   type ReviewOutcome,
   type ReviewQueueItem,
   type ReviewQueueSummary,
+  type ReviewSavedFilter,
   type ReviewScope,
+  type ReviewSessionPreset,
+  type ReviewSessionPresetId,
   type ReviewSession,
   type ReviewSeverity,
   type ReviewState,
@@ -25,6 +28,37 @@ import { deriveDispatchQueueItems } from './dispatchQueue'
 import { evaluateVerification } from './verification'
 
 const REVIEW_STALE_SNAPSHOT_DAYS = 14
+
+export const REVIEW_SESSION_PRESETS: ReviewSessionPreset[] = [
+  {
+    id: 'daily-sweep',
+    label: 'Daily sweep',
+    detail: 'Start a compact session for due, blocked, and high-severity review items.',
+    scope: 'all',
+    cadence: 'daily',
+  },
+  {
+    id: 'weekly-ops-review',
+    label: 'Weekly ops review',
+    detail: 'Start a broad weekly session across the current review queue.',
+    scope: 'all',
+    cadence: 'weekly',
+  },
+  {
+    id: 'deploy-follow-up',
+    label: 'Deploy follow-up',
+    detail: 'Start a Dispatch-focused review session for queue and closeout items.',
+    scope: 'dispatch',
+    cadence: 'ad-hoc',
+  },
+  {
+    id: 'github-intake-review',
+    label: 'GitHub intake review',
+    detail: 'Start a GitHub-focused review session for unbound repo and placement items.',
+    scope: 'github',
+    cadence: 'ad-hoc',
+  },
+]
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -86,6 +120,24 @@ function readSource(value: unknown): ReviewItemSource {
   ].includes(readString(value))
     ? (value as ReviewItemSource)
     : 'workspace'
+}
+
+function readFilterSource(value: unknown): ReviewSavedFilter['sourceFilter'] {
+  return readString(value) === 'all' ? 'all' : readSource(value)
+}
+
+function readFilterSeverity(value: unknown): ReviewSavedFilter['severityFilter'] {
+  return ['all', 'critical', 'high', 'medium', 'low'].includes(readString(value))
+    ? (value as ReviewSavedFilter['severityFilter'])
+    : 'all'
+}
+
+function readFilterDue(value: unknown): ReviewSavedFilter['dueFilter'] {
+  return ['all', 'overdue', 'due', 'upcoming', 'attention', 'blocked', 'none'].includes(
+    readString(value),
+  )
+    ? (value as ReviewSavedFilter['dueFilter'])
+    : 'all'
 }
 
 function reviewId(prefix: string, now = new Date()) {
@@ -197,6 +249,32 @@ function normalizeReviewNote(value: unknown, now = new Date()): ReviewNote | nul
   }
 }
 
+function normalizeReviewSavedFilter(value: unknown, now = new Date()): ReviewSavedFilter | null {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  const id = readString(value.id)
+
+  if (!id) {
+    return null
+  }
+
+  const createdAt = safeDate(value.createdAt, now)
+
+  return {
+    id,
+    label: readString(value.label) || 'Saved Review filter',
+    query: readString(value.query),
+    sectionFilter: readString(value.sectionFilter) || 'all',
+    sourceFilter: readFilterSource(value.sourceFilter),
+    severityFilter: readFilterSeverity(value.severityFilter),
+    dueFilter: readFilterDue(value.dueFilter),
+    createdAt,
+    updatedAt: safeDate(value.updatedAt, new Date(createdAt)),
+  }
+}
+
 export function normalizeReviewState(value: unknown, now = new Date()): ReviewState {
   const defaults = emptyReviewStore(now)
 
@@ -215,6 +293,11 @@ export function normalizeReviewState(value: unknown, now = new Date()): ReviewSt
       ? value.notes
           .map((note) => normalizeReviewNote(note, now))
           .filter((note): note is ReviewNote => note !== null)
+      : [],
+    savedFilters: Array.isArray(value.savedFilters)
+      ? value.savedFilters
+          .map((filter) => normalizeReviewSavedFilter(filter, now))
+          .filter((filter): filter is ReviewSavedFilter => filter !== null)
       : [],
     updatedAt: safeDate(value.updatedAt, now),
   }
@@ -303,6 +386,117 @@ export function addReviewNote(state: ReviewState, note: ReviewNote): ReviewState
     notes: [note, ...state.notes.filter((candidate) => candidate.id !== note.id)],
     updatedAt: note.createdAt,
   }
+}
+
+export function createReviewSavedFilter({
+  label,
+  query = '',
+  sectionFilter = 'all',
+  sourceFilter = 'all',
+  severityFilter = 'all',
+  dueFilter = 'all',
+  id,
+  now = new Date(),
+}: {
+  label: string
+  query?: string
+  sectionFilter?: string
+  sourceFilter?: ReviewSavedFilter['sourceFilter']
+  severityFilter?: ReviewSavedFilter['severityFilter']
+  dueFilter?: ReviewSavedFilter['dueFilter']
+  id?: string
+  now?: Date
+}): ReviewSavedFilter {
+  const timestamp = now.toISOString()
+
+  return {
+    id: id || reviewId('review-filter', now),
+    label: label.trim() || 'Saved Review filter',
+    query,
+    sectionFilter,
+    sourceFilter,
+    severityFilter,
+    dueFilter,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  }
+}
+
+export function saveReviewFilter(state: ReviewState, filter: ReviewSavedFilter): ReviewState {
+  return {
+    ...state,
+    savedFilters: [
+      filter,
+      ...state.savedFilters.filter((candidate) => candidate.id !== filter.id),
+    ],
+    updatedAt: filter.updatedAt,
+  }
+}
+
+export function deleteReviewFilter(
+  state: ReviewState,
+  filterId: string,
+  now = new Date(),
+): ReviewState {
+  return {
+    ...state,
+    savedFilters: state.savedFilters.filter((filter) => filter.id !== filterId),
+    updatedAt: now.toISOString(),
+  }
+}
+
+export function itemsForReviewSessionPreset(
+  queue: ReviewQueueItem[],
+  presetId: ReviewSessionPresetId,
+) {
+  if (presetId === 'daily-sweep') {
+    return queue
+      .filter(
+        (item) =>
+          ['critical', 'high'].includes(item.severity) ||
+          ['overdue', 'due', 'blocked', 'attention'].includes(item.dueState),
+      )
+      .slice(0, 20)
+  }
+
+  if (presetId === 'deploy-follow-up') {
+    return queue.filter((item) => item.source === 'dispatch').slice(0, 20)
+  }
+
+  if (presetId === 'github-intake-review') {
+    return queue.filter((item) => item.source === 'github').slice(0, 20)
+  }
+
+  return queue.slice(0, 30)
+}
+
+export function createReviewSessionFromPreset({
+  presetId,
+  queue,
+  now = new Date(),
+}: {
+  presetId: ReviewSessionPresetId
+  queue: ReviewQueueItem[]
+  now?: Date
+}) {
+  const preset =
+    REVIEW_SESSION_PRESETS.find((candidate) => candidate.id === presetId) ??
+    REVIEW_SESSION_PRESETS[1]
+  const items = itemsForReviewSessionPreset(queue, preset.id)
+
+  if (items.length === 0) {
+    return null
+  }
+
+  return createReviewSession({
+    title: `${preset.label} - ${now.toISOString().slice(0, 10)}`,
+    scope: preset.scope,
+    cadence: preset.cadence,
+    itemIds: items.map((item) => item.id),
+    projectIds: items.flatMap((item) => (item.projectId ? [item.projectId] : [])),
+    notes: `${preset.detail} Queue inputs are advisory only.`,
+    now,
+  })
 }
 
 export function getReviewForProject(state: ReviewState, projectId: string) {

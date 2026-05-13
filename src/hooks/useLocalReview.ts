@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { ReviewNote, ReviewSession, ReviewState } from '../domain/review'
+import type { ReviewNote, ReviewSavedFilter, ReviewSession, ReviewState } from '../domain/review'
 import {
   addReviewNote,
   addReviewSession,
+  deleteReviewFilter,
   emptyReviewStore,
   normalizeReviewState,
+  saveReviewFilter,
 } from '../services/review'
 
 const STORAGE_KEY = 'jamarq-atlas.review.v1'
@@ -38,6 +40,14 @@ export function useLocalReview() {
     setReview((current) => addReviewNote(current, note))
   }
 
+  function saveFilter(filter: ReviewSavedFilter) {
+    setReview((current) => saveReviewFilter(current, filter))
+  }
+
+  function deleteFilter(filterId: string) {
+    setReview((current) => deleteReviewFilter(current, filterId))
+  }
+
   function resetReview() {
     const freshReview = emptyReviewStore()
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(freshReview))
@@ -49,6 +59,8 @@ export function useLocalReview() {
     setReview,
     addSession,
     addNote,
+    saveFilter,
+    deleteFilter,
     resetReview,
   }
 }

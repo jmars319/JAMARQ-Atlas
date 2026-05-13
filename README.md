@@ -95,13 +95,13 @@ Current planning record types:
 - Work sessions
 - Planning notes
 
-Planning records link to Atlas projects and can be filtered by section, kind, manual planning status, and search. Project detail pages include a compact Planning panel for the selected project.
+Planning records link to Atlas projects and can be filtered by section, kind, manual planning status, and search. Records may also carry source links back to the Review note, Dispatch session, Report packet, or Timeline event that a human explicitly used as context. Project detail pages include a compact Planning panel for the selected project.
 
 Planning is manual-only. GitHub, Dispatch, Verification, Writing, and AI provider signals do not create or update Planning records automatically. Planning records do not change Atlas project status, risk, next action, verification, Dispatch readiness, GitHub bindings, or Writing review state.
 
 ## Review Center
 
-Review Center is a cross-module command surface for calm daily or weekly operator review. It derives an attention queue from existing Atlas signals and stores only human review sessions and review notes under `jamarq-atlas.review.v1`.
+Review Center is a cross-module command surface for calm daily or weekly operator review. It derives an attention queue from existing Atlas signals and stores human review sessions, review notes, and saved review filters under `jamarq-atlas.review.v1`.
 
 Review queue inputs include:
 
@@ -115,6 +115,8 @@ Review queue inputs include:
 - Data/Sync backup age and snapshot attention states.
 
 Review outcomes are `noted`, `needs-follow-up`, `no-action`, and `planned`. Creating a Planning note from Review is an explicit human action. Review sessions do not change project status, risk, next action, verification, Dispatch readiness, GitHub bindings, Writing drafts, Reports, Settings, or Sync.
+
+Review includes reusable session presets for daily sweep, weekly ops review, deploy follow-up, and GitHub intake review. Presets only preselect derived queue items for a human review session; they do not change source records or decide outcomes.
 
 ## Tech Stack
 
@@ -372,8 +374,9 @@ Supported packet types:
 - Post-deploy verification packet
 - Client site update packet
 - Internal deploy handoff packet
+- Dispatch closeout summary packet
 
-Report packets can include project manual status, verification state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session notes, manual deployment record references, Planning records, repository bindings, and GitHub warnings captured inside selected Writing drafts. Reports are stored separately under `jamarq-atlas.reports.v1`.
+Report packets can include project manual status, verification state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session notes, manual deployment record references, Planning records, selected Review sessions/notes, repository bindings, and GitHub warnings captured inside selected Writing drafts. Reports are stored separately under `jamarq-atlas.reports.v1`.
 
 Report actions are local-only:
 
@@ -647,5 +650,5 @@ Sync is manual:
 
 ## Roadmap
 
-1. Add saved Review filters and operator checklist presets after a few real review cycles.
-2. Expand Dispatch preflight with additional read-only host-specific checks before any write-capable deployment work.
+1. Expand Dispatch preflight with additional read-only host-specific checks before any write-capable deployment work.
+2. Add hosted/team-safe persistence only after snapshot and restore workflows have been used safely.

@@ -7,7 +7,13 @@ import {
   createPlanningItem,
   emptyPlanningStore,
 } from '../src/services/planning'
-import { addReviewNote, createReviewNote, emptyReviewStore } from '../src/services/review'
+import {
+  addReviewNote,
+  addReviewSession,
+  createReviewNote,
+  createReviewSession,
+  emptyReviewStore,
+} from '../src/services/review'
 import {
   MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
   recordManualDeploymentFromSession,
@@ -95,7 +101,7 @@ describe('report packet builder', () => {
   it('normalizes missing report storage into an empty local store', () => {
     const reports = normalizeReportsState(null, now)
 
-    expect(reports.schemaVersion).toBe(1)
+    expect(reports.schemaVersion).toBe(2)
     expect(reports.packets).toEqual([])
     expect(reports.updatedAt).toBe(now.toISOString())
   })
@@ -178,6 +184,48 @@ describe('report packet builder', () => {
     expect(packet.markdown).toContain('Review Center Notes')
     expect(packet.markdown).toContain('Review Center note for weekly packet.')
     expect(packet.markdown).toContain('Review Center notes are human-authored context only')
+  })
+
+  it('includes explicitly selected Review sessions and notes in report packets', () => {
+    const initialReview = emptyReviewStore(now)
+    const session = createReviewSession({
+      id: 'selected-review-session',
+      title: 'Deploy follow-up review',
+      itemIds: ['dispatch-closeout-midway-mobile-storage-production'],
+      projectIds: ['midway-mobile-storage-site'],
+      now,
+    })
+    const note = createReviewNote({
+      id: 'selected-review-note',
+      sessionId: session.id,
+      projectId: 'midway-mobile-storage-site',
+      itemId: 'dispatch-closeout-midway-mobile-storage-production',
+      source: 'dispatch',
+      outcome: 'needs-follow-up',
+      body: 'Selected deploy follow-up note.',
+      now,
+    })
+    const review = addReviewNote(addReviewSession(initialReview, session), note)
+    const packet = createReportPacket({
+      type: 'dispatch-closeout-summary-packet',
+      projectRecords,
+      dispatch: seedDispatchState,
+      reports: emptyReportsStore(now),
+      review,
+      planning: emptyPlanningStore(now),
+      writingDrafts: [],
+      projectIds: ['midway-mobile-storage-site'],
+      writingDraftIds: [],
+      reviewNoteIds: [note.id],
+      reviewSessionIds: [session.id],
+      now,
+    })
+
+    expect(packet.reviewNoteIds).toEqual([note.id])
+    expect(packet.reviewSessionIds).toEqual([session.id])
+    expect(packet.markdown).toContain('Selected Review notes')
+    expect(packet.markdown).toContain('Selected deploy follow-up note.')
+    expect(packet.markdown).toContain('Dispatch closeout summary')
   })
 
   it('creates deployment report packets with runbooks, artifacts, preserve paths, checks, and guardrails', () => {

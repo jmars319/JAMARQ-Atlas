@@ -41,6 +41,7 @@ import type {
 } from './domain/dispatch'
 import type { DeploySessionChecklistPresetId } from './services/deploySessions'
 import type { AtlasBackupStores } from './domain/dataPortability'
+import type { PlanningSourceLink } from './domain/planning'
 import type { AtlasSyncCoreStores } from './domain/sync'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
@@ -199,8 +200,14 @@ function App() {
     markExported: markReportExported,
     archivePacket: archiveReportPacket,
   } = useLocalReports()
-  const { review, setReview, addSession: addReviewSession, addNote: addReviewNote } =
-    useLocalReview()
+  const {
+    review,
+    setReview,
+    addSession: addReviewSession,
+    addNote: addReviewNote,
+    saveFilter: saveReviewFilter,
+    deleteFilter: deleteReviewFilter,
+  } = useLocalReview()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
   const timelineEvents = useMemo(
     () =>
@@ -448,7 +455,12 @@ function App() {
     setAppView('review')
   }
 
-  function handleCreatePlanningNoteFromReview(projectId: string, title: string, detail: string) {
+  function handleCreatePlanningNoteFromReview(
+    projectId: string,
+    title: string,
+    detail: string,
+    sourceLinks: PlanningSourceLink[] = [],
+  ) {
     const record = findProjectRecord(workspace, projectId)
 
     if (!record) {
@@ -460,6 +472,7 @@ function App() {
       record,
       title,
       detail,
+      sourceLinks,
       status: 'planned',
     })
   }
@@ -744,6 +757,8 @@ function App() {
             onSelectProject={selectProject}
             onAddReviewSession={addReviewSession}
             onAddReviewNote={addReviewNote}
+            onSaveReviewFilter={saveReviewFilter}
+            onDeleteReviewFilter={deleteReviewFilter}
             onCreatePlanningNote={handleCreatePlanningNoteFromReview}
             onOpenGitHub={() => setAppView('github')}
             onOpenPlanning={handleOpenPlanning}

@@ -163,11 +163,29 @@ export function ReportsCenter({
   const [packetType, setPacketType] = useState<ReportPacketType>('client-update-packet')
   const [scope, setScope] = useState<ReportScope>(selectedProjectId || 'all')
   const [selectedWritingDraftIds, setSelectedWritingDraftIds] = useState<string[]>([])
+  const [selectedReviewNoteIds, setSelectedReviewNoteIds] = useState<string[]>([])
+  const [selectedReviewSessionIds, setSelectedReviewSessionIds] = useState<string[]>([])
   const [selectedPacketId, setSelectedPacketId] = useState('')
   const [actionMessage, setActionMessage] = useState('')
   const eligibleDrafts = useMemo(
     () => filterWritingDrafts(writing.drafts, scope),
     [scope, writing.drafts],
+  )
+  const eligibleReviewNotes = useMemo(
+    () =>
+      review.notes
+        .filter((note) => scope === 'all' || note.projectId === scope)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .slice(0, 12),
+    [review.notes, scope],
+  )
+  const eligibleReviewSessions = useMemo(
+    () =>
+      review.sessions
+        .filter((session) => scope === 'all' || session.projectIds.includes(scope))
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+        .slice(0, 12),
+    [review.sessions, scope],
   )
   const selectedPacket =
     reports.packets.find((packet) => packet.id === selectedPacketId) ?? reports.packets[0] ?? null
@@ -190,6 +208,8 @@ export function ReportsCenter({
   function handleScopeChange(nextScope: ReportScope) {
     setScope(nextScope)
     setSelectedWritingDraftIds([])
+    setSelectedReviewNoteIds([])
+    setSelectedReviewSessionIds([])
 
     if (nextScope !== 'all') {
       onSelectProject(nextScope)
@@ -198,6 +218,22 @@ export function ReportsCenter({
 
   function handleSelectAllDrafts() {
     setSelectedWritingDraftIds(eligibleDrafts.map((draft) => draft.id))
+  }
+
+  function toggleReviewNote(noteId: string) {
+    setSelectedReviewNoteIds((current) =>
+      current.includes(noteId)
+        ? current.filter((candidate) => candidate !== noteId)
+        : [...current, noteId],
+    )
+  }
+
+  function toggleReviewSession(sessionId: string) {
+    setSelectedReviewSessionIds((current) =>
+      current.includes(sessionId)
+        ? current.filter((candidate) => candidate !== sessionId)
+        : [...current, sessionId],
+    )
   }
 
   function handleCreatePacket() {
@@ -211,6 +247,8 @@ export function ReportsCenter({
       writingDrafts: writing.drafts,
       projectIds: scope === 'all' ? [] : [scope],
       writingDraftIds: selectedWritingDraftIds,
+      reviewNoteIds: selectedReviewNoteIds,
+      reviewSessionIds: selectedReviewSessionIds,
     })
 
     onCreatePacket(packet)
@@ -335,6 +373,40 @@ export function ReportsCenter({
                 />
                 <span>
                   {draft.title} / {draft.status}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <div className="reports-draft-picker" aria-label="Report review context">
+            <div className="reports-subheading">
+              <Filter size={15} />
+              <strong>Review sessions and notes</strong>
+            </div>
+            {eligibleReviewSessions.length === 0 && eligibleReviewNotes.length === 0 ? (
+              <p className="empty-state">No Review context matches this scope.</p>
+            ) : null}
+            {eligibleReviewSessions.map((session) => (
+              <label key={session.id} className="check-field">
+                <input
+                  type="checkbox"
+                  checked={selectedReviewSessionIds.includes(session.id)}
+                  onChange={() => toggleReviewSession(session.id)}
+                />
+                <span>
+                  Session: {session.title} / {session.outcome}
+                </span>
+              </label>
+            ))}
+            {eligibleReviewNotes.map((note) => (
+              <label key={note.id} className="check-field">
+                <input
+                  type="checkbox"
+                  checked={selectedReviewNoteIds.includes(note.id)}
+                  onChange={() => toggleReviewNote(note.id)}
+                />
+                <span>
+                  Note: {note.outcome} / {note.body.slice(0, 90)}
                 </span>
               </label>
             ))}
