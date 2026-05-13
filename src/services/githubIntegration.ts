@@ -1,3 +1,5 @@
+import { requestJson } from './requestClient'
+
 export interface GithubIngestionContract {
   cacheFile: string
   command: string
@@ -287,15 +289,6 @@ export function clearGithubRequestCache() {
   githubFetchCache.clear()
 }
 
-async function readGithubErrorMessage(response: Response) {
-  try {
-    const body = (await response.json()) as { error?: { message?: string }; message?: string }
-    return body.error?.message || body.message || `Atlas GitHub API returned ${response.status}.`
-  } catch {
-    return `Atlas GitHub API returned ${response.status}.`
-  }
-}
-
 export async function fetchGithubJson<T>(
   path: string,
   signal?: AbortSignal,
@@ -308,13 +301,12 @@ export async function fetchGithubJson<T>(
     return cached
   }
 
-  const response = await fetch(path, { signal })
-
-  if (!response.ok) {
-    throw new Error(await readGithubErrorMessage(response))
-  }
-
-  const value = (await response.json()) as T
+  const value = await requestJson<T>(path, {}, {
+    signal,
+    retries: 1,
+    retrySafe: true,
+    timeoutMs: 15_000,
+  })
   writeCachedGithubResponse(path, value)
 
   return value

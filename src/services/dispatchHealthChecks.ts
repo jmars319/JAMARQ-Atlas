@@ -1,4 +1,5 @@
 import type { HealthCheckResult } from '../domain/dispatch'
+import { AtlasRequestError, requestJson } from './requestClient'
 
 interface DispatchHealthResponse {
   result: HealthCheckResult
@@ -21,19 +22,19 @@ export async function probeHealthChecks(
   return Promise.all(
     urls.map(async (url, index) => {
       try {
-        const response = await fetch(`/api/dispatch/health?url=${encodeURIComponent(url)}`, {
-          signal,
-        })
-
-        if (!response.ok) {
-          return fallbackResult(url, index, `Atlas health API returned ${response.status}.`)
-        }
-
-        const body = (await response.json()) as DispatchHealthResponse
+        const body = await requestJson<DispatchHealthResponse>(
+          `/api/dispatch/health?url=${encodeURIComponent(url)}`,
+          {},
+          { signal, retries: 1, retrySafe: true, timeoutMs: 10_000 },
+        )
         return body.result
       } catch (error) {
         if (signal?.aborted) {
           return fallbackResult(url, index, 'Health check was cancelled.')
+        }
+
+        if (error instanceof AtlasRequestError && error.status) {
+          return fallbackResult(url, index, `Atlas health API returned ${error.status}.`)
         }
 
         return fallbackResult(

@@ -2,6 +2,7 @@ import type {
   DeploymentTarget,
   HostConnectionPreflightResult,
 } from '../domain/dispatch'
+import { requestJson } from './requestClient'
 
 export interface HostConnectionStatusResponse {
   ok: boolean
@@ -28,13 +29,11 @@ export interface HostConnectionStatusResponse {
 }
 
 export async function fetchHostConnectionStatus(signal?: AbortSignal) {
-  const response = await fetch('/api/dispatch/host-status', { signal })
-
-  if (!response.ok) {
-    throw new Error(`Host preflight status returned ${response.status}.`)
-  }
-
-  return (await response.json()) as HostConnectionStatusResponse
+  return requestJson<HostConnectionStatusResponse>(
+    '/api/dispatch/host-status',
+    {},
+    { signal, retries: 1, retrySafe: true, timeoutMs: 10_000 },
+  )
 }
 
 export async function requestHostConnectionPreflight({
@@ -59,14 +58,10 @@ export async function requestHostConnectionPreflight({
     params.append('preservePath', preservePath)
   }
 
-  const response = await fetch(`/api/dispatch/host-preflight?${params.toString()}`, {
-    signal,
-  })
-
-  if (!response.ok) {
-    throw new Error(`Host preflight returned ${response.status}.`)
-  }
-
-  const body = (await response.json()) as { result: HostConnectionPreflightResult }
+  const body = await requestJson<{ result: HostConnectionPreflightResult }>(
+    `/api/dispatch/host-preflight?${params.toString()}`,
+    {},
+    { signal, retries: 1, retrySafe: true, timeoutMs: 20_000 },
+  )
   return body.result
 }

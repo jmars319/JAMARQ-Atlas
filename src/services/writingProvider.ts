@@ -1,4 +1,5 @@
 import type { WritingDraft, WritingProviderResult } from '../domain/writing'
+import { requestJsonResponse, redactRequestMessage } from './requestClient'
 
 export interface WritingProviderStatusResponse {
   provider: 'openai'
@@ -53,21 +54,20 @@ export function normalizeWritingProviderError(
   }
 }
 
-async function readWritingBody<T>(response: Response): Promise<WritingProviderApiResponse<T> | null> {
-  try {
-    return (await response.json()) as WritingProviderApiResponse<T>
-  } catch {
-    return null
-  }
-}
-
 async function fetchWritingJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<WritingProviderApiResponse<T>> {
   try {
-    const response = await fetch(path, init)
-    const body = await readWritingBody<T>(response)
+    const { response, body } = await requestJsonResponse<WritingProviderApiResponse<T>>(
+      path,
+      init ?? {},
+      {
+        retries: init?.method && init.method !== 'GET' ? 0 : 1,
+        retrySafe: !init?.method || init.method === 'GET',
+        timeoutMs: 20_000,
+      },
+    )
 
     if (!response.ok) {
       return {
@@ -106,7 +106,9 @@ async function fetchWritingJson<T>(
       data: null,
       error: {
         type: 'unknown',
-        message: error instanceof Error ? error.message : 'Atlas Writing API request failed.',
+        message: redactRequestMessage(
+          error instanceof Error ? error.message : 'Atlas Writing API request failed.',
+        ),
       },
     }
   }
