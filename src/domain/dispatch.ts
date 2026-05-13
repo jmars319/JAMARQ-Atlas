@@ -43,6 +43,7 @@ export interface DeploymentTarget {
   name: string
   environment: DeploymentEnvironment
   hostType: DeploymentHostType
+  credentialRef: string
   remoteHost: string
   remoteUser: string
   remoteFrontendPath: string
@@ -236,6 +237,42 @@ export interface DeploymentOrderGroup {
   description: string
   runbookIds: string[]
   notes: string[]
+}
+
+export type HostConnectionCheckStatus =
+  | 'not-configured'
+  | 'passing'
+  | 'warning'
+  | 'failed'
+  | 'skipped'
+
+export type HostConnectionCheckType =
+  | 'credential-reference'
+  | 'host-reachable'
+  | 'target-root'
+  | 'api-root'
+  | 'preserve-path'
+
+export interface HostConnectionCheck {
+  id: string
+  type: HostConnectionCheckType
+  label: string
+  status: HostConnectionCheckStatus
+  message: string
+  checkedAt: string
+  path?: string
+  host?: string
+}
+
+export interface HostConnectionPreflightResult {
+  targetId: string
+  configured: boolean
+  status: HostConnectionCheckStatus
+  checkedAt: string
+  credentialRef: string
+  message: string
+  checks: HostConnectionCheck[]
+  warnings: string[]
 }
 
 export interface DispatchState {

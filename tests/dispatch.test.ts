@@ -1,3 +1,6 @@
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getRunbookForTarget, type DeploymentTarget, type DispatchReadiness } from '../src/domain/dispatch'
 import { seedDispatchState } from '../src/data/seedDispatch'
@@ -15,6 +18,11 @@ import {
   inspectDeploymentArtifact,
   runDeploymentVerificationChecks,
 } from '../src/services/deployPreflight'
+import {
+  createHostConnectionStatus,
+  getHostConnectionConfig,
+  runHostConnectionPreflight,
+} from '../server/dispatchApi'
 import { flattenProjects } from '../src/domain/atlas'
 import { seedWorkspace } from '../src/data/seedWorkspace'
 
@@ -41,6 +49,7 @@ const target: DeploymentTarget = {
   name: 'Production',
   environment: 'production',
   hostType: 'godaddy-cpanel',
+  credentialRef: 'godaddy-target-1-production',
   remoteHost: 'placeholder.godaddy-cpanel.example',
   remoteUser: 'placeholder-user',
   remoteFrontendPath: '/home/placeholder/public_html',
@@ -478,5 +487,94 @@ describe('dispatch readiness', () => {
         }),
       ]),
     )
+  })
+
+  it('returns a scoped not-configured host preflight result when credentials are missing', async () => {
+    const config = getHostConnectionConfig({})
+    const status = createHostConnectionStatus(config)
+    const result = await runHostConnectionPreflight({
+      target,
+      preservePaths: ['/api/.env'],
+      config,
+      now: new Date('2026-05-10T12:00:00Z'),
+    })
+
+    expect(status.configured).toBe(false)
+    expect(result.status).toBe('not-configured')
+    expect(result.message).toContain('not configured')
+    expect(result.checks[0].status).toBe('not-configured')
+  })
+
+  it('runs read-only host and preserve-path checks without write probes', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'atlas-host-preflight-'))
+    mkdirSync(path.join(root, 'api', 'logs'), { recursive: true })
+    writeFileSync(path.join(root, 'api', '.env'), 'placeholder=1')
+    const touchedPaths: string[] = []
+    const config = getHostConnectionConfig({
+      ATLAS_HOST_PREFLIGHT_CONFIG: JSON.stringify([
+        {
+          targetId: target.id,
+          credentialRef: target.credentialRef,
+          host: 'cpanel.example.test',
+          port: 22,
+          localMirrorRoot: root,
+        },
+      ]),
+    })
+    const result = await runHostConnectionPreflight({
+      target,
+      preservePaths: ['/api/.env', '/api/logs/app.log'],
+      config,
+      now: new Date('2026-05-10T12:00:00Z'),
+      probeHost: async () => ({
+        ok: true,
+        message: 'Mock read-only TCP check passed.',
+      }),
+      probePath: async (checkPath) => {
+        touchedPaths.push(checkPath)
+        return {
+          exists: !checkPath.endsWith('app.log'),
+          message: 'Missing path.',
+        }
+      },
+    })
+
+    expect(result.configured).toBe(true)
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'host-reachable', status: 'passing' }),
+        expect.objectContaining({ type: 'target-root', status: 'passing' }),
+        expect.objectContaining({ type: 'api-root', status: 'passing' }),
+        expect.objectContaining({
+          type: 'preserve-path',
+          path: '/api/.env',
+          status: 'passing',
+        }),
+        expect.objectContaining({
+          type: 'preserve-path',
+          path: '/api/logs/app.log',
+          status: 'warning',
+        }),
+      ]),
+    )
+    expect(touchedPaths.every((checkPath) => checkPath.startsWith(root))).toBe(true)
+  })
+
+  it('does not expose secret-shaped host config values in status responses', () => {
+    const config = getHostConnectionConfig({
+      ATLAS_HOST_PREFLIGHT_CONFIG: JSON.stringify([
+        {
+          targetId: target.id,
+          credentialRef: target.credentialRef,
+          host: 'cpanel.example.test',
+          password: 'never-expose-this',
+        },
+      ]),
+    })
+    const status = createHostConnectionStatus(config)
+
+    expect(status.configured).toBe(false)
+    expect(JSON.stringify(status)).not.toContain('never-expose-this')
+    expect(status.error?.message).toContain('secret-shaped')
   })
 })

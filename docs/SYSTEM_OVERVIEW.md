@@ -124,6 +124,7 @@ Primary concepts:
 - Dispatch preflight check
 - Dispatch automation readiness
 - Dispatch automation dry-run plan
+- Read-only host connection check
 - Deployment runner phase
 - Deployment runner result
 
@@ -132,6 +133,8 @@ Dispatch references Atlas projects by `projectId`. It does not mutate Atlas proj
 Dispatch Preflight stores short local evidence snapshots under the Dispatch storage key. It checks target configuration, health URLs, backup and rollback posture, and optional GitHub snippets when repo bindings and token permissions allow. Preflight does not create deployment records, update Atlas status, update Dispatch readiness, stamp verification, or decide what should ship.
 
 The local `/api/dispatch/health` boundary performs timeout-bound read-only `http`/`https` probes without credentials or request bodies. Browser code receives normalized health results, so CORS and network failures are displayed as scoped evidence instead of breaking the app.
+
+The optional `/api/dispatch/host-status` and `/api/dispatch/host-preflight` boundaries prepare for future host checks while staying read-only. Atlas stores only credential reference labels on targets. Server-side `ATLAS_HOST_PREFLIGHT_CONFIG` may enable host reachability and read-only local-mirror path evidence, but no SSH/SFTP write, cPanel write, upload, deletion, extraction, writable check, backup, restore, or rollback is attempted.
 
 Dispatch Automation Readiness is advisory documentation for future automation. It stores per-target runbook notes, required confirmations, checklist items, artifact expectations, backup requirements, rollback requirements, and dry-run notes. The dry-run planner returns no-op phase output only and does not execute deployment commands.
 
@@ -289,7 +292,7 @@ Settings currently stores:
 - Settings schema version
 - Last updated timestamp
 
-Settings also displays readiness cards for GitHub, Dispatch, Writing, Data Center, and Supabase hosted sync. These cards describe whether local boundaries are available, missing, stubbed, or local-only. They do not execute automation or change Atlas data.
+Settings also displays readiness cards for GitHub, Dispatch, read-only host boundary checks, Writing, Data Center, and Supabase hosted sync. These cards describe whether local boundaries are available, missing, stubbed, or local-only. They do not execute automation or change Atlas data.
 
 Settings must not store GitHub tokens, AI keys, deployment credentials, environment variables, or browser secrets. Future provider configuration should keep secrets in server-side environment variables or a dedicated secure backend, not browser local storage.
 

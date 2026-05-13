@@ -48,6 +48,12 @@ function collectKeys(value: unknown): string[] {
   return []
 }
 
+function collectSecretShapedKeys(value: unknown) {
+  return collectKeys(value).filter(
+    (key) => key !== 'credentialRef' && /token|secret|password|credential/i.test(key),
+  )
+}
+
 describe('sync snapshots', () => {
   it('normalizes missing sync state into local-only defaults', () => {
     const sync = normalizeSyncState(null, now)
@@ -83,7 +89,7 @@ describe('sync snapshots', () => {
     ])
     expect(serialized).not.toContain('jamarq-atlas.settings')
     expect(serialized).not.toContain('jamarq-atlas.sync')
-    expect(collectKeys(snapshot).join(' ')).not.toMatch(/token|secret|password|credential/i)
+    expect(collectSecretShapedKeys(snapshot)).toEqual([])
   })
 
   it('creates stable fingerprints for unchanged data', () => {
@@ -191,7 +197,7 @@ describe('sync snapshots', () => {
       'planning',
       'reports',
     ])
-    expect(collectKeys(row).join(' ')).not.toMatch(/token|secret|password|credential/i)
+    expect(collectSecretShapedKeys(row)).toEqual([])
   })
 
   it('records remote provider errors without removing local snapshots', () => {

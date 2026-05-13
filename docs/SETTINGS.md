@@ -18,6 +18,7 @@ Settings currently reports readiness for:
 
 - GitHub local API
 - Dispatch health and preflight boundary
+- Read-only host boundary
 - Writing provider boundary
 - Data Center backup/restore
 - Supabase hosted sync provider and manual snapshots
@@ -25,6 +26,8 @@ Settings currently reports readiness for:
 Connection cards are read-only status surfaces. They do not trigger GitHub writes, deployments, AI generation, backup restores, hosted sync, or project-state changes.
 
 The Writing card reads `/api/writing/status`. Missing `OPENAI_API_KEY` is shown as a scoped missing state, while local draft packets remain available.
+
+The host boundary card reads `/api/dispatch/host-status`. Missing `ATLAS_HOST_PREFLIGHT_CONFIG` is shown as a scoped missing state. If configured, Atlas can run read-only host reachability and local-mirror path evidence from Dispatch while storing only credential reference labels in browser state.
 
 ## Sync Snapshots
 
@@ -63,4 +66,5 @@ Future provider setup should keep secrets in server-side environment variables o
 - GitHub missing-token states do not break Atlas.
 - Missing OpenAI credentials do not block local draft creation.
 - Hosted sync remains optional and manual.
+- Host boundary checks remain read-only and optional.
 - Connection readiness does not change Atlas status, risk, readiness, verification, bindings, or writing review state.

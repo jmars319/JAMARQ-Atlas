@@ -8,6 +8,7 @@ import {
   PlusCircle,
   RefreshCw,
   Rocket,
+  Server,
   Settings2,
   ShieldCheck,
   Trash2,
@@ -34,6 +35,10 @@ import {
   pushHostedSyncSnapshot,
   type HostedSyncStatus,
 } from '../services/hostedSync'
+import {
+  fetchHostConnectionStatus,
+  type HostConnectionStatusResponse,
+} from '../services/hostConnection'
 import {
   CALIBRATION_CATEGORIES,
   canStoreCalibrationValue,
@@ -90,6 +95,7 @@ const connectionIcons = {
   data: DatabaseZap,
   sync: HardDrive,
   supabase: UploadCloud,
+  host: Server,
 }
 
 function statusLabel(status: AtlasConnectionCard['status']) {
@@ -170,6 +176,40 @@ function buildHostedSyncCard(
     summary: 'Manual Supabase snapshot push and pull are configured.',
     detail: `Workspace ${status?.workspaceId || provider.workspaceId || 'configured'} is available. No background sync or merge is enabled.`,
     updatedAt: provider.updatedAt,
+  } satisfies AtlasConnectionCard
+}
+
+function buildHostConnectionCard(
+  status: HostConnectionStatusResponse | null,
+  error: string | null,
+) {
+  if (error) {
+    return {
+      id: 'host',
+      title: 'Read-Only Host Boundary',
+      status: 'unknown',
+      summary: 'Host boundary status could not be read.',
+      detail: error,
+    } satisfies AtlasConnectionCard
+  }
+
+  if (!status?.configured) {
+    return {
+      id: 'host',
+      title: 'Read-Only Host Boundary',
+      status: 'missing',
+      summary: 'No host preflight config is configured.',
+      detail:
+        'Set ATLAS_HOST_PREFLIGHT_CONFIG locally to enable read-only host reachability and path evidence. No credentials are stored in browser state.',
+    } satisfies AtlasConnectionCard
+  }
+
+  return {
+    id: 'host',
+    title: 'Read-Only Host Boundary',
+    status: 'available',
+    summary: 'Read-only host preflight config is available.',
+    detail: `${status.data?.configuredTargets.length ?? 0} targets configured. Atlas stores credential reference labels only.`,
   } satisfies AtlasConnectionCard
 }
 
@@ -361,6 +401,10 @@ export function SettingsCenter({
     useState<WritingProviderStatusResponse | null>(null)
   const [writingProviderError, setWritingProviderError] = useState<string | null>(null)
   const [loadingWritingProvider, setLoadingWritingProvider] = useState(false)
+  const [hostConnectionStatus, setHostConnectionStatus] =
+    useState<HostConnectionStatusResponse | null>(null)
+  const [hostConnectionError, setHostConnectionError] = useState<string | null>(null)
+  const [loadingHostConnection, setLoadingHostConnection] = useState(false)
   const [snapshotLabel, setSnapshotLabel] = useState('')
   const [snapshotNote, setSnapshotNote] = useState('')
   const [selectedSnapshotId, setSelectedSnapshotId] = useState('')
@@ -451,6 +495,25 @@ export function SettingsCenter({
     }
   }
 
+  async function loadHostConnectionStatus() {
+    setLoadingHostConnection(true)
+    setHostConnectionError(null)
+
+    try {
+      const status = await fetchHostConnectionStatus()
+
+      setHostConnectionStatus(status)
+      setHostConnectionError(status.error?.message ?? null)
+    } catch (error) {
+      setHostConnectionError(
+        error instanceof Error ? error.message : 'Host boundary status request failed.',
+      )
+      setHostConnectionStatus(null)
+    } finally {
+      setLoadingHostConnection(false)
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController()
 
@@ -527,16 +590,41 @@ export function SettingsCenter({
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+
+    void fetchHostConnectionStatus(controller.signal)
+      .then((status) => {
+        setHostConnectionStatus(status)
+        setHostConnectionError(status.error?.message ?? null)
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setHostConnectionError(
+          error instanceof Error ? error.message : 'Host boundary status request failed.',
+        )
+        setHostConnectionStatus(null)
+      })
+
+    return () => controller.abort()
+  }, [])
+
   const connectionCards = useMemo(
     () => [
       buildGithubCard(githubStatus, githubError),
       ...buildStaticConnectionCards(),
+      buildHostConnectionCard(hostConnectionStatus, hostConnectionError),
       buildWritingProviderCard(writingProviderStatus, writingProviderError),
       buildHostedSyncCard(hostedSyncStatus, hostedSyncError, sync.provider),
     ],
     [
       githubError,
       githubStatus,
+      hostConnectionError,
+      hostConnectionStatus,
       hostedSyncError,
       hostedSyncStatus,
       sync.provider,
@@ -792,7 +880,12 @@ export function SettingsCenter({
   }
 
   async function handleRefreshConnectionStatuses() {
-    await Promise.all([loadGithubStatus(), loadHostedSyncStatus(), loadWritingProviderStatus()])
+    await Promise.all([
+      loadGithubStatus(),
+      loadHostedSyncStatus(),
+      loadWritingProviderStatus(),
+      loadHostConnectionStatus(),
+    ])
   }
 
   return (
@@ -872,7 +965,12 @@ export function SettingsCenter({
             <button
               type="button"
               onClick={() => void handleRefreshConnectionStatuses()}
-              disabled={loadingGithub || loadingHostedSync || loadingWritingProvider}
+              disabled={
+                loadingGithub ||
+                loadingHostedSync ||
+                loadingWritingProvider ||
+                loadingHostConnection
+              }
             >
               <RefreshCw size={15} />
               Refresh

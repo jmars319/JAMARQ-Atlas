@@ -21,7 +21,12 @@ const PREFLIGHT_HISTORY_LIMIT = 50
 
 export function normalizeDispatchState(value: unknown, now = new Date()): DispatchState {
   const candidate = typeof value === 'object' && value !== null ? (value as Partial<DispatchState>) : {}
-  const targets = Array.isArray(candidate.targets) ? candidate.targets : []
+  const targets = Array.isArray(candidate.targets)
+    ? (candidate.targets.map((target) => ({
+        ...target,
+        credentialRef: target.credentialRef ?? '',
+      })) as DeploymentTarget[])
+    : []
   const automationReadiness = Array.isArray(candidate.automationReadiness)
     ? targets.map((target) =>
         normalizeAutomationReadiness(

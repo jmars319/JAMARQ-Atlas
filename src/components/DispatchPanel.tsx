@@ -6,6 +6,7 @@ import {
   ListChecks,
   RefreshCw,
   Rocket,
+  Server,
   Shield,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -26,6 +27,7 @@ import {
   type DeploymentTarget,
   type DispatchReadiness,
   type DispatchState,
+  type HostConnectionPreflightResult,
 } from '../domain/dispatch'
 import {
   createDispatchAutomationDryRunPlan,
@@ -38,6 +40,7 @@ import {
   runDeploymentVerificationChecks,
   type DeploymentVerificationEvidence,
 } from '../services/deployPreflight'
+import { requestHostConnectionPreflight } from '../services/hostConnection'
 
 interface DispatchPanelProps {
   record: ProjectRecord
@@ -97,6 +100,10 @@ export function DispatchPanel({
     Record<string, DeploymentVerificationEvidence[]>
   >({})
   const [verificationRunningTargetId, setVerificationRunningTargetId] = useState('')
+  const [hostPreflightResults, setHostPreflightResults] = useState<
+    Record<string, HostConnectionPreflightResult>
+  >({})
+  const [hostPreflightRunningTargetId, setHostPreflightRunningTargetId] = useState('')
   const targets = dispatch.targets.filter((target) => target.projectId === record.project.id)
 
   if (targets.length === 0) {
@@ -131,6 +138,7 @@ export function DispatchPanel({
         const automationEvaluation = evaluateAutomationReadiness(target, automationReadiness)
         const dryRunPlan = dryRunPlans[target.id]
         const targetVerificationEvidence = verificationEvidence[target.id] ?? []
+        const hostPreflightResult = hostPreflightResults[target.id]
         const evaluation = evaluateDispatchReadiness({
           target,
           readiness,
@@ -158,6 +166,10 @@ export function DispatchPanel({
                 <div>
                   <span>Host type</span>
                   <strong>{target.hostType}</strong>
+                </div>
+                <div>
+                  <span>Credential ref</span>
+                  <strong>{target.credentialRef || 'Not set'}</strong>
                 </div>
                 <div>
                   <span>Public URL</span>
@@ -188,6 +200,10 @@ export function DispatchPanel({
                   <strong>
                     {latestPreflight ? formatPreflightStatus(latestPreflight.status) : 'Not run'}
                   </strong>
+                </div>
+                <div>
+                  <span>Host boundary</span>
+                  <strong>{hostPreflightResult ? hostPreflightResult.status : 'Not checked'}</strong>
                 </div>
               </div>
             </div>
@@ -396,6 +412,90 @@ export function DispatchPanel({
               )}
             </div>
 
+            <div className="dispatch-preflight" aria-label={`${target.name} host connection`}>
+              <div className="panel-heading">
+                <Server size={17} />
+                <h3>Read-Only Host Boundary</h3>
+              </div>
+              <div className="dispatch-preflight-actions">
+                <button
+                  type="button"
+                  disabled={hostPreflightRunningTargetId === target.id}
+                  onClick={() => {
+                    setHostPreflightRunningTargetId(target.id)
+                    void requestHostConnectionPreflight({
+                      target,
+                      preservePaths: runbook?.preservePaths.map((preservePath) => preservePath.path) ?? [],
+                    })
+                      .then((result) =>
+                        setHostPreflightResults((current) => ({
+                          ...current,
+                          [target.id]: result,
+                        })),
+                      )
+                      .finally(() => setHostPreflightRunningTargetId(''))
+                  }}
+                >
+                  <RefreshCw size={15} />
+                  {hostPreflightRunningTargetId === target.id
+                    ? 'Checking host'
+                    : 'Run read-only host check'}
+                </button>
+                <span>Credential refs only. No SSH/SFTP write, upload, or writable check.</span>
+              </div>
+
+              {hostPreflightResult ? (
+                <>
+                  <div className="dispatch-signal-grid">
+                    <div>
+                      <strong>{hostPreflightResult.status}</strong>
+                      <span>{hostPreflightResult.message}</span>
+                    </div>
+                    <div>
+                      <strong>{formatDateTimeLabel(hostPreflightResult.checkedAt)}</strong>
+                      <span>{hostPreflightResult.checks.length} read-only checks</span>
+                    </div>
+                    <div>
+                      <strong>{hostPreflightResult.credentialRef || 'Not set'}</strong>
+                      <span>Credential reference label</span>
+                    </div>
+                  </div>
+                  <ol className="resource-list">
+                    {hostPreflightResult.checks.map((check) => (
+                      <li key={check.id}>
+                        <div className="resource-icon" aria-hidden="true">
+                          {check.status === 'passing' ? (
+                            <CheckCircle2 size={15} />
+                          ) : (
+                            <AlertTriangle size={15} />
+                          )}
+                        </div>
+                        <div>
+                          <div className="resource-line">
+                            <strong>{check.label}</strong>
+                            <span className={`resource-pill state-${check.status}`}>
+                              {check.status}
+                            </span>
+                          </div>
+                          <p>{check.message}</p>
+                          <div className="resource-meta">
+                            <span>{check.type}</span>
+                            {check.host ? <span>{check.host}</span> : null}
+                            {check.path ? <span>{check.path}</span> : null}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              ) : (
+                <p className="empty-state">
+                  No host boundary evidence captured yet. Configure server-side
+                  ATLAS_HOST_PREFLIGHT_CONFIG to enable optional read-only host checks.
+                </p>
+              )}
+            </div>
+
             <div className="dispatch-preflight" aria-label={`${target.name} preflight`}>
               <div className="panel-heading">
                 <ListChecks size={17} />
@@ -533,6 +633,16 @@ export function DispatchPanel({
                   value={target.remoteUser}
                   onChange={(event) =>
                     onTargetChange(target.id, { remoteUser: event.target.value })
+                  }
+                />
+              </label>
+              <label className="field field-full">
+                <span>Credential reference label (not a secret)</span>
+                <input
+                  value={target.credentialRef}
+                  placeholder="godaddy-mmh-production"
+                  onChange={(event) =>
+                    onTargetChange(target.id, { credentialRef: event.target.value })
                   }
                 />
               </label>

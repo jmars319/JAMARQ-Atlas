@@ -178,6 +178,7 @@ function productionTarget({
   name,
   publicUrl,
   status,
+  credentialRef,
   hasDatabase = false,
   databaseName = '',
   notes,
@@ -187,6 +188,7 @@ function productionTarget({
   name: string
   publicUrl: string
   status: DeploymentStatus
+  credentialRef: string
   hasDatabase?: boolean
   databaseName?: string
   notes: string[]
@@ -197,6 +199,7 @@ function productionTarget({
     name,
     environment: 'production',
     hostType: 'godaddy-cpanel',
+    credentialRef,
     remoteHost: 'placeholder.godaddy-cpanel.example',
     remoteUser: 'placeholder-cpanel-user',
     remoteFrontendPath: '/home/placeholder/public_html',
@@ -267,6 +270,7 @@ export const seedDispatchState: DispatchState = {
       name: 'Bow Wow production',
       publicUrl: 'https://bowwow.example',
       status: 'verification',
+      credentialRef: 'godaddy-bow-wow-production',
       notes: ['GoDaddy/cPanel placeholder target until full app launch is approved.'],
     }),
     productionTarget({
@@ -275,6 +279,7 @@ export const seedDispatchState: DispatchState = {
       name: 'Midway Music Hall production',
       publicUrl: 'https://midwaymusichall.example',
       status: 'configured',
+      credentialRef: 'godaddy-mmh-production',
       hasDatabase: true,
       databaseName: 'placeholder_midway_music_hall',
       notes: ['GoDaddy/cPanel production target placeholder.'],
@@ -285,6 +290,7 @@ export const seedDispatchState: DispatchState = {
       name: 'Midway Mobile Storage production',
       publicUrl: 'https://midwaymobilestorage.example',
       status: 'verification',
+      credentialRef: 'godaddy-mms-production',
       hasDatabase: true,
       databaseName: 'placeholder_midway_mobile_storage',
       notes: ['GoDaddy/cPanel production target placeholder.'],
@@ -295,6 +301,7 @@ export const seedDispatchState: DispatchState = {
       name: 'Thunder Road production',
       publicUrl: 'https://thunderroad.example',
       status: 'blocked',
+      credentialRef: 'godaddy-trbg-production',
       hasDatabase: true,
       databaseName: 'placeholder_thunder_road',
       notes: ['GoDaddy/cPanel production target placeholder.'],
@@ -305,6 +312,7 @@ export const seedDispatchState: DispatchState = {
       name: 'Surplus Containers production',
       publicUrl: 'https://surpluscontainers.example',
       status: 'configured',
+      credentialRef: 'godaddy-surplus-production',
       hasDatabase: true,
       databaseName: 'placeholder_surplus_containers',
       notes: ['GoDaddy/cPanel production target placeholder.'],
@@ -315,6 +323,7 @@ export const seedDispatchState: DispatchState = {
       name: 'JAMARQ website production',
       environment: 'production',
       hostType: 'static-host',
+      credentialRef: 'jamarq-website-production-host',
       remoteHost: 'placeholder-static-host.example',
       remoteUser: 'placeholder-deploy-user',
       remoteFrontendPath: '/var/www/jamarq',
@@ -337,6 +346,7 @@ export const seedDispatchState: DispatchState = {
       name: 'Tenra public site production',
       environment: 'production',
       hostType: 'static-host',
+      credentialRef: 'tenra-public-site-production-host',
       remoteHost: 'placeholder-tenra-host.example',
       remoteUser: 'placeholder-deploy-user',
       remoteFrontendPath: '/var/www/tenra',

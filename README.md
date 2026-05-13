@@ -22,6 +22,7 @@ The dashboard currently supports:
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - cPanel deploy runbooks for the current five-site deploy queue, including artifacts, preserve paths, and verification checks.
+- Read-only Dispatch host boundary checks for optional server-side host reachability and path evidence without exposing credentials or attempting writes.
 - Dispatch automation readiness for runbook notes, confirmations, checklist posture, artifact expectations, backup requirements, rollback requirements, and no-op dry-run planning.
 - AI Writing Workbench for local draft packets, review notes, client updates, release notes, weekly summaries, and Codex handoffs. AI does not decide status, priority, risk, roadmap, verification, or deployment readiness.
 - Reports for assembling local Markdown update packets from approved Writing drafts and operational context.
@@ -42,6 +43,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Separate Planning storage for human-authored objectives, milestones, work sessions, and notes.
 - Verification cadence helpers and manual verification audit events.
 - Dispatch domain models, readiness evaluation, read-only preflight evidence, health checks, and safe no-op runner phases.
+- Optional read-only host boundary API under `/api/dispatch/host-status` and `/api/dispatch/host-preflight`.
 - Dispatch automation readiness helpers and no-op dry-run planning.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
@@ -94,6 +96,7 @@ Planning is manual-only. GitHub, Dispatch, Verification, Writing, and AI provide
 - Local storage for manual workspace edits and separate Dispatch state.
 - Local storage for Settings and manual Sync snapshots.
 - Server-side environment variables for GitHub tokens, optional Supabase sync credentials, and optional OpenAI provider credentials.
+- Optional server-side `ATLAS_HOST_PREFLIGHT_CONFIG` for read-only host boundary checks with credential reference labels only.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
 
 ## Quick Start

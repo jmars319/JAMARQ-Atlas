@@ -16,6 +16,7 @@ Dispatch currently supports:
 - Expected deploy artifacts
 - Preserve/create-on-server path checklists
 - Read-only preflight evidence history
+- Read-only host boundary status checks
 - Automation readiness runbook notes and checklist posture
 - Last deployed and last verified dates
 - Readiness blockers and warnings
@@ -67,6 +68,7 @@ Dispatch services live under `src/services`.
 - `dispatchHealthChecks.ts`: read-only local health probe client.
 - `dispatchRunner.ts`: no-op future deployment runner boundary.
 - `dispatchAutomation.ts`: advisory automation readiness and no-op dry-run planning.
+- `hostConnection.ts`: browser client for server-side read-only host boundary status/preflight.
 
 ## cPanel Runbooks
 
@@ -116,6 +118,26 @@ Preflight must not:
 - Create deployment records.
 - Mark a project verified.
 - Decide whether a project should ship.
+
+## Read-Only Host Boundary
+
+The host boundary prepares Atlas for future cPanel/SFTP checks without adding write-capable deployment automation.
+
+Server-side routes:
+
+- `GET /api/dispatch/host-status`
+- `GET /api/dispatch/host-preflight`
+
+Configuration is optional and server-side only through `ATLAS_HOST_PREFLIGHT_CONFIG`. Atlas stores only non-secret credential reference labels on deployment targets, such as `godaddy-mmh-production`. Passwords, tokens, private keys, and API keys must not be stored in browser local storage or returned through the API.
+
+When configured, the boundary can collect read-only evidence for:
+
+- Host TCP reachability.
+- Target root existence through an optional read-only local mirror.
+- `/api` existence through an optional read-only local mirror.
+- Preserve-path existence through an optional read-only local mirror.
+
+When not configured, Dispatch shows a scoped missing-config state. Path checks are skipped unless a read-only mirror is configured; Atlas does not attempt SSH/SFTP, cPanel writes, writable checks, uploads, deletes, extraction, backups, restores, or rollbacks.
 
 ## Runner Phases
 

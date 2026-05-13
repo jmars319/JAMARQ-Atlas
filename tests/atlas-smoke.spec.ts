@@ -59,6 +59,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(
     page.locator('.settings-connection-card').filter({ hasText: 'Supabase Hosted Sync' }),
   ).toContainText('Missing')
+  await expect(
+    page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
+  ).toContainText('Missing')
   await page.locator('label.field').filter({ hasText: 'Device label' }).locator('input').fill('E2E Atlas device')
   await page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input').fill('E2E operator')
   await page.reload()
@@ -313,6 +316,10 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(
     detail.locator('label.field').filter({ hasText: 'Status' }).locator('select'),
   ).toHaveValue(statusBeforePreflight)
+  await detail.getByRole('button', { name: 'Run read-only host check' }).click()
+  await expect(detail.getByLabel('Midway Music Hall production host connection')).toContainText(
+    'Read-only host preflight is not configured',
+  )
   await expect(detail.getByLabel('Midway Music Hall production automation readiness')).toContainText(
     'Automation Readiness',
   )
