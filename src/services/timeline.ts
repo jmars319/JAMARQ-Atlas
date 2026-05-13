@@ -2,6 +2,7 @@ import type { ProjectRecord } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState, PlanningItem } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
+import type { ReviewState } from '../domain/review'
 import type { AtlasSyncState } from '../domain/sync'
 import type { TimelineEvent, TimelineEventSource, TimelineEventType, TimelineFilters } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
@@ -97,6 +98,7 @@ export function deriveTimelineEvents({
   writing,
   planning,
   reports,
+  review,
   sync,
 }: {
   projectRecords: ProjectRecord[]
@@ -104,6 +106,7 @@ export function deriveTimelineEvents({
   writing: WritingWorkbenchState
   planning: AtlasPlanningState
   reports: ReportsState
+  review: ReviewState
   sync: AtlasSyncState
 }): TimelineEvent[] {
   const workspaceEvents = projectRecords.flatMap((record) =>
@@ -237,6 +240,34 @@ export function deriveTimelineEvents({
     ),
   )
 
+  const reviewSessionEvents = review.sessions.map((session) =>
+    withProject(projectRecords, session.projectIds.length === 1 ? session.projectIds[0] : null, {
+      id: `review-session-${session.id}`,
+      source: 'review',
+      type: 'review',
+      tone: session.outcome === 'needs-follow-up' ? 'warning' : 'info',
+      title: session.title,
+      detail: session.notes || `${session.itemIds.length} review item(s) captured.`,
+      occurredAt: session.updatedAt,
+      projectId: session.projectIds.length === 1 ? session.projectIds[0] : null,
+      meta: [session.scope, session.cadence, session.outcome],
+    }),
+  )
+
+  const reviewNoteEvents = review.notes.map((note) =>
+    withProject(projectRecords, note.projectId, {
+      id: `review-note-${note.id}`,
+      source: 'review',
+      type: 'review',
+      tone: note.outcome === 'needs-follow-up' ? 'warning' : note.outcome === 'planned' ? 'success' : 'info',
+      title: `Review note: ${note.outcome}`,
+      detail: note.body,
+      occurredAt: note.createdAt,
+      projectId: note.projectId,
+      meta: [note.source, note.outcome],
+    }),
+  )
+
   const syncEvents: TimelineEvent[] = [
     ...sync.snapshots.map((snapshot) =>
       withProject(projectRecords, null, {
@@ -307,6 +338,8 @@ export function deriveTimelineEvents({
     ...writingEvents,
     ...planningEvents,
     ...reportEvents,
+    ...reviewSessionEvents,
+    ...reviewNoteEvents,
     ...syncEvents,
   ].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
 }

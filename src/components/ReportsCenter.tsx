@@ -19,6 +19,7 @@ import {
   type ReportPacketType,
   type ReportsState,
 } from '../domain/reports'
+import type { ReviewState } from '../domain/review'
 import type { WritingDraft, WritingWorkbenchState } from '../domain/writing'
 import { copyTextToClipboard } from '../services/aiWritingAssistant'
 import { createReportPacket, reportFilename } from '../services/reports'
@@ -27,6 +28,7 @@ type ReportScope = string | 'all'
 
 interface ReportsCenterProps {
   reports: ReportsState
+  review: ReviewState
   projectRecords: ProjectRecord[]
   dispatch: DispatchState
   planning: PlanningState
@@ -145,6 +147,7 @@ function ReportPacketEditor({
 
 export function ReportsCenter({
   reports,
+  review,
   projectRecords,
   dispatch,
   planning,
@@ -203,6 +206,7 @@ export function ReportsCenter({
       projectRecords,
       dispatch,
       reports,
+      review,
       planning,
       writingDrafts: writing.drafts,
       projectIds: scope === 'all' ? [] : [scope],

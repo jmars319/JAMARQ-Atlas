@@ -7,6 +7,7 @@ import {
   createPlanningItem,
   emptyPlanningStore,
 } from '../src/services/planning'
+import { addReviewNote, createReviewNote, emptyReviewStore } from '../src/services/review'
 import {
   MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
   recordManualDeploymentFromSession,
@@ -147,6 +148,36 @@ describe('report packet builder', () => {
 
     expect(packet.writingDraftIds).toEqual([])
     expect(packet.contextWarnings).toContain('No approved or exported Writing drafts are included.')
+  })
+
+  it('includes Review Center notes in internal weekly and handoff packets', () => {
+    const review = addReviewNote(
+      emptyReviewStore(now),
+      createReviewNote({
+        id: 'report-review-note',
+        projectId: 'vaexcore-studio',
+        source: 'workspace',
+        outcome: 'needs-follow-up',
+        body: 'Review Center note for weekly packet.',
+        now,
+      }),
+    )
+    const packet = createReportPacket({
+      type: 'internal-weekly-packet',
+      projectRecords,
+      dispatch: seedDispatchState,
+      reports: emptyReportsStore(now),
+      review,
+      planning: emptyPlanningStore(now),
+      writingDrafts: [],
+      projectIds: ['vaexcore-studio'],
+      writingDraftIds: [],
+      now,
+    })
+
+    expect(packet.markdown).toContain('Review Center Notes')
+    expect(packet.markdown).toContain('Review Center note for weekly packet.')
+    expect(packet.markdown).toContain('Review Center notes are human-authored context only')
   })
 
   it('creates deployment report packets with runbooks, artifacts, preserve paths, checks, and guardrails', () => {

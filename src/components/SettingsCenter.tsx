@@ -18,6 +18,7 @@ import type { Workspace } from '../domain/atlas'
 import type { DeploymentTarget, DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
+import type { ReviewState } from '../domain/review'
 import type { AtlasConnectionCard, AtlasSettingsState } from '../domain/settings'
 import type {
   AtlasRemoteSyncSnapshot,
@@ -74,6 +75,7 @@ interface SettingsCenterProps {
   writing: WritingWorkbenchState
   planning: AtlasPlanningState
   reports: ReportsState
+  review: ReviewState
   sync: AtlasSyncState
   onSettingsChange: (
     update: Partial<Pick<AtlasSettingsState, 'deviceLabel' | 'operatorLabel' | 'notes'>>,
@@ -278,6 +280,7 @@ function SnapshotSummary({
   drafts,
   planningRecords,
   reportPackets,
+  reviewSessions,
 }: {
   title: string
   projects: number
@@ -285,6 +288,7 @@ function SnapshotSummary({
   drafts: number
   planningRecords: number
   reportPackets: number
+  reviewSessions: number
 }) {
   return (
     <div className="settings-snapshot-summary">
@@ -294,6 +298,7 @@ function SnapshotSummary({
       <span>{drafts} Writing drafts</span>
       <span>{planningRecords} Planning records</span>
       <span>{reportPackets} Report packets</span>
+      <span>{reviewSessions} Review sessions</span>
     </div>
   )
 }
@@ -382,6 +387,7 @@ export function SettingsCenter({
   writing,
   planning,
   reports,
+  review,
   sync,
   onSettingsChange,
   onDispatchTargetChange,
@@ -651,8 +657,8 @@ export function SettingsCenter({
     [calibrationFilter, calibrationIssues],
   )
   const currentStores = useMemo(
-    () => ({ workspace, dispatch, writing, planning, reports }),
-    [dispatch, planning, reports, workspace, writing],
+    () => ({ workspace, dispatch, writing, planning, reports, review }),
+    [dispatch, planning, reports, review, workspace, writing],
   )
   const selectedSnapshot =
     sync.snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? sync.snapshots[0]
@@ -702,7 +708,7 @@ export function SettingsCenter({
     onRestoreSnapshot(restorePreview.normalizedStores)
     setSnapshotConfirmation('')
     setSyncMessage(
-      'Snapshot restored locally. Workspace, Dispatch, Writing, Planning, and Reports stores were replaced.',
+      'Snapshot restored locally. Workspace, Dispatch, Writing, Planning, Reports, and Review stores were replaced.',
     )
   }
 
@@ -1161,6 +1167,7 @@ export function SettingsCenter({
                         restorePreview.currentSummary.planning.notes
                       }
                       reportPackets={restorePreview.currentSummary.reports.packets}
+                      reviewSessions={restorePreview.currentSummary.review.sessions}
                     />
                     <SnapshotSummary
                       title="Selected snapshot"
@@ -1174,6 +1181,7 @@ export function SettingsCenter({
                         restorePreview.incomingSummary.planning.notes
                       }
                       reportPackets={restorePreview.incomingSummary.reports.packets}
+                      reviewSessions={restorePreview.incomingSummary.review.sessions}
                     />
                   </div>
                   {restorePreview.warnings.length > 0 ? (
@@ -1397,6 +1405,7 @@ export function SettingsCenter({
                         remoteRestorePreview.currentSummary.planning.notes
                       }
                       reportPackets={remoteRestorePreview.currentSummary.reports.packets}
+                      reviewSessions={remoteRestorePreview.currentSummary.review.sessions}
                     />
                     <SnapshotSummary
                       title="Remote snapshot"
@@ -1410,6 +1419,7 @@ export function SettingsCenter({
                         remoteRestorePreview.incomingSummary.planning.notes
                       }
                       reportPackets={remoteRestorePreview.incomingSummary.reports.packets}
+                      reviewSessions={remoteRestorePreview.incomingSummary.review.sessions}
                     />
                   </div>
                   {remoteRestorePreview.warnings.length > 0 ? (

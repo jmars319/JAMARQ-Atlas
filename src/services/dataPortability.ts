@@ -12,6 +12,7 @@ import type { Workspace } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
+import type { ReviewState } from '../domain/review'
 import type { AtlasSettingsState } from '../domain/settings'
 import type { AtlasSyncState } from '../domain/sync'
 import type { WritingWorkbenchState } from '../domain/writing'
@@ -20,6 +21,7 @@ import { normalizeDispatchState } from './dispatchStorage'
 import { normalizeWritingState } from './aiWritingAssistant'
 import { normalizePlanningState, summarizePlanningState } from './planning'
 import { normalizeReportsState } from './reports'
+import { normalizeReviewState, summarizeReviewState } from './review'
 import { normalizeSettingsState } from './settings'
 import { normalizeSyncState } from './syncSnapshots'
 
@@ -83,6 +85,10 @@ function collectReportsSummary(reports: ReportsState) {
   }
 }
 
+function collectReviewSummary(review: ReviewState) {
+  return summarizeReviewState(review)
+}
+
 function collectSettingsSummary(settings: AtlasSettingsState) {
   return {
     configured: settings.deviceLabel ? 1 : 0,
@@ -104,6 +110,7 @@ export function summarizeAtlasStores(stores: AtlasBackupStores): AtlasBackupStor
     writing: collectWritingSummary(stores.writing),
     planning: collectPlanningSummary(stores.planning),
     reports: collectReportsSummary(stores.reports),
+    review: collectReviewSummary(stores.review),
     settings: collectSettingsSummary(stores.settings),
     sync: collectSyncSummary(stores.sync),
   }
@@ -157,6 +164,13 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
+  if (!value.review) {
+    warnings.push({
+      type: 'missing-review',
+      message: 'Backup is missing Review state; an empty Review store will be restored.',
+    })
+  }
+
   if (!value.settings) {
     warnings.push({
       type: 'missing-settings',
@@ -180,6 +194,7 @@ export function normalizeBackupStores(value: unknown): {
   let writing: WritingWorkbenchState
   let planning: AtlasPlanningState
   let reports: ReportsState
+  let review: ReviewState
   let settings: AtlasSettingsState
   let sync: AtlasSyncState
 
@@ -189,6 +204,7 @@ export function normalizeBackupStores(value: unknown): {
     writing = normalizeWritingState(value.writing ?? {})
     planning = normalizePlanningState(value.planning ?? {})
     reports = normalizeReportsState(value.reports ?? {})
+    review = normalizeReviewState(value.review ?? {})
     settings = normalizeSettingsState(value.settings ?? {})
     sync = normalizeSyncState(value.sync ?? {})
   } catch {
@@ -227,6 +243,13 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
+  if (!isRecord(value.review) || !Array.isArray(value.review.sessions)) {
+    warnings.push({
+      type: 'legacy-normalized',
+      message: 'Review state was normalized for the current backup schema.',
+    })
+  }
+
   if (!isRecord(value.settings) || typeof value.settings.deviceLabel !== 'string') {
     warnings.push({
       type: 'legacy-normalized',
@@ -241,7 +264,7 @@ export function normalizeBackupStores(value: unknown): {
     })
   }
 
-  const stores = { workspace, dispatch, writing, planning, reports, settings, sync }
+  const stores = { workspace, dispatch, writing, planning, reports, review, settings, sync }
   const summary = summarizeAtlasStores(stores)
 
   if (summary.workspace.projects === 0) {
@@ -301,6 +324,7 @@ export function validateAtlasBackupEnvelope(value: unknown): AtlasBackupValidati
   if (
     value.schemaVersion !== 1 &&
     value.schemaVersion !== 2 &&
+    value.schemaVersion !== 3 &&
     value.schemaVersion !== ATLAS_BACKUP_SCHEMA_VERSION
   ) {
     errors.push(`Unsupported backup schema version: ${String(value.schemaVersion)}.`)
@@ -355,7 +379,8 @@ export function createRestorePreview(
 }
 
 export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing, planning, reports, settings, sync } = envelope.summary
+  const { workspace, dispatch, writing, planning, reports, review, settings, sync } =
+    envelope.summary
 
   return `# JAMARQ Atlas Backup Report
 
@@ -371,13 +396,14 @@ Schema: ${envelope.schemaVersion}
 - Writing: ${writing.drafts} drafts, ${writing.reviewEvents} review events, ${writing.approvedDrafts} approved, ${writing.exportedDrafts} exported, ${writing.archivedDrafts} archived
 - Planning: ${planning.objectives} objectives, ${planning.milestones} milestones, ${planning.workSessions} work sessions, ${planning.notes} notes
 - Reports: ${reports.packets} packets, ${reports.auditEvents} audit events, ${reports.exportedPackets} exported, ${reports.archivedPackets} archived
+- Review: ${review.sessions} sessions, ${review.notes} notes, ${review.followUps} follow-ups, ${review.planned} planned outcomes
 - Settings: ${settings.configured} local settings store
 - Sync: ${sync.snapshots} local snapshots, provider configured: ${sync.providerConfigured ? 'yes' : 'no'}
 
 ## Restore Rules
 
 - Restore is previewed before it replaces local Atlas data.
-- Restore replaces Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync stores together.
+- Restore replaces Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores together.
 - Restore does not merge records.
 - Restore requires typed human confirmation.
 - Reset seed remains separate from restore.
@@ -398,9 +424,9 @@ Schema: ${envelope.schemaVersion}
 }
 
 export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
-  const { workspace, dispatch, writing, planning, reports, sync } = envelope.summary
+  const { workspace, dispatch, writing, planning, reports, review, sync } = envelope.summary
 
-  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${sync.snapshots} sync snapshots.`
+  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${sync.snapshots} sync snapshots.`
 }
 
 export function canApplyAtlasRestore(confirmation: string) {

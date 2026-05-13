@@ -28,6 +28,7 @@ Report packets can include:
 - Stored host evidence and runbook verification evidence.
 - Deploy-session linked evidence and manual deployment record references.
 - Planning records linked to included projects.
+- Review sessions and notes for internal weekly and project handoff packets.
 - Repository bindings, GitHub health/deploy-delta summary references, and any GitHub context captured inside selected Writing drafts.
 
 Reports do not fetch or store full GitHub history. They use local Atlas data and short already-captured snippets.
@@ -43,7 +44,7 @@ Stored data includes:
 - Context warnings.
 - Report-only audit events.
 
-Reports do not mutate Workspace, Dispatch, Writing, Planning, Verification, GitHub bindings, Settings, or Sync stores.
+Reports do not mutate Workspace, Dispatch, Writing, Planning, Review, Verification, GitHub bindings, Settings, or Sync stores.
 
 Dispatch evidence in reports is copied from existing local evidence history. Report creation does not run checks, attach evidence to sessions, create deployment records, or mark anything verified.
 
@@ -71,6 +72,7 @@ Reports must not:
 - Change Dispatch readiness or deployment status.
 - Change GitHub bindings.
 - Change Planning records.
+- Change Review sessions, notes, or outcomes.
 - Change Writing draft review state.
 - Send email, publish to Docs/Notion/Slack, or write to GitHub.
 

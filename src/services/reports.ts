@@ -14,6 +14,7 @@ import {
   type ReportProjectSummary,
   type ReportsState,
 } from '../domain/reports'
+import type { ReviewState } from '../domain/review'
 import type { WritingDraft } from '../domain/writing'
 import {
   closeoutStateLabels,
@@ -21,6 +22,7 @@ import {
   isDeploymentReportType,
 } from './dispatchCloseout'
 import { getPlanningForProject } from './planning'
+import { getReviewForProject } from './review'
 import { evaluateVerification } from './verification'
 
 export const reportGuardrails = [
@@ -29,6 +31,7 @@ export const reportGuardrails = [
   'Reports must not change Atlas project status, risk, roadmap, verification, Dispatch readiness, GitHub bindings, Planning records, or Writing drafts.',
   'GitHub, Dispatch, Verification, Planning, and Writing context remains advisory.',
   'Closeout analytics are derived evidence only and do not prove Atlas deployed, verified, published, or completed anything.',
+  'Review Center notes are human-authored context only and do not decide follow-up, completion, readiness, or priority.',
 ]
 
 interface ReportContextInput {
@@ -36,6 +39,7 @@ interface ReportContextInput {
   projectRecords: ProjectRecord[]
   dispatch: DispatchState
   reports?: ReportsState
+  review?: ReviewState
   planning: PlanningState
   writingDrafts: WritingDraft[]
   projectIds: string[]
@@ -561,11 +565,53 @@ function buildGithubSection(records: ProjectRecord[], drafts: WritingDraft[]) {
   ].join('\n')
 }
 
+function buildReviewSection(records: ProjectRecord[], review?: ReviewState) {
+  if (!review) {
+    return '_No Review Center context was supplied._'
+  }
+
+  const sections = records.flatMap((record) => {
+    const projectReview = getReviewForProject(review, record.project.id)
+    const notes = projectReview.notes.slice(0, 5)
+    const sessions = projectReview.sessions.slice(0, 3)
+
+    if (notes.length === 0 && sessions.length === 0) {
+      return []
+    }
+
+    return [
+      [
+        `### ${record.project.name}`,
+        '',
+        'Review sessions:',
+        list(
+          sessions.map(
+            (session) =>
+              `${session.title} (${session.outcome}, ${session.itemIds.length} item(s), ${session.updatedAt})`,
+          ),
+          'No Review sessions recorded for this project.',
+        ),
+        '',
+        'Review notes:',
+        list(
+          notes.map((note) => `${note.outcome}: ${note.body} (${note.createdAt})`),
+          'No Review notes recorded for this project.',
+        ),
+      ].join('\n'),
+    ]
+  })
+
+  return sections.length > 0
+    ? sections.join('\n\n')
+    : '_No Review Center notes or sessions are recorded for this report scope._'
+}
+
 export function buildReportMarkdown({
   type,
   records,
   dispatch,
   reports = emptyReportsState,
+  review,
   planning,
   writingDrafts,
   now = new Date(),
@@ -574,6 +620,7 @@ export function buildReportMarkdown({
   records: ProjectRecord[]
   dispatch: DispatchState
   reports?: ReportsState
+  review?: ReviewState
   planning: PlanningState
   writingDrafts: WritingDraft[]
   now?: Date
@@ -626,6 +673,9 @@ export function buildReportMarkdown({
     '',
     buildGithubSection(records, writingDrafts),
     '',
+    ...(type === 'internal-weekly-packet' || type === 'project-handoff-packet'
+      ? ['## Review Center Notes', '', buildReviewSection(records, review), '']
+      : []),
   ].join('\n')
 }
 
@@ -634,6 +684,7 @@ export function createReportPacket({
   projectRecords,
   dispatch,
   reports = emptyReportsState,
+  review,
   planning,
   writingDrafts,
   projectIds,
@@ -668,6 +719,7 @@ export function createReportPacket({
       records,
       dispatch,
       reports,
+      review,
       planning,
       writingDrafts: selectedDrafts,
       now,

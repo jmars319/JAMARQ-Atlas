@@ -13,6 +13,7 @@ Timeline derives evidence from:
 - Dispatch deployment records.
 - Dispatch preflight runs.
 - Writing review/audit events.
+- Review sessions and notes.
 - Planning objectives, milestones, work sessions, and notes.
 - Report packet audit events.
 - Local Sync snapshots.
@@ -45,6 +46,7 @@ Timeline is advisory only. It must not:
 - Change Dispatch readiness or deployment status.
 - Change GitHub bindings.
 - Change Writing review state.
+- Change Review sessions, notes, or outcomes.
 - Trigger sync, restore, deploy, AI generation, or external writes.
 
 Timeline may reveal evidence that a human chooses to act on manually.

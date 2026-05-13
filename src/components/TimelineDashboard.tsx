@@ -13,6 +13,7 @@ const sourceOptions: Array<TimelineEventSource | 'all'> = [
   'writing',
   'planning',
   'reports',
+  'review',
   'sync',
   'github',
 ]
@@ -26,6 +27,7 @@ const typeOptions: Array<TimelineEventType | 'all'> = [
   'writing',
   'planning',
   'report',
+  'review',
   'sync',
   'github',
 ]

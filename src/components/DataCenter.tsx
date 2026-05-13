@@ -5,6 +5,7 @@ import type { DispatchState } from '../domain/dispatch'
 import type { AtlasBackupStores, AtlasRestorePreview } from '../domain/dataPortability'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
+import type { ReviewState } from '../domain/review'
 import type { AtlasSettingsState } from '../domain/settings'
 import type { AtlasSyncState } from '../domain/sync'
 import type { WritingWorkbenchState } from '../domain/writing'
@@ -25,6 +26,7 @@ interface DataCenterProps {
   writing: WritingWorkbenchState
   planning: AtlasPlanningState
   reports: ReportsState
+  review: ReviewState
   settings: AtlasSettingsState
   sync: AtlasSyncState
   onRestoreStores: (stores: AtlasBackupStores) => void
@@ -79,6 +81,7 @@ function PreviewComparison({ preview }: { preview: AtlasRestorePreview }) {
           { label: 'Writing drafts', value: preview.currentSummary.writing.drafts },
           { label: 'Planning records', value: preview.currentSummary.planning.objectives + preview.currentSummary.planning.milestones + preview.currentSummary.planning.workSessions + preview.currentSummary.planning.notes },
           { label: 'Report packets', value: preview.currentSummary.reports.packets },
+          { label: 'Review sessions', value: preview.currentSummary.review.sessions },
           { label: 'Sync snapshots', value: preview.currentSummary.sync.snapshots },
         ]}
       />
@@ -92,6 +95,7 @@ function PreviewComparison({ preview }: { preview: AtlasRestorePreview }) {
           { label: 'Writing drafts', value: preview.incomingSummary.writing.drafts },
           { label: 'Planning records', value: preview.incomingSummary.planning.objectives + preview.incomingSummary.planning.milestones + preview.incomingSummary.planning.workSessions + preview.incomingSummary.planning.notes },
           { label: 'Report packets', value: preview.incomingSummary.reports.packets },
+          { label: 'Review sessions', value: preview.incomingSummary.review.sessions },
           { label: 'Sync snapshots', value: preview.incomingSummary.sync.snapshots },
         ]}
       />
@@ -105,6 +109,7 @@ export function DataCenter({
   writing,
   planning,
   reports,
+  review,
   settings,
   sync,
   onRestoreStores,
@@ -114,8 +119,8 @@ export function DataCenter({
   const [confirmation, setConfirmation] = useState('')
   const [message, setMessage] = useState('')
   const stores = useMemo(
-    () => ({ workspace, dispatch, writing, planning, reports, settings, sync }),
-    [dispatch, planning, reports, settings, sync, workspace, writing],
+    () => ({ workspace, dispatch, writing, planning, reports, review, settings, sync }),
+    [dispatch, planning, reports, review, settings, sync, workspace, writing],
   )
   const envelope = useMemo(() => createAtlasBackupEnvelope(stores), [stores])
   const summary = useMemo(() => summarizeAtlasStores(stores), [stores])
@@ -184,7 +189,7 @@ export function DataCenter({
     setConfirmation('')
     setErrors([])
     setMessage(
-      'Backup restored locally. Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync stores were replaced.',
+      'Backup restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores were replaced.',
     )
   }
 
@@ -196,7 +201,7 @@ export function DataCenter({
           <h1 id="data-center-title">Backups & Restore</h1>
           <p>
             Export local Atlas state, inspect backup contents, and restore Workspace, Dispatch,
-            Writing, Planning, Reports, Settings, and Sync stores after explicit human
+            Writing, Planning, Reports, Review, Settings, and Sync stores after explicit human
             confirmation.
           </p>
         </div>
@@ -215,6 +220,11 @@ export function DataCenter({
             <FileText size={16} />
             <strong>{summary.reports.packets}</strong>
             <span>Reports</span>
+          </div>
+          <div>
+            <ClipboardCopy size={16} />
+            <strong>{summary.review.sessions}</strong>
+            <span>Review</span>
           </div>
           <div>
             <ArchiveRestore size={16} />
@@ -279,6 +289,15 @@ export function DataCenter({
                 { label: 'Audit events', value: summary.reports.auditEvents },
                 { label: 'Exported', value: summary.reports.exportedPackets },
                 { label: 'Archived', value: summary.reports.archivedPackets },
+              ]}
+            />
+            <SummaryCard
+              title="Review"
+              items={[
+                { label: 'Sessions', value: summary.review.sessions },
+                { label: 'Notes', value: summary.review.notes },
+                { label: 'Follow-ups', value: summary.review.followUps },
+                { label: 'Planned outcomes', value: summary.review.planned },
               ]}
             />
             <SummaryCard
@@ -365,7 +384,7 @@ export function DataCenter({
             <h2>Data Rules</h2>
           </div>
           <ul className="dispatch-list">
-            <li>Backups include Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync stores only.</li>
+            <li>Backups include Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores only.</li>
             <li>Backups exclude GitHub tokens, env vars, browser secrets, and unknown storage keys.</li>
             <li>Restore replaces local stores after preview and typed confirmation.</li>
             <li>Restore does not send, publish, deploy, verify, or change source-of-truth rules.</li>

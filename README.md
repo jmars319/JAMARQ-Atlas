@@ -14,10 +14,11 @@ The dashboard currently supports:
 
 - Board-level review of sections, project groups, and projects.
 - Project detail pages for status, next action, blockers, deferred work, not-doing items, notes, decisions, and last verification.
-- Timeline evidence ledger derived from Workspace, Dispatch, Writing, Sync, and existing activity events.
+- Timeline evidence ledger derived from Workspace, Dispatch, Writing, Review, Planning, Reports, Sync, and existing activity events.
 - GitHub Intake for discovering repositories, reviewing placement suggestions, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
 - GitHub health and deploy-delta summaries for latest commits, PRs, issues, workflow/check status, releases, deployments, and permission gaps.
+- Operator Review Center for derived daily/weekly attention queues, manual review sessions, review notes, and explicit Planning handoff.
 - Planning Center for manual objectives, milestones, work sessions, and planning notes.
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
@@ -54,7 +55,8 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Dispatch closeout helpers that derive advisory closeout posture without storing a new source of truth.
 - Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
 - Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
-- Versioned local backup/export helpers for Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync data.
+- Separate Review storage for human review sessions, notes, and outcomes.
+- Versioned local backup/export helpers for Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync data.
 - Local settings storage for device/operator labels and connection-readiness surfaces.
 - Local sync snapshot storage and optional Supabase hosted sync bridge.
 - Unit and Playwright smoke tests for the main operator flows.
@@ -69,6 +71,7 @@ Current Timeline sources:
 - Manual verification events.
 - Dispatch deployment records, preflight runs, host evidence, and runbook verification evidence.
 - Writing review/audit events.
+- Review sessions and notes.
 - Local and loaded remote Sync snapshots.
 - Hosted Sync push/pull timestamps.
 - GitHub activity already present in Atlas activity records.
@@ -95,6 +98,23 @@ Current planning record types:
 Planning records link to Atlas projects and can be filtered by section, kind, manual planning status, and search. Project detail pages include a compact Planning panel for the selected project.
 
 Planning is manual-only. GitHub, Dispatch, Verification, Writing, and AI provider signals do not create or update Planning records automatically. Planning records do not change Atlas project status, risk, next action, verification, Dispatch readiness, GitHub bindings, or Writing review state.
+
+## Review Center
+
+Review Center is a cross-module command surface for calm daily or weekly operator review. It derives an attention queue from existing Atlas signals and stores only human review sessions and review notes under `jamarq-atlas.review.v1`.
+
+Review queue inputs include:
+
+- Verification due and overdue state.
+- Dispatch queue and closeout warnings.
+- Project blockers, Waiting status, current risk, and stale verification.
+- Unbound GitHub repositories and placement suggestions.
+- Recent Timeline evidence that carries warning or danger posture.
+- Planning milestones and work sessions due soon.
+- Writing drafts and report packets awaiting review, approval, export, or follow-up.
+- Data/Sync backup age and snapshot attention states.
+
+Review outcomes are `noted`, `needs-follow-up`, `no-action`, and `planned`. Creating a Planning note from Review is an explicit human action. Review sessions do not change project status, risk, next action, verification, Dispatch readiness, GitHub bindings, Writing drafts, Reports, Settings, or Sync.
 
 ## Tech Stack
 
@@ -361,7 +381,7 @@ Report actions are local-only:
 - Download Markdown.
 - Archive a packet locally.
 
-Reports do not send email, publish to Docs/Notion/Slack, write to GitHub, deploy, verify, or change Workspace, Dispatch, Planning, Verification, Writing, Settings, or Sync state.
+Reports do not send email, publish to Docs/Notion/Slack, write to GitHub, deploy, verify, or change Workspace, Dispatch, Planning, Review, Verification, Writing, Settings, or Sync state.
 
 ## Data Center
 
@@ -376,7 +396,7 @@ It can export:
 The JSON backup is a versioned envelope:
 
 - `kind: "jamarq-atlas-backup"`
-- `schemaVersion: 3`
+- `schemaVersion: 4`
 - `exportedAt`
 - `appName`
 - `stores.workspace`
@@ -384,12 +404,13 @@ The JSON backup is a versioned envelope:
 - `stores.writing`
 - `stores.planning`
 - `stores.reports`
+- `stores.review`
 - `stores.settings`
 - `stores.sync`
 
-Backups include Atlas Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync stores only. They exclude GitHub tokens, environment variables, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots. Schema v1/v2 backups remain importable and receive default missing stores during restore preview.
+Backups include Atlas Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores only. They exclude GitHub tokens, environment variables, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots. Schema v1/v2/v3 backups remain importable and receive default missing stores during restore preview.
 
-Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync state. Restore does not merge records and remains separate from Reset seed.
+Restore is preview-first and full-replace. Atlas validates the JSON, normalizes compatible older store shapes, shows current vs incoming counts, then requires the exact typed confirmation `RESTORE ATLAS` before replacing local Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync state. Restore does not merge records and remains separate from Reset seed.
 
 ## Settings & Connections
 
@@ -411,16 +432,16 @@ Current Sync behavior:
 
 - Create manual snapshots.
 - Preview snapshot restore counts.
-- Restore Workspace, Dispatch, Writing, Planning, and Reports after typing `RESTORE ATLAS`.
+- Restore Workspace, Dispatch, Writing, Planning, Reports, and Review after typing `RESTORE ATLAS`.
 - Delete snapshots after explicit confirmation.
 - Check Supabase hosted sync status through the local `/api/sync/status` route.
-- Push the current Workspace, Dispatch, Writing, Planning, and Reports stores as a remote snapshot when Supabase env vars are configured.
+- Push the current Workspace, Dispatch, Writing, Planning, Reports, and Review stores as a remote snapshot when Supabase env vars are configured.
 - Load remote snapshot metadata.
 - Preview and restore a remote snapshot after typing `RESTORE ATLAS`.
 - Compare remote snapshots against current local stores by fingerprint and counts.
 - Delete one remote snapshot after explicit confirmation.
 
-Snapshots store Workspace, Dispatch, Writing, Planning, and Reports only. They do not store Settings, Sync, secrets, unknown localStorage keys, or full live GitHub history.
+Snapshots store Workspace, Dispatch, Writing, Planning, Reports, and Review only. They do not store Settings, Sync, secrets, unknown localStorage keys, or full live GitHub history.
 
 Optional Supabase env vars:
 
@@ -441,6 +462,7 @@ Focused references:
 - `docs/GITHUB_INTEGRATION.md`
 - `docs/TIMELINE.md`
 - `docs/PLANNING.md`
+- `docs/REVIEW_CENTER.md`
 - `docs/REPORTS.md`
 - `docs/DISPATCH.md`
 - `docs/AI_WRITING.md`
@@ -459,6 +481,7 @@ Atlas separates manual intent from raw activity.
 - `src/domain/dataPortability.ts` defines backup envelopes, validation results, summaries, and restore previews.
 - `src/domain/planning.ts` defines manual Planning records and planning statuses.
 - `src/domain/reports.ts` defines report packet types, packet state, and report audit events.
+- `src/domain/review.ts` defines Review sessions, notes, outcomes, and derived queue item types.
 - `src/domain/settings.ts` defines local settings and connection-readiness cards.
 - `src/domain/sync.ts` defines local sync snapshots, provider status, and restore previews.
 - `src/hooks/useLocalSettings.ts` persists local Settings state under `jamarq-atlas.settings.v1`.
@@ -466,6 +489,7 @@ Atlas separates manual intent from raw activity.
 - `src/hooks/useLocalDispatch.ts` persists Dispatch state separately under `jamarq-atlas.dispatch.v1`.
 - `src/hooks/useLocalPlanning.ts` persists Planning state separately under `jamarq-atlas.planning.v1`.
 - `src/hooks/useLocalReports.ts` persists Reports state separately under `jamarq-atlas.reports.v1`.
+- `src/hooks/useLocalReview.ts` persists Review sessions and notes separately under `jamarq-atlas.review.v1`.
 - `src/hooks/useLocalWriting.ts` persists Writing state separately under `jamarq-atlas.writing.v1`.
 - `src/components/DispatchDashboard.tsx` renders deployment readiness cards across projects.
 - `src/components/DispatchPanel.tsx` renders project-level Dispatch target details and editable manual fields.
@@ -477,6 +501,8 @@ Atlas separates manual intent from raw activity.
 - `src/components/PlanningCenter.tsx` renders manual planning creation, filters, and editable planning cards.
 - `src/components/PlanningPanel.tsx` renders compact project-level planning context.
 - `src/components/ReportsCenter.tsx` renders local report packet assembly, editing, copy, export, and audit history.
+- `src/components/ReviewCenter.tsx` renders derived review queues, manual review sessions, review notes, and explicit Planning handoff.
+- `src/components/ReviewPanel.tsx` renders compact project-level review history and quick notes.
 - `src/components/VerificationCenter.tsx` renders cadence-based verification queues and due-state filters.
 - `src/components/WritingWorkbench.tsx` renders local writing draft creation, editing, review state, and draft history.
 - `src/components/DataCenter.tsx` renders local backup export, import validation, restore preview, and typed restore.
@@ -487,6 +513,7 @@ Atlas separates manual intent from raw activity.
 - `src/services/repoSuggestions.ts` derives advisory placement suggestions for unbound GitHub repositories without mutating Workspace or GitHub data.
 - `src/services/planning.ts` normalizes Planning storage and applies manual planning record changes.
 - `src/services/reports.ts` builds report packet Markdown, normalizes Reports storage, and records report-only audit events.
+- `src/services/review.ts` derives review queue items and manages local Review sessions/notes without mutating source stores.
 - `src/services/verification.ts` evaluates verification due state, normalizes cadence defaults, and records manual verification events.
 - `src/services/dispatchReadiness.ts` evaluates Dispatch readiness as advisory output only.
 - `src/services/dispatchCloseout.ts` derives Dispatch closeout analytics from existing evidence, sessions, deployment records, and Reports state.
@@ -549,8 +576,15 @@ Reports are local/manual:
 
 - Report packets are assembled only by explicit action.
 - Report export does not mean anything was sent, published, deployed, shipped, or verified.
-- Reports do not mutate Workspace, Dispatch, Planning, Verification, Writing, GitHub bindings, Settings, or Sync state.
+- Reports do not mutate Workspace, Dispatch, Planning, Review, Verification, Writing, GitHub bindings, Settings, or Sync state.
 - External publishing integrations are not implemented.
+
+Review is local/manual:
+
+- Review queues are derived advisory views.
+- Review sessions and notes are created only by explicit action.
+- Creating a Planning note from Review is explicit and does not change project status.
+- Review does not change risk, blockers, next action, verification, Dispatch readiness, GitHub bindings, Writing drafts, Reports, Settings, or Sync.
 
 Verification activity is advisory/manual:
 
@@ -594,7 +628,7 @@ Settings is local/manual:
 Sync is manual:
 
 - Snapshots are created only by explicit action.
-- Snapshot restore is preview-first and full-replace for Workspace, Dispatch, Writing, Planning, and Reports.
+- Snapshot restore is preview-first and full-replace for Workspace, Dispatch, Writing, Planning, Reports, and Review.
 - Hosted push/pull is optional and snapshot-based; it never runs automatically.
 - Supabase credentials stay server-side.
 - Sync does not merge records or change Atlas source-of-truth rules.
@@ -613,5 +647,5 @@ Sync is manual:
 
 ## Roadmap
 
-1. Add richer Dispatch closeout analytics after the current read-only queue evidence is used in live deploy sessions.
-2. Expand Dispatch preflight with authenticated host-specific read-only checks before any write-capable deployment work.
+1. Add saved Review filters and operator checklist presets after a few real review cycles.
+2. Expand Dispatch preflight with additional read-only host-specific checks before any write-capable deployment work.

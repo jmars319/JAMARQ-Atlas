@@ -14,7 +14,7 @@ Data Center supports:
 - JSON backup import.
 - Restore preview.
 - Full local restore after typed confirmation.
-- Backup schema v1/v2 import compatibility.
+- Backup schema v1/v2/v3 import compatibility.
 
 It does not support:
 
@@ -33,7 +33,7 @@ Atlas backups are versioned JSON envelopes.
 Required fields:
 
 - `kind: "jamarq-atlas-backup"`
-- `schemaVersion: 3`
+- `schemaVersion: 4`
 - `exportedAt`
 - `appName`
 - `stores.workspace`
@@ -41,6 +41,7 @@ Required fields:
 - `stores.writing`
 - `stores.planning`
 - `stores.reports`
+- `stores.review`
 - `stores.settings`
 - `stores.sync`
 
@@ -51,10 +52,11 @@ The backup includes only Atlas-owned stores:
 - Writing: drafts, context snapshots, provider result metadata, review status, notes, and Writing-only audit events.
 - Planning: objectives, milestones, work sessions, and planning notes.
 - Reports: report packets, source summaries, context warnings, Markdown, and report-only audit events.
+- Review: human review sessions, notes, outcomes, and timestamps.
 - Settings: local device/operator labels and local-only notes.
 - Sync: local snapshot metadata and manual snapshots.
 
-Schema v1/v2 backups that contain only earlier store sets remain importable. Atlas normalizes missing Planning, Reports, Settings, and Sync stores to safe local defaults during restore preview.
+Schema v1/v2/v3 backups that contain only earlier store sets remain importable. Atlas normalizes missing Planning, Reports, Review, Settings, and Sync stores to safe local defaults during restore preview.
 
 ## Excluded Data
 
@@ -79,7 +81,7 @@ The import flow:
 3. Normalize compatible older store shapes.
 4. Show current local counts beside incoming backup counts.
 5. Require the exact typed confirmation `RESTORE ATLAS`.
-6. Replace Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync stores together.
+6. Replace Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync stores together.
 
 Restore does not merge records. Reset seed remains a separate action.
 
@@ -103,6 +105,6 @@ Data Center may:
 
 ## Hosted Persistence Relationship
 
-Supabase hosted sync lives in Settings, not Data Center. It uses the same normalized Workspace, Dispatch, Writing, Planning, and Reports store boundaries and keeps restore preview plus typed confirmation. Data Center remains the browser-local JSON/Markdown portability surface.
+Supabase hosted sync lives in Settings, not Data Center. It uses the same normalized Workspace, Dispatch, Writing, Planning, Reports, and Review store boundaries and keeps restore preview plus typed confirmation. Data Center remains the browser-local JSON/Markdown portability surface.
 
 Future hosted persistence should keep these store boundaries, schema versioning, validation, restore preview, and source-of-truth rules.

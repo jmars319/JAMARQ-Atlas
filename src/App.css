@@ -1827,8 +1827,12 @@ h3 {
   min-width: 0;
 }
 
+.review-center {
+  min-width: 0;
+}
+
 .data-center .dashboard-stats {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .settings-center .dashboard-stats {
@@ -1845,6 +1849,10 @@ h3 {
 
 .reports-center .dashboard-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.review-center .dashboard-stats {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .data-layout {
@@ -2025,6 +2033,187 @@ h3 {
   gap: 12px;
   align-items: start;
   margin-top: 12px;
+}
+
+.review-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.32fr) minmax(0, 1fr) minmax(240px, 0.28fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.review-panel,
+.review-item {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 12px;
+}
+
+.review-main,
+.review-queue,
+.review-history-list,
+.review-mini,
+.review-mini-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.review-source-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.review-source-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 9px 10px;
+  font-size: 0.78rem;
+}
+
+.review-source-warning {
+  border-color: rgba(244, 199, 107, 0.32);
+  color: var(--warning);
+}
+
+.review-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 9px 10px;
+  font-size: 0.78rem;
+}
+
+.review-item {
+  background: rgba(250, 250, 250, 0.02);
+}
+
+.review-item-heading,
+.review-actions,
+.review-chip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.review-item-heading {
+  justify-content: space-between;
+}
+
+.review-item-heading h2 {
+  margin: 6px 0 0;
+  color: var(--paper-white);
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.review-item-heading p,
+.review-reason,
+.review-history-list p,
+.review-mini-list p {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.38;
+}
+
+.review-reason {
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.review-chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 3px 7px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.review-chip-critical,
+.review-chip-high {
+  border-color: rgba(241, 113, 113, 0.38);
+  color: var(--danger);
+}
+
+.review-chip-medium {
+  border-color: rgba(244, 199, 107, 0.36);
+  color: var(--warning);
+}
+
+.review-chip-low {
+  border-color: rgba(9, 166, 214, 0.3);
+  color: var(--accent-cyan);
+}
+
+.review-note-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.2fr);
+  gap: 10px;
+}
+
+.review-history-list article,
+.review-mini-list article {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 9px;
+}
+
+.review-history-list span,
+.review-history-list small,
+.review-mini-list span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.review-history-list strong,
+.review-mini-list strong {
+  color: var(--paper-white);
+  font-size: 0.84rem;
+}
+
+.review-severity-critical,
+.review-severity-high {
+  border-color: rgba(241, 113, 113, 0.24);
+}
+
+.review-severity-medium {
+  border-color: rgba(244, 199, 107, 0.22);
+}
+
+.queue-overdue,
+.queue-blocked {
+  border-color: rgba(241, 113, 113, 0.38);
+  background: rgba(241, 113, 113, 0.1);
+  color: var(--danger);
+}
+
+.queue-due,
+.queue-attention,
+.queue-upcoming {
+  border-color: rgba(244, 199, 107, 0.34);
+  background: rgba(244, 199, 107, 0.1);
+  color: var(--warning);
+}
+
+.queue-none {
+  color: var(--text-muted);
 }
 
 .reports-panel,
@@ -2917,6 +3106,10 @@ code {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .review-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .control-bar {
     grid-template-columns: 1fr;
   }
@@ -2964,6 +3157,9 @@ code {
   .planning-layout,
   .planning-controls,
   .planning-mini-summary,
+  .review-layout,
+  .review-note-grid,
+  .review-source-grid,
   .reports-layout,
   .reports-workspace,
   .timeline-controls,

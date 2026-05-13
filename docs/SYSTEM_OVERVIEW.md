@@ -11,6 +11,7 @@ The app has these main surfaces:
 - Board: human-authored operational status across sections, groups, and projects.
 - Timeline: derived evidence ledger across existing Atlas stores.
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
+- Review Center: derived operator review queue, manual review sessions, notes, and explicit Planning handoff.
 - Planning Center: human-authored objectives, milestones, work sessions, and notes.
 - Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture, read-only preflight, host evidence, verification evidence, and manual deploy sessions across configured targets.
@@ -24,9 +25,9 @@ The important rule is separation. Atlas records manual intent. GitHub and Dispat
 
 ## Timeline Model
 
-Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight/host/verification evidence, Writing audit events, Planning records, Report audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
+Timeline is derived from existing stores rather than persisted as its own store. It normalizes Workspace activity, verification activity, Dispatch deployment/preflight/host/verification evidence, Writing audit events, Review sessions/notes, Planning records, Report audit events, Sync snapshots, and loaded remote snapshot metadata into read-only rows.
 
-Timeline supports filtering by project, section, source, type, date range, and search. It does not mutate Workspace, Dispatch, Writing, Sync, Settings, GitHub bindings, verification, readiness, or project status.
+Timeline supports filtering by project, section, source, type, date range, and search. It does not mutate Workspace, Dispatch, Writing, Review, Sync, Settings, GitHub bindings, verification, readiness, or project status.
 
 ## Workspace Model
 
@@ -84,6 +85,29 @@ Manual planning statuses:
 - Deferred
 
 Planning is intentionally lightweight. It records what a human has decided to track, not what GitHub, Dispatch, Verification, or AI inferred. External signals do not create, edit, prioritize, complete, defer, or delete Planning records automatically.
+
+## Review Model
+
+Review Center is stored separately under `jamarq-atlas.review.v1`.
+
+Primary concepts:
+
+- Review session
+- Review note
+- Review cadence/scope
+- Review outcome
+- Derived review queue item
+
+Review outcomes are:
+
+- Noted
+- Needs follow-up
+- No action
+- Planned
+
+The Review queue is derived and not persisted as operational truth. It combines Verification due state, Dispatch queue/closeout posture, Workspace blockers/risk/stale verification, unbound GitHub repositories and placement suggestions, recent Timeline evidence, due Planning records, pending Writing/Reports work, and Data/Sync attention states.
+
+Review sessions and notes are manual records only. They do not change Workspace manual state, Verification, Dispatch readiness/status, GitHub bindings, Writing drafts, Reports, Settings, or Sync. Creating a Planning note from Review is an explicit action and goes through the Planning helpers.
 
 ## Verification Model
 
@@ -274,11 +298,11 @@ Supported packet types:
 - Client site update packet
 - Internal deploy handoff packet
 
-Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session evidence, manual deployment record references, Planning records, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
+Reports can assemble Markdown from approved/exported Writing drafts, project manual state, Verification due state, Dispatch posture, cPanel runbooks, Dispatch closeout analytics, stored host evidence, runbook verification evidence, deploy-session evidence, manual deployment record references, Planning records, Review sessions/notes, repository bindings, and GitHub warnings already captured inside selected Writing context snapshots.
 
 Reports do not fetch full GitHub history and do not write externally. Copy and Markdown download are browser-local actions. Exporting a packet does not mean anything was sent, published, deployed, shipped, or verified.
 
-Reports do not mutate Workspace, Dispatch, Planning, Verification, Writing, GitHub bindings, Settings, or Sync state.
+Reports do not mutate Workspace, Dispatch, Planning, Review, Verification, Writing, GitHub bindings, Settings, or Sync state.
 
 ## Data Portability Model
 
@@ -289,6 +313,9 @@ The backup envelope contains:
 - Workspace store
 - Dispatch store
 - Writing store
+- Planning store
+- Reports store
+- Review store
 - Settings store
 - Sync store
 - Schema version
@@ -297,7 +324,7 @@ The backup envelope contains:
 
 Backups intentionally exclude GitHub tokens, environment variables, credentials, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
 
-Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Settings, and Sync normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
+Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Review, Settings, and Sync normalizers, and compared against current local counts before restore. Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
 Data Center does not merge records, write to GitHub, sync to hosted storage, send external data, or change Atlas source-of-truth rules.
 
@@ -334,9 +361,9 @@ Current Sync is manual and snapshot-based. It supports:
 - Remote/local snapshot comparison by fingerprint, counts, created date, and device label.
 - Explicit remote snapshot deletion.
 
-Snapshots contain Workspace, Dispatch, Writing, Planning, and Reports only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
+Snapshots contain Workspace, Dispatch, Writing, Planning, Reports, and Review only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
 
-Snapshot restore replaces Workspace, Dispatch, Writing, Planning, and Reports only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
+Snapshot restore replaces Workspace, Dispatch, Writing, Planning, Reports, and Review only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
 
 Hosted sync runs through the local `/api/sync` boundary:
 

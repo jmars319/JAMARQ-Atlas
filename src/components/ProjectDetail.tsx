@@ -36,6 +36,7 @@ import type {
 } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
+import type { ReviewNote, ReviewState } from '../domain/review'
 import type { TimelineEvent } from '../domain/timeline'
 import { getLatestDeploymentRecord } from '../domain/dispatch'
 import {
@@ -49,6 +50,7 @@ import { DispatchPanel } from './DispatchPanel'
 import { GitHubHealthSummary } from './GitHubHealthSummary'
 import { PlanningPanel } from './PlanningPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
+import { ReviewPanel } from './ReviewPanel'
 import { StatusBadge } from './StatusBadge'
 import { TimelineEventList } from './TimelineDashboard'
 
@@ -57,6 +59,7 @@ interface ProjectDetailProps {
   dispatch: DispatchState
   planning: PlanningState
   reports: ReportsState
+  review: ReviewState
   writingDrafts: WritingDraft[]
   timelineEvents: TimelineEvent[]
   onManualChange: (manual: Partial<ManualOperationalState>) => void
@@ -119,6 +122,8 @@ interface ProjectDetailProps {
   onWritingRequest: (projectId: string, templateId: WritingTemplateId) => void
   onOpenWritingDraft: (draftId: string) => void
   onOpenPlanning: (projectId: string) => void
+  onOpenReview: () => void
+  onAddReviewNote: (note: ReviewNote) => void
   onResetWorkspace: () => void
 }
 
@@ -157,6 +162,7 @@ export function ProjectDetail({
   dispatch,
   planning,
   reports,
+  review,
   writingDrafts,
   timelineEvents,
   onManualChange,
@@ -179,6 +185,8 @@ export function ProjectDetail({
   onWritingRequest,
   onOpenWritingDraft,
   onOpenPlanning,
+  onOpenReview,
+  onAddReviewNote,
   onResetWorkspace,
 }: ProjectDetailProps) {
   const { project, group, section } = record
@@ -484,6 +492,19 @@ export function ProjectDetail({
         ) : (
           <p className="empty-state">No repository binding yet.</p>
         )}
+      </section>
+
+      <section className="detail-panel">
+        <div className="panel-heading">
+          <ClipboardList size={17} />
+          <h3>Review</h3>
+        </div>
+        <ReviewPanel
+          review={review}
+          record={record}
+          onAddReviewNote={onAddReviewNote}
+          onOpenReview={onOpenReview}
+        />
       </section>
 
       <section className="detail-panel">

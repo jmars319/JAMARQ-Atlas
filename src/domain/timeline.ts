@@ -5,6 +5,7 @@ export type TimelineEventSource =
   | 'writing'
   | 'planning'
   | 'reports'
+  | 'review'
   | 'sync'
   | 'github'
 
@@ -16,6 +17,7 @@ export type TimelineEventType =
   | 'writing'
   | 'planning'
   | 'report'
+  | 'review'
   | 'sync'
   | 'github'
 

@@ -18,6 +18,7 @@ import { normalizeWritingState } from './aiWritingAssistant'
 import { normalizeDispatchState } from './dispatchStorage'
 import { normalizePlanningState, summarizePlanningState } from './planning'
 import { normalizeReportsState } from './reports'
+import { normalizeReviewState, summarizeReviewState } from './review'
 import { normalizeWorkspaceVerificationCadence } from './verification'
 
 export const SYNC_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
@@ -69,6 +70,12 @@ function emptySyncSummary(): AtlasSyncStoreSummary {
       exportedPackets: 0,
       archivedPackets: 0,
     },
+    review: {
+      sessions: 0,
+      notes: 0,
+      followUps: 0,
+      planned: 0,
+    },
   }
 }
 
@@ -84,6 +91,7 @@ function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
   const writing = isRecord(value.writing) ? value.writing : {}
   const planning = isRecord(value.planning) ? value.planning : {}
   const reports = isRecord(value.reports) ? value.reports : {}
+  const review = isRecord(value.review) ? value.review : {}
 
   return {
     workspace: {
@@ -120,6 +128,12 @@ function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
       auditEvents: Number(reports.auditEvents) || 0,
       exportedPackets: Number(reports.exportedPackets) || 0,
       archivedPackets: Number(reports.archivedPackets) || 0,
+    },
+    review: {
+      sessions: Number(review.sessions) || 0,
+      notes: Number(review.notes) || 0,
+      followUps: Number(review.followUps) || 0,
+      planned: Number(review.planned) || 0,
     },
   }
 }
@@ -203,6 +217,7 @@ export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStore
       exportedPackets: stores.reports.packets.filter((packet) => packet.status === 'exported').length,
       archivedPackets: stores.reports.packets.filter((packet) => packet.status === 'archived').length,
     },
+    review: summarizeReviewState(stores.review),
   }
 }
 
@@ -221,6 +236,7 @@ export function normalizeSyncStores(value: unknown): AtlasSyncCoreStores {
     writing: normalizeWritingState(value.writing ?? {}),
     planning: normalizePlanningState(value.planning ?? {}),
     reports: normalizeReportsState(value.reports ?? {}),
+    review: normalizeReviewState(value.review ?? {}),
   }
 }
 
@@ -555,6 +571,10 @@ export function createSyncRestorePreview(
     warnings.push('Incoming snapshot has fewer Report packets than current local data.')
   }
 
+  if (incomingSummary.review.sessions < currentSummary.review.sessions) {
+    warnings.push('Incoming snapshot has fewer Review sessions than current local data.')
+  }
+
   return {
     snapshotId: snapshot.id,
     currentSummary,
@@ -622,6 +642,12 @@ function countDrops(
     )
   }
 
+  if (incomingSummary.review.sessions < currentSummary.review.sessions) {
+    drops.push(
+      `Review sessions drop from ${currentSummary.review.sessions} to ${incomingSummary.review.sessions}.`,
+    )
+  }
+
   return drops
 }
 
@@ -664,6 +690,7 @@ export function compareSyncSnapshot(
         snapshot.summary.planning.notes
       }`,
       `Report packets: local ${currentSummary.reports.packets}, snapshot ${snapshot.summary.reports.packets}`,
+      `Review sessions: local ${currentSummary.review.sessions}, snapshot ${snapshot.summary.review.sessions}`,
     ],
   }
 }

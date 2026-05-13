@@ -7,7 +7,7 @@ Supabase Hosted Sync is an optional manual snapshot bridge for Atlas. It makes l
 The bridge supports:
 
 - Hosted sync status checks.
-- Manual push of the current Workspace, Dispatch, Writing, Planning, and Reports stores.
+- Manual push of the current Workspace, Dispatch, Writing, Planning, Reports, and Review stores.
 - Remote snapshot metadata listing.
 - Remote snapshot preview.
 - Remote/local snapshot comparison.
@@ -47,7 +47,7 @@ Hosted sync uses the local server boundary:
 - `GET /api/sync/remote-snapshots/:id`
 - `DELETE /api/sync/remote-snapshots/:id`
 
-Push requests send a normalized Atlas snapshot containing only Workspace, Dispatch, Writing, Planning, and Reports stores. Pull requests return snapshot metadata or one selected snapshot for preview.
+Push requests send a normalized Atlas snapshot containing only Workspace, Dispatch, Writing, Planning, Reports, and Review stores. Pull requests return snapshot metadata or one selected snapshot for preview.
 
 Remote lists are limited to the latest 50 snapshots for this phase. Settings shows that limit and warns that older hosted snapshots may exist when the loaded list reaches the limit.
 
@@ -101,7 +101,7 @@ Remote snapshots do not store:
 
 ## Restore
 
-Remote restore is preview-first and full-replace. Atlas loads one remote snapshot, normalizes it through existing Workspace, Dispatch, Writing, Planning, and Reports normalizers, shows count differences, and requires the exact typed confirmation `RESTORE ATLAS`.
+Remote restore is preview-first and full-replace. Atlas loads one remote snapshot, normalizes it through existing Workspace, Dispatch, Writing, Planning, Reports, and Review normalizers, shows count differences, and requires the exact typed confirmation `RESTORE ATLAS`.
 
 Restore does not merge records, update Settings, change Sync provider configuration, or make operational decisions.
 

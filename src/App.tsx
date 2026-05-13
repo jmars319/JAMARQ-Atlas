@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   ClipboardList,
   DatabaseZap,
+  Eye,
   FileText,
   GitBranch,
   Newspaper,
@@ -21,6 +22,7 @@ import { GitHubIntakeDashboard } from './components/GitHubIntakeDashboard'
 import { PlanningCenter } from './components/PlanningCenter'
 import { ProjectDetail } from './components/ProjectDetail'
 import { ReportsCenter } from './components/ReportsCenter'
+import { ReviewCenter } from './components/ReviewCenter'
 import { SettingsCenter } from './components/SettingsCenter'
 import { TimelineDashboard } from './components/TimelineDashboard'
 import { VerificationCenter } from './components/VerificationCenter'
@@ -51,6 +53,7 @@ import type { WritingDraft, WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalPlanning } from './hooks/useLocalPlanning'
 import { useLocalReports } from './hooks/useLocalReports'
+import { useLocalReview } from './hooks/useLocalReview'
 import { useLocalSettings } from './hooks/useLocalSettings'
 import { useLocalSync } from './hooks/useLocalSync'
 import { useLocalWriting } from './hooks/useLocalWriting'
@@ -79,6 +82,7 @@ type AppView =
   | 'github'
   | 'planning'
   | 'reports'
+  | 'review'
   | 'verification'
   | 'dispatch'
   | 'writing'
@@ -144,10 +148,21 @@ function App() {
     markExported: markReportExported,
     archivePacket: archiveReportPacket,
   } = useLocalReports()
+  const { review, setReview, addSession: addReviewSession, addNote: addReviewNote } =
+    useLocalReview()
   const projectRecords = useMemo(() => flattenProjects(workspace), [workspace])
   const timelineEvents = useMemo(
-    () => deriveTimelineEvents({ projectRecords, dispatch, writing, planning, reports, sync }),
-    [dispatch, planning, projectRecords, reports, sync, writing],
+    () =>
+      deriveTimelineEvents({
+        projectRecords,
+        dispatch,
+        writing,
+        planning,
+        reports,
+        review,
+        sync,
+      }),
+    [dispatch, planning, projectRecords, reports, review, sync, writing],
   )
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -321,6 +336,7 @@ function App() {
       reports,
       planning,
       writingDrafts: writing.drafts,
+      review,
       projectIds: [projectId],
       writingDraftIds: [],
     })
@@ -374,6 +390,29 @@ function App() {
     setAppView('planning')
   }
 
+  function handleOpenReview(projectId?: string) {
+    if (projectId) {
+      selectProject(projectId)
+    }
+    setAppView('review')
+  }
+
+  function handleCreatePlanningNoteFromReview(projectId: string, title: string, detail: string) {
+    const record = findProjectRecord(workspace, projectId)
+
+    if (!record) {
+      return
+    }
+
+    createPlanningItem({
+      kind: 'note',
+      record,
+      title,
+      detail,
+      status: 'planned',
+    })
+  }
+
   function handleCreateWritingDraft(draft: WritingDraft) {
     addDraft(draft)
     setSelectedProjectId(draft.projectId)
@@ -400,6 +439,7 @@ function App() {
     setWriting(stores.writing)
     setPlanning(stores.planning)
     setReports(stores.reports)
+    setReview(stores.review)
     setSettings(stores.settings)
     setSync(stores.sync)
     setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
@@ -409,7 +449,7 @@ function App() {
   function handleCreateSnapshot(label: string, note: string) {
     addSnapshot(
       createSyncSnapshot({
-        stores: { workspace, dispatch, writing, planning, reports },
+        stores: { workspace, dispatch, writing, planning, reports, review },
         settings,
         sync,
         label,
@@ -424,6 +464,7 @@ function App() {
     setWriting(stores.writing)
     setPlanning(stores.planning)
     setReports(stores.reports)
+    setReview(stores.review)
     setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
     setSelectedWritingDraftId('')
   }
@@ -458,6 +499,10 @@ function App() {
           <span>
             <Newspaper size={15} />
             Reports-ready
+          </span>
+          <span>
+            <Eye size={15} />
+            Review-ready
           </span>
           <span>
             <Rocket size={15} />
@@ -525,6 +570,13 @@ function App() {
           onClick={() => setAppView('reports')}
         >
           Reports
+        </button>
+        <button
+          type="button"
+          className={appView === 'review' ? 'is-selected' : ''}
+          onClick={() => setAppView('review')}
+        >
+          Review
         </button>
         <button
           type="button"
@@ -605,6 +657,7 @@ function App() {
         ) : appView === 'reports' ? (
           <ReportsCenter
             reports={reports}
+            review={review}
             projectRecords={projectRecords}
             dispatch={dispatch}
             planning={planning}
@@ -616,6 +669,23 @@ function App() {
             onRecordCopied={recordReportCopied}
             onMarkExported={markReportExported}
             onArchivePacket={archiveReportPacket}
+          />
+        ) : appView === 'review' ? (
+          <ReviewCenter
+            review={review}
+            projectRecords={projectRecords}
+            dispatch={dispatch}
+            planning={planning}
+            reports={reports}
+            writing={writing}
+            sync={sync}
+            timelineEvents={timelineEvents}
+            onSelectProject={selectProject}
+            onAddReviewSession={addReviewSession}
+            onAddReviewNote={addReviewNote}
+            onCreatePlanningNote={handleCreatePlanningNoteFromReview}
+            onOpenGitHub={() => setAppView('github')}
+            onOpenPlanning={handleOpenPlanning}
           />
         ) : appView === 'verification' ? (
           <VerificationCenter
@@ -652,6 +722,7 @@ function App() {
             writing={writing}
             planning={planning}
             reports={reports}
+            review={review}
             settings={settings}
             sync={sync}
             onRestoreStores={handleRestoreStores}
@@ -664,6 +735,7 @@ function App() {
             writing={writing}
             planning={planning}
             reports={reports}
+            review={review}
             sync={sync}
             onSettingsChange={updateLocalSettings}
             onDispatchTargetChange={handleDispatchTargetChange}
@@ -703,6 +775,7 @@ function App() {
             dispatch={dispatch}
             planning={planning}
             reports={reports}
+            review={review}
             writingDrafts={writing.drafts}
             timelineEvents={timelineEvents.filter(
               (event) => event.projectId === selectedRecord.project.id,
@@ -754,6 +827,8 @@ function App() {
             onWritingRequest={handleWritingRequest}
             onOpenWritingDraft={handleSelectWritingDraft}
             onOpenPlanning={handleOpenPlanning}
+            onOpenReview={() => handleOpenReview(selectedRecord.project.id)}
+            onAddReviewNote={addReviewNote}
             onResetWorkspace={() => {
               resetWorkspace()
             }}

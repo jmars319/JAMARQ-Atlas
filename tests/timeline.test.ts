@@ -4,6 +4,13 @@ import { seedWorkspace } from '../src/data/seedWorkspace'
 import { flattenProjects } from '../src/domain/atlas'
 import { addPlanningItem, createPlanningItem, emptyPlanningStore } from '../src/services/planning'
 import { emptyReportsStore } from '../src/services/reports'
+import {
+  addReviewNote,
+  addReviewSession,
+  createReviewNote,
+  createReviewSession,
+  emptyReviewStore,
+} from '../src/services/review'
 import { emptySyncState } from '../src/services/syncSnapshots'
 import { deriveTimelineEvents, filterTimelineEvents } from '../src/services/timeline'
 
@@ -113,6 +120,27 @@ const writing = {
     },
   ],
 }
+const review = addReviewNote(
+  addReviewSession(
+    emptyReviewStore(new Date('2026-05-10T09:00:00Z')),
+    createReviewSession({
+      id: 'review-session-1',
+      title: 'Timeline review session',
+      itemIds: ['review-item-1'],
+      projectIds: ['vaexcore-studio'],
+      now: new Date('2026-05-10T15:00:00Z'),
+    }),
+  ),
+  createReviewNote({
+    id: 'review-note-1',
+    projectId: 'vaexcore-studio',
+    itemId: 'review-item-1',
+    source: 'workspace',
+    outcome: 'needs-follow-up',
+    body: 'Review note for timeline evidence.',
+    now: new Date('2026-05-10T15:05:00Z'),
+  }),
+)
 
 describe('timeline evidence ledger', () => {
   it('derives sorted evidence across workspace, Dispatch, Writing, and Sync stores', () => {
@@ -163,6 +191,12 @@ describe('timeline evidence ledger', () => {
               exportedPackets: 0,
               archivedPackets: 0,
             },
+            review: {
+              sessions: 0,
+              notes: 0,
+              followUps: 0,
+              planned: 0,
+            },
           },
           stores: {
             workspace: seedWorkspace,
@@ -170,6 +204,7 @@ describe('timeline evidence ledger', () => {
             writing: { drafts: [] },
             planning,
             reports,
+            review,
           },
         },
       ],
@@ -180,14 +215,16 @@ describe('timeline evidence ledger', () => {
       writing,
       planning,
       reports,
+      review,
       sync,
     })
 
-    expect(events[0].source).toBe('reports')
+    expect(events[0].source).toBe('review')
     expect(events.some((event) => event.source === 'dispatch')).toBe(true)
     expect(events.some((event) => event.source === 'writing')).toBe(true)
     expect(events.some((event) => event.source === 'planning')).toBe(true)
     expect(events.some((event) => event.source === 'reports')).toBe(true)
+    expect(events.some((event) => event.source === 'review')).toBe(true)
     expect(events.some((event) => event.projectId === 'vaexcore-studio')).toBe(true)
   })
 
@@ -198,6 +235,7 @@ describe('timeline evidence ledger', () => {
       writing,
       planning,
       reports,
+      review,
       sync: emptySyncState(new Date('2026-05-10T09:00:00Z')),
     })
 
@@ -242,6 +280,17 @@ describe('timeline evidence ledger', () => {
         type: 'report',
         dateRange: '30d',
         query: 'exported',
+      }, new Date('2026-05-11T12:00:00Z')),
+    ).toHaveLength(1)
+
+    expect(
+      filterTimelineEvents(events, {
+        projectId: 'vaexcore-studio',
+        sectionId: 'all',
+        source: 'review',
+        type: 'review',
+        dateRange: '30d',
+        query: 'follow-up',
       }, new Date('2026-05-11T12:00:00Z')),
     ).toHaveLength(1)
   })
