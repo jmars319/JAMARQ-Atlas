@@ -22,33 +22,17 @@ import { SurfaceState } from './components/SurfaceState'
 import {
   findProjectRecord,
   flattenProjects,
-  updateProject,
-  type GithubRepositoryLink,
-  type ManualOperationalState,
-  type VerificationCadence,
   type WorkStatus,
 } from './domain/atlas'
-import { getRunbookForTarget } from './domain/dispatch'
 import type {
-  DeploymentTarget,
-  DispatchAutomationReadiness,
   DispatchDeploySession,
   DispatchDeploySessionStep,
   DispatchDeploySessionStepKind,
   DispatchHostEvidenceRun,
-  DispatchReadiness,
   DispatchVerificationEvidenceRun,
 } from './domain/dispatch'
-import type {
-  CalibrationAuditEventType,
-  CalibrationCredentialReference,
-  CalibrationFieldStatus,
-} from './domain/calibration'
 import type { DeploySessionChecklistPresetId } from './services/deploySessions'
-import type { AtlasBackupStores } from './domain/dataPortability'
-import type { PlanningSourceLink } from './domain/planning'
-import type { AtlasSyncCoreStores } from './domain/sync'
-import type { WritingDraft, WritingTemplateId } from './domain/writing'
+import type { WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalCalibration } from './hooks/useLocalCalibration'
 import { useLocalPlanning } from './hooks/useLocalPlanning'
@@ -58,28 +42,10 @@ import { useLocalSettings } from './hooks/useLocalSettings'
 import { useLocalSync } from './hooks/useLocalSync'
 import { useLocalWriting } from './hooks/useLocalWriting'
 import { useLocalWorkspace } from './hooks/useLocalWorkspace'
-import { githubIngestionContract, type GithubRepositorySummary } from './services/githubIntegration'
-import {
-  bindRepositoryToProject,
-  createInboxProjectFromRepository,
-  repositorySummaryToLink,
-  unbindRepositoryFromProject,
-} from './services/repoBinding'
-import { runDispatchPreflight } from './services/dispatchPreflight'
-import { createHostEvidenceRun, createVerificationEvidenceRun } from './services/dispatchEvidence'
-import { runDeploymentVerificationChecks } from './services/deployPreflight'
-import { requestHostConnectionPreflight } from './services/hostConnection'
-import { createReportPacket } from './services/reports'
-import { createSyncSnapshot } from './services/syncSnapshots'
+import { githubIngestionContract } from './services/githubIntegration'
 import { deriveTimelineEvents } from './services/timeline'
-import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
-import {
-  applyCalibrationImportPreview,
-  recordCalibrationAuditEvent,
-  scanAtlasCalibration,
-  type CalibrationImportPreview,
-  type CalibrationIssue,
-} from './services/calibration'
+import { scanAtlasCalibration } from './services/calibration'
+import { createAtlasActions, type AtlasActionView } from './services/atlasActions'
 
 const TimelineDashboard = lazy(() =>
   import('./components/TimelineDashboard').then((module) => ({
@@ -122,18 +88,7 @@ const SettingsCenter = lazy(() =>
 
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
-type AppView =
-  | 'board'
-  | 'timeline'
-  | 'github'
-  | 'planning'
-  | 'reports'
-  | 'review'
-  | 'verification'
-  | 'dispatch'
-  | 'writing'
-  | 'data'
-  | 'settings'
+type AppView = AtlasActionView
 
 function appViewLabel(view: AppView) {
   const labels: Record<AppView, string> = {
@@ -271,353 +226,49 @@ function App() {
   const [queueEvidenceSweepRunning, setQueueEvidenceSweepRunning] = useState(false)
   const selectedRecord =
     findProjectRecord(workspace, selectedProjectId) ?? projectRecords[0]
-
-  function selectProject(projectId: string) {
-    setSelectedProjectId(projectId)
-    setSelectedWritingDraftId('')
-  }
-
-  function updateManualState(update: Partial<ManualOperationalState>) {
-    if (!selectedRecord) {
-      return
-    }
-
-    setWorkspace((currentWorkspace) =>
-      updateProject(currentWorkspace, selectedRecord.project.id, (project) => ({
-        ...project,
-        manual: {
-          ...project.manual,
-          ...update,
-        },
-      })),
-    )
-  }
-
-  function handleDispatchTargetChange(targetId: string, update: Partial<DeploymentTarget>) {
-    updateTarget(targetId, update)
-  }
-
-  function handleDispatchReadinessChange(
-    targetId: string,
-    projectId: string,
-    update: Partial<DispatchReadiness>,
-  ) {
-    updateReadiness(targetId, projectId, update)
-  }
-
-  function handleDispatchAutomationReadinessChange(
-    targetId: string,
-    projectId: string,
-    update: Partial<DispatchAutomationReadiness>,
-  ) {
-    updateAutomationReadiness(targetId, projectId, update)
-  }
-
-  async function handleRunDispatchPreflight(targetId: string) {
-    const target = dispatch.targets.find((candidate) => candidate.id === targetId)
-
-    if (!target) {
-      return
-    }
-
-    const record = findProjectRecord(workspace, target.projectId)
-
-    if (!record) {
-      return
-    }
-
-    setPreflightRunningTargetId(targetId)
-
-    try {
-      const run = await runDispatchPreflight({ record, dispatch, target })
-      addPreflightRun(run)
-    } finally {
-      setPreflightRunningTargetId('')
-    }
-  }
-
-  async function handleRunHostInspection(targetId: string) {
-    const target = dispatch.targets.find((candidate) => candidate.id === targetId)
-
-    if (!target) {
-      return
-    }
-
-    const runbook = getRunbookForTarget(dispatch, target.id)
-
-    setHostInspectionRunningTargetIds((current) =>
-      current.includes(targetId) ? current : [...current, targetId],
-    )
-
-    try {
-      const result = await requestHostConnectionPreflight({
-        target,
-        preservePaths: runbook?.preservePaths.map((preservePath) => preservePath.path) ?? [],
-      })
-      addHostEvidenceRun(
-        createHostEvidenceRun({
-          projectId: target.projectId,
-          result,
-        }),
-      )
-    } finally {
-      setHostInspectionRunningTargetIds((current) =>
-        current.filter((candidate) => candidate !== targetId),
-      )
-    }
-  }
-
-  async function handleRunHostInspections(targetIds: string[]) {
-    await Promise.all(targetIds.map((targetId) => handleRunHostInspection(targetId)))
-  }
-
-  async function handleRunDeploymentVerification(targetId: string) {
-    const target = dispatch.targets.find((candidate) => candidate.id === targetId)
-    const runbook = target ? getRunbookForTarget(dispatch, target.id) : undefined
-
-    if (!target || !runbook) {
-      return
-    }
-
-    setVerificationRunningTargetIds((current) =>
-      current.includes(targetId) ? current : [...current, targetId],
-    )
-
-    try {
-      const evidence = await runDeploymentVerificationChecks({
-        target,
-        checks: runbook.verificationChecks,
-      })
-      const run = createVerificationEvidenceRun({
-        projectId: target.projectId,
-        targetId: target.id,
-        runbookId: runbook.id,
-        evidence,
-      })
-
-      addVerificationEvidenceRun(run)
-    } finally {
-      setVerificationRunningTargetIds((current) =>
-        current.filter((candidate) => candidate !== targetId),
-      )
-    }
-  }
-
-  async function handleRunQueueEvidenceSweep(targetIds: string[]) {
-    setQueueEvidenceSweepRunning(true)
-
-    try {
-      for (const targetId of targetIds) {
-        await handleRunDispatchPreflight(targetId)
-        await handleRunHostInspection(targetId)
-        await handleRunDeploymentVerification(targetId)
-      }
-    } finally {
-      setQueueEvidenceSweepRunning(false)
-    }
-  }
-
-  function handleCreateReadinessReport(projectId: string) {
-    const packet = createReportPacket({
-      type: 'deployment-readiness-packet',
-      projectRecords,
-      dispatch,
-      reports,
-      planning,
-      writingDrafts: writing.drafts,
-      review,
-      projectIds: [projectId],
-      writingDraftIds: [],
-      calibration,
-      calibrationIssues,
-    })
-
-    addReportPacket(packet)
-    selectProject(projectId)
-    setAppView('reports')
-  }
-
-  function handleBindRepository(projectId: string, repository: GithubRepositorySummary) {
-    const link = repositorySummaryToLink(repository)
-    setWorkspace((currentWorkspace) => bindRepositoryToProject(currentWorkspace, projectId, link))
-    selectProject(projectId)
-  }
-
-  function handleCreateInboxProject(repository: GithubRepositorySummary) {
-    const result = createInboxProjectFromRepository(workspace, repository)
-    setWorkspace(result.workspace)
-    selectProject(result.projectId)
-  }
-
-  function handleUnbindRepository(projectId: string, repository: GithubRepositoryLink) {
-    setWorkspace((currentWorkspace) =>
-      unbindRepositoryFromProject(currentWorkspace, projectId, repository),
-    )
-  }
-
-  function handleVerificationCadenceChange(
-    projectId: string,
-    verificationCadence: VerificationCadence,
-  ) {
-    setWorkspace((currentWorkspace) =>
-      updateProjectVerificationCadence(currentWorkspace, projectId, verificationCadence),
-    )
-  }
-
-  function handleMarkVerified(projectId: string, note: string) {
-    setWorkspace((currentWorkspace) => markProjectVerified(currentWorkspace, projectId, note))
-    selectProject(projectId)
-  }
-
-  function handleWritingRequest(projectId: string, templateId: WritingTemplateId) {
-    setSelectedProjectId(projectId)
-    setSelectedWritingTemplate(templateId)
-    setSelectedWritingDraftId('')
-    setAppView('writing')
-  }
-
-  function handleOpenPlanning(projectId: string) {
-    selectProject(projectId)
-    setAppView('planning')
-  }
-
-  function handleOpenReview(projectId?: string) {
-    if (projectId) {
-      selectProject(projectId)
-    }
-    setAppView('review')
-  }
-
-  function handleCreatePlanningNoteFromReview(
-    projectId: string,
-    title: string,
-    detail: string,
-    sourceLinks: PlanningSourceLink[] = [],
-  ) {
-    const record = findProjectRecord(workspace, projectId)
-
-    if (!record) {
-      return
-    }
-
-    createPlanningItem({
-      kind: 'note',
-      record,
-      title,
-      detail,
-      sourceLinks,
-      status: 'planned',
-    })
-  }
-
-  function handleCreateWritingDraft(draft: WritingDraft) {
-    addDraft(draft)
-    setSelectedProjectId(draft.projectId)
-    setSelectedWritingTemplate(draft.templateId)
-    setSelectedWritingDraftId(draft.id)
-  }
-
-  function handleSelectWritingDraft(draftId: string) {
-    const draft = writing.drafts.find((candidate) => candidate.id === draftId)
-
-    if (!draft) {
-      return
-    }
-
-    setSelectedProjectId(draft.projectId)
-    setSelectedWritingTemplate(draft.templateId)
-    setSelectedWritingDraftId(draft.id)
-    setAppView('writing')
-  }
-
-  function handleRestoreStores(stores: AtlasBackupStores) {
-    setWorkspace(stores.workspace)
-    setDispatch(stores.dispatch)
-    setWriting(stores.writing)
-    setPlanning(stores.planning)
-    setReports(stores.reports)
-    setReview(stores.review)
-    setCalibration(stores.calibration)
-    setSettings(stores.settings)
-    setSync(stores.sync)
-    setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
-    setSelectedWritingDraftId('')
-  }
-
-  function handleCreateSnapshot(label: string, note: string) {
-    addSnapshot(
-      createSyncSnapshot({
-        stores: { workspace, dispatch, writing, planning, reports, review, calibration },
-        settings,
-        sync,
-        label,
-        note,
-      }),
-    )
-  }
-
-  function handleRestoreSnapshot(stores: AtlasSyncCoreStores) {
-    setWorkspace(stores.workspace)
-    setDispatch(stores.dispatch)
-    setWriting(stores.writing)
-    setPlanning(stores.planning)
-    setReports(stores.reports)
-    setReview(stores.review)
-    setCalibration(stores.calibration)
-    setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
-    setSelectedWritingDraftId('')
-  }
-
-  function handleCalibrationProgress(
-    issue: CalibrationIssue,
-    status: CalibrationFieldStatus,
-    note: string,
-  ) {
-    setCalibrationFieldProgress(issue, status, note, settings.operatorLabel)
-  }
-
-  function handleCalibrationAudit(input: {
-    type: CalibrationAuditEventType
-    summary: string
-    issue?: CalibrationIssue
-    projectId?: string | null
-    targetId?: string | null
-    field?: string
-  }) {
-    setCalibration((current) =>
-      recordCalibrationAuditEvent(current, {
-        type: input.type,
-        summary: input.summary,
-        operatorLabel: settings.operatorLabel,
-        issueId: input.issue?.id,
-        projectId: input.issue?.projectId ?? input.projectId,
-        targetId: input.issue?.targetId ?? input.targetId,
-        field: input.issue?.field ?? input.field,
-      }),
-    )
-  }
-
-  function handleSaveCredentialReference(
-    input: Pick<
-      CalibrationCredentialReference,
-      'label' | 'provider' | 'purpose' | 'projectIds' | 'targetIds' | 'notes'
-    >,
-  ) {
-    return saveCredentialReference({ ...input, operatorLabel: settings.operatorLabel })
-  }
-
-  function handleApplyCalibrationImport(preview: CalibrationImportPreview) {
-    const result = applyCalibrationImportPreview({
-      workspace,
-      dispatch,
-      calibration,
-      preview,
-      operatorLabel: settings.operatorLabel,
-    })
-    setWorkspace(result.workspace)
-    setDispatch(result.dispatch)
-    setCalibration(result.calibration)
-  }
+  const atlasActions = createAtlasActions({
+    workspace,
+    setWorkspace,
+    selectedRecord,
+    projectRecords,
+    dispatch,
+    setDispatch,
+    updateTarget,
+    updateReadiness,
+    updateAutomationReadiness,
+    addPreflightRun,
+    addHostEvidenceRun,
+    addVerificationEvidenceRun,
+    settings,
+    setSettings,
+    calibration,
+    setCalibration,
+    setCalibrationFieldProgress,
+    saveCredentialReference,
+    sync,
+    setSync,
+    addSnapshot,
+    writing,
+    setWriting,
+    addDraft,
+    planning,
+    setPlanning,
+    createPlanningItem,
+    reports,
+    setReports,
+    addReportPacket,
+    review,
+    setReview,
+    calibrationIssues,
+    setSelectedProjectId,
+    setSelectedWritingTemplate,
+    setSelectedWritingDraftId,
+    setAppView,
+    setPreflightRunningTargetId,
+    setHostInspectionRunningTargetIds,
+    setVerificationRunningTargetIds,
+    setQueueEvidenceSweepRunning,
+  })
 
   return (
     <main className="app-shell">
@@ -784,7 +435,7 @@ function App() {
             query={query}
             statusFilter={statusFilter}
             sectionFilter={sectionFilter}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
             onQueryChange={setQuery}
             onStatusFilterChange={setStatusFilter}
             onSectionFilterChange={setSectionFilter}
@@ -794,22 +445,22 @@ function App() {
             events={timelineEvents}
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
           />
         ) : appView === 'github' ? (
           <GitHubIntakeDashboard
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={selectProject}
-            onBindRepository={handleBindRepository}
-            onCreateInboxProject={handleCreateInboxProject}
+            onSelectProject={atlasActions.selectProject}
+            onBindRepository={atlasActions.bindRepository}
+            onCreateInboxProject={atlasActions.createInboxProject}
           />
         ) : appView === 'planning' ? (
           <PlanningCenter
             planning={planning}
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
             onCreateItem={createPlanningItem}
             onUpdateItem={updatePlanningItem}
             onDeleteItem={deletePlanningItem}
@@ -825,7 +476,7 @@ function App() {
             calibration={calibration}
             calibrationIssues={calibrationIssues}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
             onCreatePacket={addReportPacket}
             onUpdatePacketMarkdown={updateReportPacketMarkdown}
             onRecordCopied={recordReportCopied}
@@ -842,20 +493,20 @@ function App() {
             writing={writing}
             sync={sync}
             timelineEvents={timelineEvents}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
             onAddReviewSession={addReviewSession}
             onAddReviewNote={addReviewNote}
             onSaveReviewFilter={saveReviewFilter}
             onDeleteReviewFilter={deleteReviewFilter}
-            onCreatePlanningNote={handleCreatePlanningNoteFromReview}
+            onCreatePlanningNote={atlasActions.createPlanningNoteFromReview}
             onOpenGitHub={() => setAppView('github')}
-            onOpenPlanning={handleOpenPlanning}
+            onOpenPlanning={atlasActions.openPlanning}
           />
         ) : appView === 'verification' ? (
           <VerificationCenter
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
           />
         ) : appView === 'writing' ? (
           <WritingWorkbench
@@ -865,10 +516,10 @@ function App() {
             selectedProjectId={selectedRecord?.project.id ?? ''}
             selectedTemplateId={selectedWritingTemplate}
             selectedDraftId={selectedWritingDraftId}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
             onSelectTemplate={setSelectedWritingTemplate}
-            onCreateDraft={handleCreateWritingDraft}
-            onSelectDraft={handleSelectWritingDraft}
+            onCreateDraft={atlasActions.createWritingDraft}
+            onSelectDraft={atlasActions.selectWritingDraft}
             onUpdateDraftText={updateDraftText}
             onUpdateDraftNotes={updateDraftNotes}
             onRecordProviderSuggestion={recordProviderSuggestion}
@@ -890,7 +541,7 @@ function App() {
             calibration={calibration}
             settings={settings}
             sync={sync}
-            onRestoreStores={handleRestoreStores}
+            onRestoreStores={atlasActions.restoreStores}
           />
         ) : appView === 'settings' ? (
           <SettingsCenter
@@ -904,17 +555,17 @@ function App() {
             calibration={calibration}
             sync={sync}
             onSettingsChange={updateLocalSettings}
-            onDispatchTargetChange={handleDispatchTargetChange}
-            onCalibrationProgressChange={handleCalibrationProgress}
-            onCalibrationAudit={handleCalibrationAudit}
-            onCredentialReferenceSave={handleSaveCredentialReference}
+            onDispatchTargetChange={atlasActions.updateDispatchTarget}
+            onCalibrationProgressChange={atlasActions.updateCalibrationProgress}
+            onCalibrationAudit={atlasActions.recordCalibrationAudit}
+            onCredentialReferenceSave={atlasActions.saveCredentialReference}
             onCredentialReferenceDelete={(referenceId) =>
               removeCredentialReference(referenceId, settings.operatorLabel)
             }
-            onApplyCalibrationImport={handleApplyCalibrationImport}
-            onCreateSnapshot={handleCreateSnapshot}
+            onApplyCalibrationImport={atlasActions.applyCalibrationImport}
+            onCreateSnapshot={atlasActions.createSnapshot}
             onDeleteSnapshot={removeSnapshot}
-            onRestoreSnapshot={handleRestoreSnapshot}
+            onRestoreSnapshot={atlasActions.restoreSnapshot}
             onSyncProviderChange={updateProvider}
             onRecordRemoteSnapshots={recordRemoteSnapshots}
             onRecordRemotePush={recordRemotePush}
@@ -926,19 +577,19 @@ function App() {
             reports={reports}
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
-            onSelectProject={selectProject}
+            onSelectProject={atlasActions.selectProject}
             onStartDeploySession={createDeploySession}
             onDeploymentArtifactChange={updateDeploymentArtifact}
-            onRunDispatchPreflight={handleRunDispatchPreflight}
+            onRunDispatchPreflight={atlasActions.runDispatchPreflight}
             preflightRunningTargetId={preflightRunningTargetId}
-            onRunHostInspection={handleRunHostInspection}
-            onRunHostInspections={handleRunHostInspections}
+            onRunHostInspection={atlasActions.runHostInspection}
+            onRunHostInspections={atlasActions.runHostInspections}
             hostInspectionRunningTargetIds={hostInspectionRunningTargetIds}
-            onRunVerificationChecks={handleRunDeploymentVerification}
+            onRunVerificationChecks={atlasActions.runDeploymentVerification}
             verificationRunningTargetIds={verificationRunningTargetIds}
-            onRunQueueEvidenceSweep={handleRunQueueEvidenceSweep}
+            onRunQueueEvidenceSweep={atlasActions.runQueueEvidenceSweep}
             queueEvidenceSweepRunning={queueEvidenceSweepRunning}
-            onCreateReadinessReport={handleCreateReadinessReport}
+            onCreateReadinessReport={atlasActions.createReadinessReport}
           />
             )}
           </Suspense>
@@ -957,10 +608,10 @@ function App() {
               timelineEvents={timelineEvents.filter(
                 (event) => event.projectId === selectedRecord.project.id,
               )}
-              onManualChange={updateManualState}
-              onDispatchTargetChange={handleDispatchTargetChange}
-              onDispatchReadinessChange={handleDispatchReadinessChange}
-              onDispatchAutomationReadinessChange={handleDispatchAutomationReadinessChange}
+              onManualChange={atlasActions.updateManualState}
+              onDispatchTargetChange={atlasActions.updateDispatchTarget}
+              onDispatchReadinessChange={atlasActions.updateDispatchReadiness}
+              onDispatchAutomationReadinessChange={atlasActions.updateDispatchAutomationReadiness}
               onDeploymentArtifactChange={updateDeploymentArtifact}
               onStartDeploySession={createDeploySession}
               onDeploySessionChange={(
@@ -1000,15 +651,15 @@ function App() {
               onVerificationEvidenceRunAdd={(run: DispatchVerificationEvidenceRun) =>
                 addVerificationEvidenceRun(run)
               }
-              onRunDispatchPreflight={handleRunDispatchPreflight}
+              onRunDispatchPreflight={atlasActions.runDispatchPreflight}
               preflightRunningTargetId={preflightRunningTargetId}
-              onRepositoryUnbind={handleUnbindRepository}
-              onVerificationCadenceChange={handleVerificationCadenceChange}
-              onMarkVerified={handleMarkVerified}
-              onWritingRequest={handleWritingRequest}
-              onOpenWritingDraft={handleSelectWritingDraft}
-              onOpenPlanning={handleOpenPlanning}
-              onOpenReview={() => handleOpenReview(selectedRecord.project.id)}
+              onRepositoryUnbind={atlasActions.unbindRepository}
+              onVerificationCadenceChange={atlasActions.updateVerificationCadence}
+              onMarkVerified={atlasActions.markVerified}
+              onWritingRequest={atlasActions.requestWriting}
+              onOpenWritingDraft={atlasActions.selectWritingDraft}
+              onOpenPlanning={atlasActions.openPlanning}
+              onOpenReview={() => atlasActions.openReview(selectedRecord.project.id)}
               onAddReviewNote={addReviewNote}
               onResetWorkspace={() => {
                 resetWorkspace()
