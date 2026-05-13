@@ -13,6 +13,7 @@ Dispatch currently supports:
 - Environment and host metadata
 - Public URLs and health check URLs
 - cPanel deploy runbooks
+- Dispatch Queue Command Center
 - Guided manual deploy sessions
 - Expected deploy artifacts
 - Preserve/create-on-server path checklists
@@ -102,6 +103,31 @@ Current preserve/create notes:
 - TRBG: preserve `/api/.env`, `/api/uploads`, `/api/incoming`, logs/runtime data; backend artifact includes `vendor/`, so Composer is not run on the server.
 
 The most important cPanel rule remains: never replace the whole `/api` folder without preserving server-only files first.
+
+## Queue Command Center
+
+The Queue Command Center is a derived Dispatch view for the current cPanel order:
+
+1. MMS
+2. MMH
+3. Surplus Containers
+4. TRBG
+5. Bow Wow
+
+It does not create a new persisted queue store. Each row is derived from existing runbooks, targets, artifact metadata, preflight runs, host evidence, verification evidence, deploy sessions, and deployment records.
+
+Queue rows can:
+
+- Inspect expected ZIP artifacts locally and save checksum/warning metadata back to the runbook artifact.
+- Run read-only Dispatch preflight.
+- Run read-only Host Inspector checks.
+- Run read-only runbook verification checks.
+- Run a read-only evidence sweep across the current queue.
+- Start or resume a manual deploy session.
+- Create a local deployment-readiness report packet.
+- Open the project detail panel for full editing.
+
+Queue states such as `needs-artifacts`, `needs-evidence`, `session-active`, `ready-for-manual-upload`, and `recorded` are advisory summaries only. They do not change Atlas project status, Dispatch target status, readiness, verification, Planning, GitHub bindings, Writing, Reports, Settings, or Sync automatically.
 
 ## Deploy Sessions
 

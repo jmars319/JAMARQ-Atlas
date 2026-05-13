@@ -46,6 +46,8 @@ Reports do not mutate Workspace, Dispatch, Writing, Planning, Verification, GitH
 
 Dispatch evidence in reports is copied from existing local evidence history. Report creation does not run checks, attach evidence to sessions, create deployment records, or mark anything verified.
 
+The Dispatch Queue Command Center can create a deployment-readiness packet for one queued cPanel project. That action only assembles local Markdown from the selected project scope and switches the UI to Reports. It does not send, approve, deploy, verify, or change Dispatch state.
+
 ## Export Behavior
 
 Current export actions are local/browser-only:

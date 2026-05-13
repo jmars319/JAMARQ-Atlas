@@ -130,6 +130,7 @@ Primary concepts:
 - Dispatch verification evidence run
 - Dispatch deploy session
 - Dispatch deploy session step/event
+- Derived Dispatch queue item
 - Deployment runner phase
 - Deployment runner result
 
@@ -142,6 +143,8 @@ The local `/api/dispatch/health` boundary performs timeout-bound read-only `http
 The optional `/api/dispatch/host-status` and `/api/dispatch/host-preflight` boundaries prepare for future host checks while staying read-only. Atlas stores only credential reference labels on targets. Server-side `ATLAS_HOST_PREFLIGHT_CONFIG` may enable TCP reachability, read-only local-mirror path evidence, or SFTP read-only inspection. SFTP credentials are referenced through server-side env var names only, and responses do not expose usernames, passwords, private key paths, passphrases, or raw environment values. SFTP inspection uses connect, `stat`, and optional top-level directory counts only; no SSH/SFTP write, shell command, cPanel write, upload, deletion, extraction, recursive listing, file-content read, writable check, backup, restore, or rollback is attempted.
 
 Dispatch stores host evidence and runbook verification evidence as short local histories. Host evidence captures read-only host-preflight results, including missing-config states. Verification evidence captures runbook checks such as `/`, `/api/health`, `/api/.env`, and `/api/logs/app.log`; protected paths are expected to return `403` or `404`. These evidence histories can be attached to deploy-session notes and included in Reports, but they do not create deployment records, stamp verification, or prove Atlas deployed anything.
+
+The Dispatch Queue Command Center derives ordered rows from the current cPanel `DeploymentOrderGroup`. It summarizes artifact inspection, preflight, host evidence, verification evidence, deploy-session state, and manual deployment records without persisting a separate queue store. Queue actions reuse existing read-only evidence services and report packet creation; they do not deploy, decide readiness, or mutate source-of-truth fields.
 
 Dispatch Deploy Sessions are stored under the Dispatch key as manual evidence workflows tied to cPanel runbooks. They guide a human through preflight review, artifact inspection, preserve/create paths, backup readiness, outside-Atlas upload notes, verification checks, operator notes, and wrap-up. Creating a deployment record from a session requires the exact typed confirmation `RECORD MANUAL DEPLOYMENT`, and the record states that Atlas did not perform the deployment. Sessions do not change Atlas status, Dispatch readiness, Verification, Planning, GitHub bindings, Writing, or Reports automatically.
 

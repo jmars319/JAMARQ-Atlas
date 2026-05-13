@@ -22,6 +22,7 @@ The dashboard currently supports:
 - Verification Center for cadence-based manual review queues and verification audit notes.
 - Atlas Dispatch for deployment target posture, readiness notes, read-only preflight evidence, health check signals, rollback posture, and deployment history.
 - cPanel deploy runbooks for the current five-site deploy queue, including artifacts, preserve paths, and verification checks.
+- Dispatch Queue Command Center for the ordered cPanel workflow, local artifact inspection, read-only evidence sweeps, session launch/resume, and readiness report creation.
 - Dispatch evidence archive for persisted host-preflight and runbook verification check history.
 - Guided Dispatch deploy sessions for manual cPanel upload evidence, step notes, and explicit human-confirmed deployment records.
 - Read-only Dispatch host boundary checks for optional server-side TCP, local-mirror, and SFTP inspection evidence without exposing credentials or attempting writes.
@@ -215,6 +216,8 @@ Preflight runs are stored under Dispatch state as evidence history only. They do
 Dispatch also persists host evidence from `/api/dispatch/host-preflight` and runbook verification evidence from cPanel checks such as `/`, `/api/health`, `/api/.env`, and `/api/logs/app.log`. Missing host configuration is stored as a scoped evidence result, not an app failure. Protected paths are expected to return `403` or `404`.
 
 The optional Host Inspector can use server-side `ATLAS_HOST_PREFLIGHT_CONFIG` entries for TCP, local-mirror, or `sftp-readonly` probes. SFTP mode uses env-var references such as `passwordEnvVar`, `privateKeyPathEnvVar`, and `passphraseEnvVar`; secret values are never stored in browser state or returned to the client. SFTP checks only connect, `stat` configured paths, and count top-level directory entries. Atlas does not read file contents, recursively list production folders, upload, delete, chmod, rename, run shell commands, or call cPanel write APIs.
+
+The Dispatch Queue Command Center derives one ordered row per current cPanel runbook. It summarizes artifact inspection, latest preflight, latest host evidence, latest runbook verification evidence, deploy-session state, and manual deployment records. It can run read-only evidence checks and create local readiness report packets, but it does not persist a separate queue store or make shipping decisions.
 
 Deploy Sessions sit between runbooks and deployment records. A session guides a human through preflight review, artifact inspection, preserve/create path checks, backup readiness, an outside-Atlas upload note, verification checks, operator notes, and wrap-up. Atlas does not perform the upload. Recording the final deployment requires typing `RECORD MANUAL DEPLOYMENT`, and the resulting record states that Atlas did not deploy, upload, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch databases.
 

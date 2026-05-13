@@ -2,7 +2,15 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getRunbookForTarget, type DeploymentTarget, type DispatchReadiness } from '../src/domain/dispatch'
+import {
+  getRunbookForTarget,
+  type DeploymentTarget,
+  type DispatchHostEvidenceRun,
+  type DispatchPreflightRun,
+  type DispatchReadiness,
+  type DispatchState,
+  type DispatchVerificationEvidenceRun,
+} from '../src/domain/dispatch'
 import { seedDispatchState } from '../src/data/seedDispatch'
 import {
   createDefaultAutomationReadiness,
@@ -15,7 +23,13 @@ import { evaluateDispatchReadiness } from '../src/services/dispatchReadiness'
 import { probeHealthChecks } from '../src/services/dispatchHealthChecks'
 import { deploymentRunnerPhases, runDeploymentPhase, runDeploymentPlan } from '../src/services/dispatchRunner'
 import { buildTargetPreflightChecks, runDispatchPreflight } from '../src/services/dispatchPreflight'
-import { normalizeDispatchState } from '../src/services/dispatchStorage'
+import {
+  addDispatchHostEvidenceRun,
+  addDispatchPreflightRun,
+  addDispatchVerificationEvidenceRun,
+  normalizeDispatchState,
+  replaceDeploymentArtifact,
+} from '../src/services/dispatchStorage'
 import {
   inspectDeploymentArtifact,
   runDeploymentVerificationChecks,
@@ -40,6 +54,9 @@ import {
 } from '../server/dispatchApi'
 import { flattenProjects } from '../src/domain/atlas'
 import { seedWorkspace } from '../src/data/seedWorkspace'
+import { deriveDispatchQueueItems } from '../src/services/dispatchQueue'
+import { emptyPlanningStore } from '../src/services/planning'
+import { createReportPacket } from '../src/services/reports'
 
 function createZipFile(name: string, entries: string[]) {
   const encoder = new TextEncoder()
@@ -95,6 +112,87 @@ const readiness: DispatchReadiness = {
   blockers: [],
   warnings: [],
   lastCheckedAt: '2026-05-08T14:00:00Z',
+}
+
+const projectRecords = flattenProjects(seedWorkspace)
+
+function passingPreflightRun(projectId: string, targetId: string): DispatchPreflightRun {
+  return {
+    id: `preflight-${targetId}`,
+    projectId,
+    targetId,
+    startedAt: '2026-05-10T12:00:00Z',
+    completedAt: '2026-05-10T12:01:00Z',
+    status: 'passing',
+    summary: 'Read-only preflight passed.',
+    checks: [],
+  }
+}
+
+function hostEvidenceRun(
+  projectId: string,
+  targetId: string,
+  status: DispatchHostEvidenceRun['status'] = 'passing',
+): DispatchHostEvidenceRun {
+  return {
+    id: `host-evidence-${targetId}`,
+    source: 'host-preflight',
+    projectId,
+    targetId,
+    startedAt: '2026-05-10T12:02:00Z',
+    completedAt: '2026-05-10T12:03:00Z',
+    status,
+    summary:
+      status === 'passing'
+        ? 'SFTP read-only host inspection passed.'
+        : 'Read-only host preflight is not configured for this target.',
+    credentialRef: `credential-${targetId}`,
+    probeMode: status === 'passing' ? 'sftp-readonly' : 'tcp',
+    authMethod: status === 'passing' ? 'password-env' : 'not-configured',
+    checks: [],
+    warnings:
+      status === 'passing' ? [] : ['Read-only host preflight is not configured for this target.'],
+  }
+}
+
+function verificationEvidenceRun(
+  projectId: string,
+  targetId: string,
+  runbookId: string,
+): DispatchVerificationEvidenceRun {
+  return {
+    id: `verification-evidence-${targetId}`,
+    source: 'runbook-verification',
+    projectId,
+    targetId,
+    runbookId,
+    startedAt: '2026-05-10T12:04:00Z',
+    completedAt: '2026-05-10T12:05:00Z',
+    status: 'passing',
+    summary: 'Runbook verification checks matched expected statuses.',
+    checks: [],
+    warnings: [],
+  }
+}
+
+function inspectRequiredRunbookArtifacts(state: DispatchState, runbookId: string) {
+  const runbook = state.runbooks.find((candidate) => candidate.id === runbookId)
+
+  if (!runbook) {
+    throw new Error(`Expected runbook ${runbookId}`)
+  }
+
+  return runbook.artifacts.reduce(
+    (current, artifact) =>
+      artifact.required
+        ? replaceDeploymentArtifact(current, runbook.id, artifact.id, {
+            checksum: `sha256-${artifact.id}`,
+            inspectedAt: '2026-05-10T12:00:00Z',
+            warnings: [],
+          })
+        : current,
+    state,
+  )
 }
 
 afterEach(() => {
@@ -483,6 +581,131 @@ describe('dispatch readiness', () => {
 
     expect(seedDispatchState.records).toHaveLength(beforeRecordCount)
     expect(bowWowTarget?.status).toBe('verification')
+  })
+
+  it('derives Dispatch queue rows in the current cPanel order without mutating state', () => {
+    const before = JSON.stringify(seedDispatchState)
+    const items = deriveDispatchQueueItems({ dispatch: seedDispatchState, projectRecords })
+
+    expect(items.map((item) => item.runbook.id)).toEqual([
+      'mms-cpanel-runbook',
+      'mmh-cpanel-runbook',
+      'surplus-cpanel-runbook',
+      'trbg-cpanel-runbook',
+      'bow-wow-cpanel-runbook',
+    ])
+    expect(items.map((item) => item.order)).toEqual([1, 2, 3, 4, 5])
+    expect(items[0]).toMatchObject({
+      projectName: 'Midway Mobile Storage website',
+      state: 'needs-artifacts',
+    })
+    expect(JSON.stringify(seedDispatchState)).toBe(before)
+  })
+
+  it('derives queue state for active sessions and recorded manual deployments', () => {
+    const sessionState = startDeploySession(
+      seedDispatchState,
+      'mms-cpanel-runbook',
+      new Date('2026-05-10T12:00:00Z'),
+    )
+    const sessionItem = deriveDispatchQueueItems({ dispatch: sessionState, projectRecords })[0]
+    const recorded = recordManualDeploymentFromSession(
+      sessionState,
+      sessionState.deploySessions[0].id,
+      MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
+      new Date('2026-05-10T12:30:00Z'),
+    )
+    const recordedItem = deriveDispatchQueueItems({
+      dispatch: recorded.state,
+      projectRecords,
+    })[0]
+
+    expect(sessionItem.state).toBe('session-active')
+    expect(sessionItem.activeSession?.id).toBe(sessionState.deploySessions[0].id)
+    expect(recordedItem.state).toBe('recorded')
+    expect(recordedItem.latestManualDeploymentRecord?.id).toBe(recorded.recordId)
+  })
+
+  it('derives queue state from artifacts and read-only evidence signals', () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
+
+    if (!runbook) {
+      throw new Error('Expected MMS runbook')
+    }
+
+    const artifactReady = inspectRequiredRunbookArtifacts(seedDispatchState, runbook.id)
+    const missingEvidenceItem = deriveDispatchQueueItems({
+      dispatch: artifactReady,
+      projectRecords,
+    })[0]
+    const withEvidence = addDispatchVerificationEvidenceRun(
+      addDispatchHostEvidenceRun(
+        addDispatchPreflightRun(
+          artifactReady,
+          passingPreflightRun(runbook.projectId, runbook.targetId),
+        ),
+        hostEvidenceRun(runbook.projectId, runbook.targetId),
+      ),
+      verificationEvidenceRun(runbook.projectId, runbook.targetId, runbook.id),
+    )
+    const readyItem = deriveDispatchQueueItems({ dispatch: withEvidence, projectRecords })[0]
+    const missingHostConfig = addDispatchHostEvidenceRun(
+      addDispatchPreflightRun(
+        artifactReady,
+        passingPreflightRun(runbook.projectId, runbook.targetId),
+      ),
+      hostEvidenceRun(runbook.projectId, runbook.targetId, 'not-configured'),
+    )
+    const missingHostItem = deriveDispatchQueueItems({
+      dispatch: addDispatchVerificationEvidenceRun(
+        missingHostConfig,
+        verificationEvidenceRun(runbook.projectId, runbook.targetId, runbook.id),
+      ),
+      projectRecords,
+    })[0]
+
+    expect(missingEvidenceItem.state).toBe('needs-evidence')
+    expect(readyItem.state).toBe('ready-for-manual-upload')
+    expect(readyItem.hostStatus.label).toContain('sftp-readonly')
+    expect(missingHostItem.state).toBe('needs-evidence')
+    expect(missingHostItem.warnings.join(' ')).toContain('not configured')
+  })
+
+  it('creates deployment readiness report packets from queue scope without mutating sources', () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
+
+    if (!runbook) {
+      throw new Error('Expected MMS runbook')
+    }
+
+    const dispatchWithEvidence = addDispatchVerificationEvidenceRun(
+      addDispatchHostEvidenceRun(
+        addDispatchPreflightRun(
+          inspectRequiredRunbookArtifacts(seedDispatchState, runbook.id),
+          passingPreflightRun(runbook.projectId, runbook.targetId),
+        ),
+        hostEvidenceRun(runbook.projectId, runbook.targetId),
+      ),
+      verificationEvidenceRun(runbook.projectId, runbook.targetId, runbook.id),
+    )
+    const before = JSON.stringify(dispatchWithEvidence)
+    const packet = createReportPacket({
+      type: 'deployment-readiness-packet',
+      projectRecords,
+      dispatch: dispatchWithEvidence,
+      planning: emptyPlanningStore(new Date('2026-05-10T12:00:00Z')),
+      writingDrafts: [],
+      projectIds: [runbook.projectId],
+      writingDraftIds: [],
+      now: new Date('2026-05-10T12:10:00Z'),
+    })
+
+    expect(packet.markdown).toContain('Deployment Runbooks & Artifact Readiness')
+    expect(packet.markdown).toContain('frontend-deploy.zip')
+    expect(packet.markdown).toContain('/api/.env')
+    expect(packet.markdown).toContain('host-evidence-midway-mobile-storage-production')
+    expect(packet.markdown).toContain('verification-evidence-midway-mobile-storage-production')
+    expect(JSON.stringify(dispatchWithEvidence)).toBe(before)
   })
 
   it('starts cPanel deploy sessions with the expected ordered manual steps', () => {

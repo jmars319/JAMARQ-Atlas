@@ -1376,12 +1376,144 @@ h3 {
 .dispatch-summary-card,
 .dispatch-readiness,
 .dispatch-preflight,
+.dispatch-queue,
 .dispatch-automation,
 .dispatch-deploy-session,
 .dispatch-dry-run {
   display: grid;
   gap: 10px;
   padding: 12px;
+}
+
+.dispatch-queue {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  margin-top: 12px;
+}
+
+.dispatch-queue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.dispatch-queue-item {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 12px;
+}
+
+.dispatch-queue-item.is-selected {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.dispatch-queue-heading,
+.dispatch-queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dispatch-queue-heading strong {
+  display: block;
+  color: var(--paper-white);
+}
+
+.dispatch-queue-signals,
+.dispatch-queue-runbook {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dispatch-queue-runbook {
+  grid-template-columns: 1.25fr 1fr 0.9fr;
+}
+
+.dispatch-queue-signal,
+.dispatch-queue-runbook > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.dispatch-queue-signal span,
+.dispatch-queue-signal small,
+.dispatch-queue-runbook small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-queue-signal p {
+  margin-top: 5px;
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.queue-chip {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: rgba(9, 166, 214, 0.1);
+  color: #bdefff;
+  padding: 4px 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.queue-passing,
+.queue-ready-for-manual-upload,
+.queue-recorded {
+  background: rgba(128, 213, 138, 0.14);
+  color: var(--success);
+}
+
+.queue-warning,
+.queue-needs-artifacts,
+.queue-needs-evidence,
+.queue-session-active,
+.queue-not-configured,
+.queue-missing,
+.queue-skipped {
+  background: rgba(244, 199, 107, 0.14);
+  color: var(--warning);
+}
+
+.queue-failed {
+  background: rgba(249, 115, 115, 0.14);
+  color: #ffb3b3;
+}
+
+.queue-file-action {
+  display: inline-flex;
+  min-height: 30px;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: rgba(9, 166, 214, 0.08);
+  color: var(--paper-white);
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.queue-file-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .dispatch-checklist {
@@ -2674,6 +2806,8 @@ code {
   .dispatch-mini-grid,
   .dispatch-summary-grid,
   .dispatch-signal-grid,
+  .dispatch-queue-signals,
+  .dispatch-queue-runbook,
   .dispatch-runbook-grid,
   .data-summary-grid,
   .data-preview-grid,

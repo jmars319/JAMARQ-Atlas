@@ -63,8 +63,10 @@ import {
   unbindRepositoryFromProject,
 } from './services/repoBinding'
 import { runDispatchPreflight } from './services/dispatchPreflight'
-import { createHostEvidenceRun } from './services/dispatchEvidence'
+import { createHostEvidenceRun, createVerificationEvidenceRun } from './services/dispatchEvidence'
+import { runDeploymentVerificationChecks } from './services/deployPreflight'
 import { requestHostConnectionPreflight } from './services/hostConnection'
+import { createReportPacket } from './services/reports'
 import { createSyncSnapshot } from './services/syncSnapshots'
 import { deriveTimelineEvents } from './services/timeline'
 import { markProjectVerified, updateProjectVerificationCadence } from './services/verification'
@@ -161,6 +163,8 @@ function App() {
   const [hostInspectionRunningTargetIds, setHostInspectionRunningTargetIds] = useState<string[]>(
     [],
   )
+  const [verificationRunningTargetIds, setVerificationRunningTargetIds] = useState<string[]>([])
+  const [queueEvidenceSweepRunning, setQueueEvidenceSweepRunning] = useState(false)
   const selectedRecord =
     findProjectRecord(workspace, selectedProjectId) ?? projectRecords[0]
 
@@ -261,6 +265,68 @@ function App() {
 
   async function handleRunHostInspections(targetIds: string[]) {
     await Promise.all(targetIds.map((targetId) => handleRunHostInspection(targetId)))
+  }
+
+  async function handleRunDeploymentVerification(targetId: string) {
+    const target = dispatch.targets.find((candidate) => candidate.id === targetId)
+    const runbook = target ? getRunbookForTarget(dispatch, target.id) : undefined
+
+    if (!target || !runbook) {
+      return
+    }
+
+    setVerificationRunningTargetIds((current) =>
+      current.includes(targetId) ? current : [...current, targetId],
+    )
+
+    try {
+      const evidence = await runDeploymentVerificationChecks({
+        target,
+        checks: runbook.verificationChecks,
+      })
+      const run = createVerificationEvidenceRun({
+        projectId: target.projectId,
+        targetId: target.id,
+        runbookId: runbook.id,
+        evidence,
+      })
+
+      addVerificationEvidenceRun(run)
+    } finally {
+      setVerificationRunningTargetIds((current) =>
+        current.filter((candidate) => candidate !== targetId),
+      )
+    }
+  }
+
+  async function handleRunQueueEvidenceSweep(targetIds: string[]) {
+    setQueueEvidenceSweepRunning(true)
+
+    try {
+      for (const targetId of targetIds) {
+        await handleRunDispatchPreflight(targetId)
+        await handleRunHostInspection(targetId)
+        await handleRunDeploymentVerification(targetId)
+      }
+    } finally {
+      setQueueEvidenceSweepRunning(false)
+    }
+  }
+
+  function handleCreateReadinessReport(projectId: string) {
+    const packet = createReportPacket({
+      type: 'deployment-readiness-packet',
+      projectRecords,
+      dispatch,
+      planning,
+      writingDrafts: writing.drafts,
+      projectIds: [projectId],
+      writingDraftIds: [],
+    })
+
+    addReportPacket(packet)
+    selectProject(projectId)
+    setAppView('reports')
   }
 
   function handleBindRepository(projectId: string, repository: GithubRepositorySummary) {
@@ -615,8 +681,17 @@ function App() {
             selectedProjectId={selectedRecord?.project.id ?? ''}
             onSelectProject={selectProject}
             onStartDeploySession={createDeploySession}
+            onDeploymentArtifactChange={updateDeploymentArtifact}
+            onRunDispatchPreflight={handleRunDispatchPreflight}
+            preflightRunningTargetId={preflightRunningTargetId}
+            onRunHostInspection={handleRunHostInspection}
             onRunHostInspections={handleRunHostInspections}
             hostInspectionRunningTargetIds={hostInspectionRunningTargetIds}
+            onRunVerificationChecks={handleRunDeploymentVerification}
+            verificationRunningTargetIds={verificationRunningTargetIds}
+            onRunQueueEvidenceSweep={handleRunQueueEvidenceSweep}
+            queueEvidenceSweepRunning={queueEvidenceSweepRunning}
+            onCreateReadinessReport={handleCreateReadinessReport}
           />
         )}
 

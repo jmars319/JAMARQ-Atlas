@@ -1,4 +1,5 @@
 import { DatabaseBackup, ExternalLink, RefreshCw, Rocket, Server, ShieldAlert } from 'lucide-react'
+import { useMemo } from 'react'
 import type { ProjectRecord } from '../domain/atlas'
 import { formatDateLabel, formatDateTimeLabel } from '../domain/atlas'
 import {
@@ -20,6 +21,9 @@ import {
   findAutomationReadiness,
 } from '../services/dispatchAutomation'
 import { evaluateDispatchReadiness } from '../services/dispatchReadiness'
+import { deriveDispatchQueueItems } from '../services/dispatchQueue'
+import { DispatchQueueCommandCenter } from './DispatchQueueCommandCenter'
+import type { DeploymentArtifact } from '../domain/dispatch'
 
 interface DispatchDashboardProps {
   dispatch: DispatchState
@@ -27,8 +31,21 @@ interface DispatchDashboardProps {
   selectedProjectId: string
   onSelectProject: (projectId: string) => void
   onStartDeploySession: (runbookId: string) => void
+  onDeploymentArtifactChange: (
+    runbookId: string,
+    artifactId: string,
+    update: Partial<DeploymentArtifact>,
+  ) => void
+  onRunDispatchPreflight: (targetId: string) => Promise<void>
+  preflightRunningTargetId: string
+  onRunHostInspection: (targetId: string) => Promise<void>
   onRunHostInspections: (targetIds: string[]) => Promise<void>
   hostInspectionRunningTargetIds: string[]
+  onRunVerificationChecks: (targetId: string) => Promise<void>
+  verificationRunningTargetIds: string[]
+  onRunQueueEvidenceSweep: (targetIds: string[]) => Promise<void>
+  queueEvidenceSweepRunning: boolean
+  onCreateReadinessReport: (projectId: string) => void
 }
 
 function projectName(projectRecords: ProjectRecord[], projectId: string) {
@@ -41,10 +58,23 @@ export function DispatchDashboard({
   selectedProjectId,
   onSelectProject,
   onStartDeploySession,
+  onDeploymentArtifactChange,
+  onRunDispatchPreflight,
+  preflightRunningTargetId,
+  onRunHostInspection,
   onRunHostInspections,
   hostInspectionRunningTargetIds,
+  onRunVerificationChecks,
+  verificationRunningTargetIds,
+  onRunQueueEvidenceSweep,
+  queueEvidenceSweepRunning,
+  onCreateReadinessReport,
 }: DispatchDashboardProps) {
   const configuredTargets = dispatch.targets.length
+  const queueItems = useMemo(
+    () => deriveDispatchQueueItems({ dispatch, projectRecords }),
+    [dispatch, projectRecords],
+  )
   const cpanelTargets = dispatch.targets.filter((target) =>
     ['cpanel', 'godaddy-cpanel'].includes(target.hostType),
   )
@@ -97,6 +127,23 @@ export function DispatchDashboard({
           </div>
         </div>
       </div>
+
+      <DispatchQueueCommandCenter
+        items={queueItems}
+        selectedProjectId={selectedProjectId}
+        onSelectProject={onSelectProject}
+        onStartDeploySession={onStartDeploySession}
+        onDeploymentArtifactChange={onDeploymentArtifactChange}
+        onRunDispatchPreflight={onRunDispatchPreflight}
+        preflightRunningTargetId={preflightRunningTargetId}
+        onRunHostInspection={onRunHostInspection}
+        onRunVerificationChecks={onRunVerificationChecks}
+        onRunEvidenceSweep={onRunQueueEvidenceSweep}
+        hostInspectionRunningTargetIds={hostInspectionRunningTargetIds}
+        verificationRunningTargetIds={verificationRunningTargetIds}
+        evidenceSweepRunning={queueEvidenceSweepRunning}
+        onCreateReadinessReport={onCreateReadinessReport}
+      />
 
       <section className="dispatch-preflight" aria-label="Deploy session queue">
         <div className="panel-heading">

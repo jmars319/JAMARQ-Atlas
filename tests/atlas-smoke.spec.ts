@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test'
 
+function createZipBuffer(entries: string[]) {
+  const chunks = entries.map((entry) => {
+    const encoded = Buffer.from(entry)
+    const chunk = Buffer.alloc(46 + encoded.length)
+
+    chunk.writeUInt32LE(0x02014b50, 0)
+    chunk.writeUInt16LE(encoded.length, 28)
+    encoded.copy(chunk, 46)
+
+    return chunk
+  })
+
+  return Buffer.concat(chunks)
+}
+
 test('operator can edit manual state and manage writing drafts', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', {
@@ -297,13 +312,76 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await page.getByRole('button', { name: 'Dispatch' }).click()
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
+  const queue = page.getByLabel('Dispatch queue command center')
+  await expect(queue).toBeVisible()
+  await expect(queue).toContainText('#1 / Midway Mobile Storage')
+  await expect(queue).toContainText('#2 / Midway Music Hall')
+  await expect(queue).toContainText('#3 / Surplus Containers')
+  await expect(queue).toContainText('#4 / Thunder Road')
+  await expect(queue).toContainText('#5 / Bow Wow')
+  const mmsQueueItem = queue.locator('.dispatch-queue-item').filter({
+    hasText: 'Midway Mobile Storage',
+  })
+  await expect(mmsQueueItem).toContainText('Needs artifacts')
+  await mmsQueueItem
+    .getByLabel('Inspect MMS frontend-deploy.zip')
+    .setInputFiles({
+      name: 'frontend-deploy.zip',
+      mimeType: 'application/zip',
+      buffer: createZipBuffer(['index.html', 'assets/app.js']),
+    })
+  await expect(mmsQueueItem).toContainText('checksum captured')
+  await page.reload()
+  await page.getByRole('button', { name: 'Dispatch' }).click()
+  await expect(
+    page
+      .getByLabel('Dispatch queue command center')
+      .locator('.dispatch-queue-item')
+      .filter({ hasText: 'Midway Mobile Storage' }),
+  ).toContainText('sha256-')
+  await page
+    .getByLabel('Dispatch queue command center')
+    .locator('.dispatch-queue-item')
+    .filter({ hasText: 'Midway Music Hall' })
+    .getByRole('button', { name: 'Run preflight' })
+    .click()
+  await expect(
+    page
+      .getByLabel('Dispatch queue command center')
+      .locator('.dispatch-queue-item')
+      .filter({ hasText: 'Midway Music Hall' }),
+  ).toContainText('2 warnings need human review')
+  await page
+    .getByLabel('Dispatch queue command center')
+    .locator('.dispatch-queue-item')
+    .filter({ hasText: 'Midway Music Hall' })
+    .getByRole('button', { name: 'Inspect host' })
+    .click()
+  await expect(
+    page
+      .getByLabel('Dispatch queue command center')
+      .locator('.dispatch-queue-item')
+      .filter({ hasText: 'Midway Music Hall' }),
+  ).toContainText('Read-only host preflight is not configured')
+  await page
+    .getByLabel('Dispatch queue command center')
+    .locator('.dispatch-queue-item')
+    .filter({ hasText: 'Midway Music Hall' })
+    .getByRole('button', { name: 'Run checks' })
+    .click()
+  await expect(
+    page
+      .getByLabel('Dispatch queue command center')
+      .locator('.dispatch-queue-item')
+      .filter({ hasText: 'Midway Music Hall' }),
+  ).toContainText('Runbook verification checks matched expected statuses')
   await expect(page.getByLabel('Deploy session queue')).toBeVisible()
   const mmhDispatchCard = page
     .locator('.dispatch-card')
     .filter({ hasText: 'Midway Music Hall production' })
   await expect(
     mmhDispatchCard,
-  ).toContainText('Preflight: not run')
+  ).toContainText('Preflight:')
   await expect(mmhDispatchCard).toBeVisible()
   await mmhDispatchCard.getByRole('button', { name: 'Open project' }).click()
 
@@ -534,6 +612,19 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   ).toContainText('2 SFTP read-only')
 
   await page.getByRole('button', { name: 'Dispatch' }).click()
+  await page.getByRole('button', { name: 'Run read-only evidence sweep' }).click()
+  await expect(
+    page
+      .getByLabel('Dispatch queue command center')
+      .locator('.dispatch-queue-item')
+      .filter({ hasText: 'Midway Music Hall' }),
+  ).toContainText('Passing / sftp-readonly')
+  await expect(
+    page
+      .getByLabel('Dispatch queue command center')
+      .locator('.dispatch-queue-item')
+      .filter({ hasText: 'Midway Mobile Storage' }),
+  ).toContainText('Passing / sftp-readonly')
   await page.getByRole('button', { name: 'Run cPanel host inspections' }).click()
   await expect(
     page.locator('.dispatch-card').filter({ hasText: 'Midway Music Hall production' }),
@@ -543,11 +634,14 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   ).toContainText('passing / sftp-readonly')
 
   await page.getByRole('button', { name: 'Dispatch' }).click()
-  const mmsDispatchCard = page
-    .locator('.dispatch-card')
-    .filter({ hasText: 'Midway Mobile Storage production' })
-  await mmsDispatchCard.getByRole('button', { name: 'Start deploy session' }).click()
-  await mmsDispatchCard.getByRole('button', { name: 'Open project' }).click()
+  const mmsQueueSessionItem = page
+    .getByLabel('Dispatch queue command center')
+    .locator('.dispatch-queue-item')
+    .filter({ hasText: 'Midway Mobile Storage' })
+  await mmsQueueSessionItem.getByRole('button', { name: 'Start session' }).click()
+  await expect(mmsQueueSessionItem).toContainText('Session active')
+  await mmsQueueSessionItem.getByRole('button', { name: 'Resume session' }).click()
+  await mmsQueueSessionItem.getByRole('button', { name: 'Open project' }).click()
   const mmsDetail = page.locator('.project-detail')
   const mmsSessions = mmsDetail.getByLabel('Midway Mobile Storage production deploy sessions')
   await expect(mmsSessions).toContainText('Outside-Atlas upload completed')
@@ -754,6 +848,16 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(reportMarkdownField).toHaveValue(/host-evidence-/)
   await expect(reportMarkdownField).toHaveValue(/verification-evidence-/)
   await expect(reportMarkdownField).toHaveValue(/Manual deployment record/)
+  await page.getByRole('button', { name: 'Dispatch' }).click()
+  await page
+    .getByLabel('Dispatch queue command center')
+    .locator('.dispatch-queue-item')
+    .filter({ hasText: 'Midway Mobile Storage' })
+    .getByRole('button', { name: 'Readiness report' })
+    .click()
+  await expect(page.getByRole('heading', { name: 'Report Packet Builder' })).toBeVisible()
+  await expect(reportMarkdownField).toHaveValue(/Deployment Runbooks & Artifact Readiness/)
+  await expect(reportMarkdownField).toHaveValue(/Stored Dispatch Evidence/)
 
   await page.getByRole('button', { name: 'Data' }).click()
   await expect(page.getByRole('heading', { name: 'Backups & Restore' })).toBeVisible()
