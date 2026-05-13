@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { clickAtlasNav, installAtlasClipboardMock } from './helpers/atlasTestUtils'
+import {
+  clickAtlasNav,
+  expectDataStoreDiagnosticDetail,
+  expectSettingsConnectionStatus,
+  fillTypedRestoreConfirmation,
+  installAtlasClipboardMock,
+  readAtlasLocalStorage,
+  uploadJsonFile,
+} from './helpers/atlasTestUtils'
 
 function createZipBuffer(entries: string[]) {
   const chunks = entries.map((entry) => {
@@ -92,19 +100,12 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
   await clickAtlasNav(page, 'Settings')
   await expect(page.getByRole('heading', { name: 'Settings & Connections' })).toBeVisible()
-  await expect(page.locator('.settings-connection-card').filter({ hasText: 'GitHub Local API' })).toContainText(
-    'No GitHub token is configured',
-  )
-  await expect(page.locator('.settings-connection-card').filter({ hasText: 'Writing Provider' })).toContainText(
-    'Missing',
-  )
-  await expect(
-    page.locator('.settings-connection-card').filter({ hasText: 'Supabase Hosted Sync' }),
-  ).toContainText('Missing')
-  await expect(
-    page.locator('.settings-connection-card').filter({ hasText: 'Read-Only Host Boundary' }),
-  ).toContainText('Missing')
+  await expectSettingsConnectionStatus(page, 'GitHub Local API', 'No GitHub token is configured')
+  await expectSettingsConnectionStatus(page, 'Writing Provider', 'Missing')
+  await expectSettingsConnectionStatus(page, 'Supabase Hosted Sync', 'Missing')
+  await expectSettingsConnectionStatus(page, 'Read-Only Host Boundary', 'Missing')
   await expect(page.getByLabel('Calibration progress summary')).toContainText('Progress records')
+  await expect(page.getByLabel('Calibration readiness report')).toContainText('Readiness report')
   await page
     .getByRole('textbox', { name: 'Credential reference label', exact: true })
     .fill('godaddy-e2e-production')
@@ -129,32 +130,45 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await page.getByLabel('Bulk calibration value').fill('password=do-not-store')
   await page.getByRole('button', { name: /Apply to/ }).click()
   await expect(page.getByText('This looks credential-shaped')).toBeVisible()
-  await page.getByLabel('Import calibration file').setInputFiles({
-    name: 'atlas-calibration.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(
-      JSON.stringify({
-        rows: [
-          {
-            kind: 'credential-reference',
-            label: 'godaddy-mms-production',
-            provider: 'GoDaddy cPanel',
-            purpose: 'Production host access label',
-          },
-          {
-            kind: 'dispatch-target',
-            targetId: 'midway-mobile-storage-production',
-            remoteHost: 'password=do-not-store',
-          },
-        ],
-      }),
-    ),
+  await uploadJsonFile(page.getByLabel('Import calibration file'), 'atlas-calibration.json', {
+    rows: [
+      {
+        kind: 'credential-reference',
+        label: 'godaddy-mms-production',
+        provider: 'GoDaddy cPanel',
+        purpose: 'Production host access label',
+      },
+      {
+        kind: 'dispatch-target',
+        targetId: 'midway-mobile-storage-production',
+        remoteHost: 'password=do-not-store',
+      },
+    ],
   })
   await expect(page.getByLabel('Calibration import preview')).toContainText('Accepted rows')
   await expect(page.getByLabel('Calibration import preview')).toContainText('Secret-shaped values')
   await page.getByRole('button', { name: 'Apply accepted import rows' }).click()
   await expect(page.getByLabel('Credential reference registry', { exact: true })).toContainText(
     'godaddy-mms-production',
+  )
+  await uploadJsonFile(page.getByLabel('Import calibration file'), 'atlas-calibration-duplicates.json', {
+    rows: [
+      {
+        kind: 'credential-reference',
+        label: 'godaddy-mms-production',
+        provider: 'GoDaddy cPanel',
+        purpose: 'Production host access label',
+      },
+      {
+        kind: 'credential-reference',
+        label: 'godaddy-mms-production',
+        provider: 'GoDaddy cPanel',
+        purpose: 'Duplicate warning row',
+      },
+    ],
+  })
+  await expect(page.getByLabel('Calibration import preview')).toContainText(
+    'Duplicate credential reference label',
   )
   await page.locator('label.field').filter({ hasText: 'Device label' }).locator('input').fill('E2E Atlas device')
   await page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input').fill('E2E operator')
@@ -183,7 +197,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await firstProjectNextAction.fill('Temporary mutation before snapshot restore')
   await clickAtlasNav(page, 'Settings')
   await expect(page.getByLabel('Sync restore preview')).toContainText('Selected snapshot')
-  await page.getByLabel('Type RESTORE ATLAS to restore snapshot', { exact: true }).fill('RESTORE ATLAS')
+  await fillTypedRestoreConfirmation(page, 'Type RESTORE ATLAS to restore snapshot')
   await page.getByRole('button', { name: 'Restore snapshot' }).click()
   await expect(page.getByText('Snapshot restored locally')).toBeVisible()
   await clickAtlasNav(page, 'Board')
@@ -301,7 +315,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Remote/local snapshot comparison')).toContainText(
     'Fingerprints differ',
   )
-  await page.getByLabel('Type RESTORE ATLAS to restore remote snapshot').fill('RESTORE ATLAS')
+  await fillTypedRestoreConfirmation(page, 'Type RESTORE ATLAS to restore remote snapshot')
   await page.getByRole('button', { name: 'Restore remote snapshot' }).click()
   await expect(page.getByText('Remote snapshot restored locally')).toBeVisible()
   await page.getByRole('button', { name: 'Delete remote snapshot' }).click()
@@ -465,6 +479,12 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   const detail = page.locator('.project-detail')
   await expect(detail.getByRole('heading', { name: 'Midway Music Hall production' })).toBeVisible()
+  await detail
+    .getByLabel('Registered credential reference for Midway Music Hall production')
+    .selectOption('godaddy-e2e-production')
+  await expect(
+    detail.locator('label.field').filter({ hasText: 'Credential reference label' }).locator('input'),
+  ).toHaveValue('godaddy-e2e-production')
   const statusBeforePreflight = await detail
     .locator('label.field')
     .filter({ hasText: 'Status' })
@@ -934,6 +954,8 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(reportMarkdownField).toHaveValue(/host-evidence-/)
   await expect(reportMarkdownField).toHaveValue(/verification-evidence-/)
   await expect(reportMarkdownField).toHaveValue(/Manual deployment record/)
+  await expect(reportMarkdownField).toHaveValue(/Calibration Operations/)
+  await expect(reportMarkdownField).toHaveValue(/Credential references:/)
   await clickAtlasNav(page, 'Dispatch')
   await page
     .getByLabel('Dispatch queue command center')
@@ -944,10 +966,13 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByRole('heading', { name: 'Report Packet Builder' })).toBeVisible()
   await expect(reportMarkdownField).toHaveValue(/Deployment Runbooks & Artifact Readiness/)
   await expect(reportMarkdownField).toHaveValue(/Stored Dispatch Evidence/)
+  await expect(reportMarkdownField).toHaveValue(/Calibration Operations/)
 
   await clickAtlasNav(page, 'Data')
   await expect(page.getByRole('heading', { name: 'Backups & Restore' })).toBeVisible()
   await expect(page.getByLabel('Local store diagnostics')).toContainText('Restore Compatibility')
+  await expectDataStoreDiagnosticDetail(page, 'jamarq-atlas.workspace.v1')
+  await expect(page.getByLabel('Local store diagnostics')).toContainText('Sync snapshot')
   const jsonDownload = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download JSON backup' }).click()
   expect((await jsonDownload).suggestedFilename()).toMatch(/jamarq-atlas-backup/)
@@ -955,53 +980,75 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await page.getByRole('button', { name: 'Download Markdown report' }).click()
   expect((await markdownDownload).suggestedFilename()).toMatch(/backup-report/)
 
-  await page.getByLabel('Import Atlas backup JSON').setInputFiles({
-    name: 'invalid-atlas-backup.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from('{not json'),
-  })
+  await uploadJsonFile(page.getByLabel('Import Atlas backup JSON'), 'invalid-atlas-backup.json', '{not json')
   await expect(page.getByText('Import validation failed')).toBeVisible()
 
-  const restoreBackup = await page.evaluate(() => {
-    const workspace = JSON.parse(window.localStorage.getItem('jamarq-atlas.workspace.v1') ?? '{}')
-    const dispatch = JSON.parse(window.localStorage.getItem('jamarq-atlas.dispatch.v1') ?? '{}')
-    const writing = JSON.parse(window.localStorage.getItem('jamarq-atlas.writing.v1') ?? '{}')
-    const planning = JSON.parse(window.localStorage.getItem('jamarq-atlas.planning.v1') ?? '{}')
-    const reports = JSON.parse(window.localStorage.getItem('jamarq-atlas.reports.v1') ?? '{}')
-    const review = JSON.parse(window.localStorage.getItem('jamarq-atlas.review.v1') ?? '{}')
-    const calibration = JSON.parse(
-      window.localStorage.getItem('jamarq-atlas.calibration.v1') ?? '{}',
-    )
-    workspace.sections[0].groups[0].projects[0].manual.nextAction =
-      'Restored from Data Center backup.'
-
-    return JSON.stringify({
-      kind: 'jamarq-atlas-backup',
-      schemaVersion: 5,
-      exportedAt: '2026-05-10T12:00:00.000Z',
-      appName: 'JAMARQ Atlas',
-      stores: {
-        workspace,
-        dispatch,
-        writing,
-        planning,
-        reports,
-        review,
-        calibration,
-        settings: JSON.parse(window.localStorage.getItem('jamarq-atlas.settings.v1') ?? '{}'),
-        sync: JSON.parse(window.localStorage.getItem('jamarq-atlas.sync.v1') ?? '{}'),
+  type StoredWorkspaceProject = {
+    manual: Record<string, unknown>
+  } & Record<string, unknown>
+  type StoredWorkspaceGroup = {
+    projects: StoredWorkspaceProject[]
+  } & Record<string, unknown>
+  type StoredWorkspaceSection = {
+    groups: StoredWorkspaceGroup[]
+  } & Record<string, unknown>
+  type StoredWorkspace = {
+    sections: StoredWorkspaceSection[]
+  } & Record<string, unknown>
+  const workspace = await readAtlasLocalStorage<StoredWorkspace>(
+    page,
+    'jamarq-atlas.workspace.v1',
+    { sections: [] },
+  )
+  const restoreBackup = JSON.stringify({
+    kind: 'jamarq-atlas-backup',
+    schemaVersion: 5,
+    exportedAt: '2026-05-10T12:00:00.000Z',
+    appName: 'JAMARQ Atlas',
+    stores: {
+      workspace: {
+        ...workspace,
+        sections: workspace.sections.map((section, sectionIndex) =>
+          sectionIndex === 0
+            ? {
+                ...section,
+                groups: section.groups.map((group, groupIndex) =>
+                  groupIndex === 0
+                    ? {
+                        ...group,
+                        projects: group.projects.map((project, projectIndex) =>
+                          projectIndex === 0
+                            ? {
+                                ...project,
+                                manual: {
+                                  ...project.manual,
+                                  nextAction: 'Restored from Data Center backup.',
+                                },
+                              }
+                            : project,
+                        ),
+                      }
+                    : group,
+                ),
+              }
+            : section,
+        ),
       },
-    })
+      dispatch: await readAtlasLocalStorage(page, 'jamarq-atlas.dispatch.v1', {}),
+      writing: await readAtlasLocalStorage(page, 'jamarq-atlas.writing.v1', {}),
+      planning: await readAtlasLocalStorage(page, 'jamarq-atlas.planning.v1', {}),
+      reports: await readAtlasLocalStorage(page, 'jamarq-atlas.reports.v1', {}),
+      review: await readAtlasLocalStorage(page, 'jamarq-atlas.review.v1', {}),
+      calibration: await readAtlasLocalStorage(page, 'jamarq-atlas.calibration.v1', {}),
+      settings: await readAtlasLocalStorage(page, 'jamarq-atlas.settings.v1', {}),
+      sync: await readAtlasLocalStorage(page, 'jamarq-atlas.sync.v1', {}),
+    },
   })
 
-  await page.getByLabel('Import Atlas backup JSON').setInputFiles({
-    name: 'valid-atlas-backup.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(restoreBackup),
-  })
+  await uploadJsonFile(page.getByLabel('Import Atlas backup JSON'), 'valid-atlas-backup.json', restoreBackup)
   await expect(page.getByLabel('Restore preview')).toContainText('Incoming Backup')
   await expect(page.getByLabel('Backup restore diff')).toContainText('Projects')
-  await page.getByLabel('Type RESTORE ATLAS to replace local stores').fill('RESTORE ATLAS')
+  await fillTypedRestoreConfirmation(page, 'Type RESTORE ATLAS to replace local stores')
   await page.getByRole('button', { name: 'Restore backup' }).click()
   await expect(page.getByText('Backup restored locally')).toBeVisible()
 
