@@ -163,6 +163,7 @@ export function DispatchQueueCommandCenter({
                   {queueStateLabels[item.state]}
                 </span>
               </div>
+              <p className="dispatch-muted-note">{item.stateDetail}</p>
 
               <div className="dispatch-queue-closeout">
                 <span className={`queue-chip queue-${statusClass(item.closeout.state)}`}>
@@ -181,6 +182,16 @@ export function DispatchQueueCommandCenter({
               <div className="dispatch-queue-runbook">
                 <div>
                   <strong>Artifact ZIPs</strong>
+                  <p className="dispatch-muted-note">
+                    {item.artifactSummary.inspectedRequired}/{item.artifactSummary.totalRequired}{' '}
+                    required inspected
+                    {item.artifactSummary.warningCount > 0
+                      ? ` / ${item.artifactSummary.warningCount} warnings`
+                      : ''}
+                    {item.artifactSummary.lastInspectedAt
+                      ? ` / latest ${formatDateTimeLabel(item.artifactSummary.lastInspectedAt)}`
+                      : ''}
+                  </p>
                   <ul className="dispatch-list">
                     {item.runbook.artifacts.map((artifact) => (
                       <li key={artifact.id}>

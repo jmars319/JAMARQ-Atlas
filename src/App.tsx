@@ -39,6 +39,7 @@ import type {
   DispatchReadiness,
   DispatchVerificationEvidenceRun,
 } from './domain/dispatch'
+import type { DeploySessionChecklistPresetId } from './services/deploySessions'
 import type { AtlasBackupStores } from './domain/dataPortability'
 import type { AtlasSyncCoreStores } from './domain/sync'
 import type { WritingDraft, WritingTemplateId } from './domain/writing'
@@ -152,6 +153,7 @@ function App() {
     updateDeploySessionStepFields,
     recordManualDeployment,
     attachDeploySessionEvidence,
+    applyDeploySessionPreset,
     addHostEvidenceRun,
     addVerificationEvidenceRun,
     addPreflightRun,
@@ -877,6 +879,10 @@ function App() {
                 label: string,
                 detail: string,
               ) => attachDeploySessionEvidence(sessionId, stepKind, label, detail)}
+              onApplyDeploySessionPreset={(
+                sessionId: string,
+                presetId: DeploySessionChecklistPresetId,
+              ) => applyDeploySessionPreset(sessionId, presetId)}
               onHostEvidenceRunAdd={(run: DispatchHostEvidenceRun) => addHostEvidenceRun(run)}
               onVerificationEvidenceRunAdd={(run: DispatchVerificationEvidenceRun) =>
                 addVerificationEvidenceRun(run)

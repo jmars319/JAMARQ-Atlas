@@ -13,7 +13,7 @@ import type {
 } from '../domain/dispatch'
 import type { DeploymentVerificationEvidence } from './deployPreflight'
 
-const EVIDENCE_HISTORY_LIMIT = 50
+export const DISPATCH_EVIDENCE_HISTORY_LIMIT = 50
 
 function stamp(now = new Date()) {
   return now.toISOString()
@@ -282,6 +282,28 @@ export function createHostEvidenceRun({
   }
 }
 
+export function formatHostEvidenceProbeLabel(run: {
+  probeMode: HostConnectionProbeMode
+  authMethod: HostConnectionAuthMethod
+  credentialRef?: string
+}) {
+  const probeLabel: Record<HostConnectionProbeMode, string> = {
+    tcp: 'TCP reachability',
+    'local-mirror': 'Local mirror',
+    'sftp-readonly': 'SFTP read-only',
+  }
+  const authLabel: Record<HostConnectionAuthMethod, string> = {
+    none: 'no auth',
+    'password-env': 'password env ref',
+    'private-key-env': 'private key env ref',
+    'not-configured': 'auth not configured',
+  }
+
+  return `${probeLabel[run.probeMode]} / ${authLabel[run.authMethod]}${
+    run.credentialRef ? ` / ${run.credentialRef}` : ''
+  }`
+}
+
 export function createVerificationEvidenceRun({
   projectId,
   targetId,
@@ -345,7 +367,7 @@ export function addHostEvidenceRun(
     hostEvidenceRuns: [
       run,
       ...state.hostEvidenceRuns.filter((existingRun) => existingRun.id !== run.id),
-    ].slice(0, EVIDENCE_HISTORY_LIMIT),
+    ].slice(0, DISPATCH_EVIDENCE_HISTORY_LIMIT),
   }
 }
 
@@ -358,6 +380,6 @@ export function addVerificationEvidenceRun(
     verificationEvidenceRuns: [
       run,
       ...state.verificationEvidenceRuns.filter((existingRun) => existingRun.id !== run.id),
-    ].slice(0, EVIDENCE_HISTORY_LIMIT),
+    ].slice(0, DISPATCH_EVIDENCE_HISTORY_LIMIT),
   }
 }

@@ -22,6 +22,7 @@ import {
   deriveDispatchCloseoutForTarget,
   type DispatchCloseoutSummary,
 } from './dispatchCloseout'
+import { formatHostEvidenceProbeLabel } from './dispatchEvidence'
 
 export const CPANEL_QUEUE_GROUP_ID = 'current-cpanel-sites'
 
@@ -44,6 +45,14 @@ export interface DispatchQueueSignal {
   checkedAt: string
 }
 
+export interface DispatchArtifactInspectionSummary {
+  totalRequired: number
+  inspectedRequired: number
+  warningCount: number
+  lastInspectedAt: string
+  lines: string[]
+}
+
 export interface DispatchQueueItem {
   id: string
   order: number
@@ -60,6 +69,8 @@ export interface DispatchQueueItem {
   latestManualDeploymentRecord?: DeploymentRecord
   closeout: DispatchCloseoutSummary
   state: DispatchQueueState
+  stateDetail: string
+  artifactSummary: DispatchArtifactInspectionSummary
   warnings: string[]
 }
 
@@ -123,6 +134,36 @@ function summarizeArtifacts(artifacts: DeploymentArtifact[]): DispatchQueueSigna
   }
 }
 
+export function summarizeArtifactInspectionDetails(
+  artifacts: DeploymentArtifact[],
+): DispatchArtifactInspectionSummary {
+  const requiredArtifacts = artifacts.filter((artifact) => artifact.required)
+  const inspectedRequired = requiredArtifacts.filter(
+    (artifact) => artifact.checksum && artifact.inspectedAt,
+  )
+  const warningCount = requiredArtifacts.reduce(
+    (total, artifact) => total + artifact.warnings.length,
+    0,
+  )
+  const lastInspectedAt =
+    inspectedRequired.map((artifact) => artifact.inspectedAt).sort().at(-1) ?? ''
+  const lines = requiredArtifacts.map((artifact) => {
+    const status = artifact.checksum && artifact.inspectedAt ? 'inspected' : 'not inspected'
+    const warningSuffix =
+      artifact.warnings.length > 0 ? `, ${artifact.warnings.length} warning(s)` : ''
+
+    return `${artifact.role}: ${artifact.filename} -> ${artifact.targetPath} (${status}${warningSuffix})`
+  })
+
+  return {
+    totalRequired: requiredArtifacts.length,
+    inspectedRequired: inspectedRequired.length,
+    warningCount,
+    lastInspectedAt,
+    lines,
+  }
+}
+
 function summarizePreflight(run: DispatchPreflightRun | undefined): DispatchQueueSignal {
   if (!run) {
     return {
@@ -156,7 +197,7 @@ function summarizeHost(
   return {
     status: run.status,
     label: `${statusLabel(run.status)} / ${run.probeMode}`,
-    detail: run.summary,
+    detail: `${formatHostEvidenceProbeLabel(run)}. ${run.summary}`,
     checkedAt: run.completedAt,
   }
 }
@@ -223,6 +264,48 @@ function queueState({
   return 'ready-for-manual-upload'
 }
 
+export function explainDispatchQueueState({
+  state,
+  artifactStatus,
+  preflightStatus,
+  hostStatus,
+  verificationStatus,
+  activeSession,
+  latestManualRecord,
+}: {
+  state: DispatchQueueState
+  artifactStatus: DispatchQueueSignal
+  preflightStatus: DispatchQueueSignal
+  hostStatus: DispatchQueueSignal
+  verificationStatus: DispatchQueueSignal
+  activeSession?: DispatchDeploySession
+  latestManualRecord?: DeploymentRecord
+}) {
+  if (state === 'recorded') {
+    return `Manual deployment record ${latestManualRecord?.id ?? 'exists'} is present. Atlas did not perform the deploy.`
+  }
+
+  if (state === 'session-active') {
+    return `Manual deploy session ${activeSession?.id ?? ''} is active; continue evidence capture before closeout.`
+  }
+
+  if (state === 'needs-artifacts') {
+    return artifactStatus.detail
+  }
+
+  if (state === 'needs-evidence') {
+    const missing = [
+      preflightStatus,
+      hostStatus,
+      verificationStatus,
+    ].filter((signal) => blockingEvidenceStatus(signal.status))
+
+    return `${missing.length} read-only evidence area(s) still need capture or review before Atlas can describe the row as ready for manual upload.`
+  }
+
+  return 'Required artifacts and read-only evidence have been captured. A human can decide whether to upload outside Atlas; no production action will run here.'
+}
+
 function warningLines(signals: DispatchQueueSignal[]) {
   return signals
     .filter((signal) => signal.status !== 'passing' && signal.status !== 'skipped')
@@ -283,6 +366,16 @@ export function deriveDispatchQueueItems({
       activeSession,
       latestManualRecord: manualRecord,
     })
+    const artifactSummary = summarizeArtifactInspectionDetails(runbook.artifacts)
+    const stateDetail = explainDispatchQueueState({
+      state,
+      artifactStatus,
+      preflightStatus,
+      hostStatus,
+      verificationStatus,
+      activeSession,
+      latestManualRecord: manualRecord,
+    })
 
     return [
       {
@@ -301,6 +394,8 @@ export function deriveDispatchQueueItems({
         latestManualDeploymentRecord: manualRecord,
         closeout,
         state,
+        stateDetail,
+        artifactSummary,
         warnings: warningLines([
           artifactStatus,
           preflightStatus,

@@ -45,6 +45,7 @@ import {
   type WritingDraft,
   type WritingTemplateId,
 } from '../domain/writing'
+import type { DeploySessionChecklistPresetId } from '../services/deploySessions'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
 import { GitHubHealthSummary } from './GitHubHealthSummary'
@@ -112,6 +113,10 @@ interface ProjectDetailProps {
     label: string,
     detail: string,
   ) => void
+  onApplyDeploySessionPreset: (
+    sessionId: string,
+    presetId: DeploySessionChecklistPresetId,
+  ) => void
   onHostEvidenceRunAdd: (run: DispatchHostEvidenceRun) => void
   onVerificationEvidenceRunAdd: (run: DispatchVerificationEvidenceRun) => void
   onRunDispatchPreflight: (targetId: string) => Promise<void>
@@ -175,6 +180,7 @@ export function ProjectDetail({
   onDeploySessionStepChange,
   onRecordManualDeployment,
   onAttachDeploySessionEvidence,
+  onApplyDeploySessionPreset,
   onHostEvidenceRunAdd,
   onVerificationEvidenceRunAdd,
   onRunDispatchPreflight,
@@ -347,6 +353,7 @@ export function ProjectDetail({
           onDeploySessionStepChange={onDeploySessionStepChange}
           onRecordManualDeployment={onRecordManualDeployment}
           onAttachDeploySessionEvidence={onAttachDeploySessionEvidence}
+          onApplyDeploySessionPreset={onApplyDeploySessionPreset}
           onHostEvidenceRunAdd={onHostEvidenceRunAdd}
           onVerificationEvidenceRunAdd={onVerificationEvidenceRunAdd}
           onRunPreflight={onRunDispatchPreflight}

@@ -63,8 +63,14 @@ import {
 import {
   createHostEvidenceRun,
   createVerificationEvidenceRun,
+  DISPATCH_EVIDENCE_HISTORY_LIMIT,
+  formatHostEvidenceProbeLabel,
 } from '../services/dispatchEvidence'
-import { MANUAL_DEPLOYMENT_RECORD_CONFIRMATION } from '../services/deploySessions'
+import {
+  DEPLOY_SESSION_CHECKLIST_PRESETS,
+  MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
+  type DeploySessionChecklistPresetId,
+} from '../services/deploySessions'
 import { requestHostConnectionPreflight } from '../services/hostConnection'
 
 interface DispatchPanelProps {
@@ -119,6 +125,10 @@ interface DispatchPanelProps {
     stepKind: DispatchDeploySessionStepKind,
     label: string,
     detail: string,
+  ) => void
+  onApplyDeploySessionPreset: (
+    sessionId: string,
+    presetId: DeploySessionChecklistPresetId,
   ) => void
   onHostEvidenceRunAdd: (run: DispatchHostEvidenceRun) => void
   onVerificationEvidenceRunAdd: (run: DispatchVerificationEvidenceRun) => void
@@ -180,6 +190,7 @@ export function DispatchPanel({
   onDeploySessionStepChange,
   onRecordManualDeployment,
   onAttachDeploySessionEvidence,
+  onApplyDeploySessionPreset,
   onHostEvidenceRunAdd,
   onVerificationEvidenceRunAdd,
   onRunPreflight,
@@ -199,6 +210,7 @@ export function DispatchPanel({
     Record<string, string>
   >({})
   const [deploySessionMessages, setDeploySessionMessages] = useState<Record<string, string>>({})
+  const [evidenceHistoryLimit, setEvidenceHistoryLimit] = useState(5)
   const targets = dispatch.targets.filter((target) => target.projectId === record.project.id)
 
   if (targets.length === 0) {
@@ -241,6 +253,16 @@ export function DispatchPanel({
         const latestDeploySession = targetDeploySessions[0]
         const activeDeploySession = getActiveDeploySession(dispatch, target.id)
         const preflightRuns = getTargetPreflightRuns(dispatch, target.id)
+        const visibleHostEvidenceRuns = hostEvidenceRuns.slice(0, evidenceHistoryLimit)
+        const visibleVerificationEvidenceRuns = verificationEvidenceRuns.slice(
+          0,
+          evidenceHistoryLimit,
+        )
+        const visiblePreflightRuns = preflightRuns.slice(0, evidenceHistoryLimit)
+        const evidenceHistoryLabel =
+          evidenceHistoryLimit >= DISPATCH_EVIDENCE_HISTORY_LIMIT
+            ? 'all retained evidence'
+            : `latest ${evidenceHistoryLimit} evidence runs`
         const preflightRunning = preflightRunningTargetId === target.id
         const health = getHealthCheckSummary(latestDeployment?.healthCheckResults)
         const automationReadiness = findAutomationReadiness(
@@ -351,6 +373,23 @@ export function DispatchPanel({
                   <strong>{activeDeploySession?.status ?? 'Not active'}</strong>
                 </div>
               </div>
+            </div>
+
+            <div className="dispatch-preflight-actions">
+              <label className="repo-selector">
+                <History size={15} />
+                <span className="sr-only">Evidence history display</span>
+                <select
+                  aria-label={`${target.name} evidence history display`}
+                  value={evidenceHistoryLimit}
+                  onChange={(event) => setEvidenceHistoryLimit(Number(event.target.value))}
+                >
+                  <option value={5}>Latest 5 evidence runs</option>
+                  <option value={10}>Latest 10 evidence runs</option>
+                  <option value={DISPATCH_EVIDENCE_HISTORY_LIMIT}>All retained evidence</option>
+                </select>
+              </label>
+              <span>Showing {evidenceHistoryLabel}. Atlas keeps the newest retained evidence only.</span>
             </div>
 
             <div className="dispatch-runbook" aria-label={`${target.name} deploy runbook`}>
@@ -560,7 +599,7 @@ export function DispatchPanel({
                         <div className="dispatch-preflight-history">
                           <strong>Stored verification evidence</strong>
                           <ol>
-                            {verificationEvidenceRuns.slice(0, 5).map((run) => (
+                            {visibleVerificationEvidenceRuns.map((run) => (
                               <li key={run.id}>
                                 <span className={`resource-pill state-${run.status}`}>
                                   {run.status}
@@ -631,6 +670,40 @@ export function DispatchPanel({
 
                   <div className="dispatch-manual-record">
                     <div className="panel-heading">
+                      <ListChecks size={17} />
+                      <h4>Checklist Presets</h4>
+                    </div>
+                    <p>
+                      Presets are explicit human shortcuts for session notes and step statuses. They
+                      never run upload or deployment commands.
+                    </p>
+                    <div className="dispatch-preflight-actions">
+                      {DEPLOY_SESSION_CHECKLIST_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => {
+                            onApplyDeploySessionPreset(activeDeploySession.id, preset.id)
+                            setDeploySessionMessages((current) => ({
+                              ...current,
+                              [activeDeploySession.id]: `${preset.label} applied.`,
+                            }))
+                          }}
+                        >
+                          <ClipboardCheck size={15} />
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                    <ul className="dispatch-list">
+                      {DEPLOY_SESSION_CHECKLIST_PRESETS.map((preset) => (
+                        <li key={preset.id}>{preset.detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="dispatch-manual-record">
+                    <div className="panel-heading">
                       <ClipboardCheck size={17} />
                       <h4>Closeout Evidence</h4>
                     </div>
@@ -685,6 +758,24 @@ export function DispatchPanel({
                       >
                         <ClipboardCheck size={15} />
                         Add latest verification evidence to session notes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onAttachDeploySessionEvidence(
+                            activeDeploySession.id,
+                            'post-deploy-wrap-up',
+                            `Closeout review summary: ${closeout.label}`,
+                            closeout.detail,
+                          )
+                          setDeploySessionMessages((current) => ({
+                            ...current,
+                            [activeDeploySession.id]: 'Closeout review summary added to session.',
+                          }))
+                        }}
+                      >
+                        <ClipboardCheck size={15} />
+                        Add closeout summary to session
                       </button>
                       <span>Evidence is advisory and remains local to Dispatch.</span>
                     </div>
@@ -1125,12 +1216,13 @@ export function DispatchPanel({
                     <div className="dispatch-preflight-history">
                       <strong>Host evidence history</strong>
                       <ol>
-                        {hostEvidenceRuns.slice(0, 5).map((run) => (
+                        {visibleHostEvidenceRuns.map((run) => (
                           <li key={run.id}>
                             <span className={`resource-pill state-${run.status}`}>
                               {run.status}
                             </span>
                             <span>{formatDateTimeLabel(run.completedAt)}</span>
+                            <span>{formatHostEvidenceProbeLabel(run)}</span>
                             <span>{run.summary}</span>
                           </li>
                         ))}
@@ -1214,7 +1306,7 @@ export function DispatchPanel({
                   <div className="dispatch-preflight-history">
                     <strong>Preflight history</strong>
                     <ol>
-                      {preflightRuns.slice(0, 5).map((run) => (
+                      {visiblePreflightRuns.map((run) => (
                         <li key={run.id}>
                           <span className={`resource-pill state-${run.status}`}>
                             {formatPreflightStatus(run.status)}

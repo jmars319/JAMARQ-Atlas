@@ -130,6 +130,8 @@ Queue rows can:
 
 Queue states such as `needs-artifacts`, `needs-evidence`, `session-active`, `ready-for-manual-upload`, and `recorded` are advisory summaries only. They do not change Atlas project status, Dispatch target status, readiness, verification, Planning, GitHub bindings, Writing, Reports, Settings, or Sync automatically.
 
+Queue rows also show plain-language state explanations, required artifact inspection counts, warning counts, and latest inspection timestamps. `ready-for-manual-upload` means the row has enough local/read-only evidence for a human to decide what to do outside Atlas. It does not mean Atlas will upload anything.
+
 ## Closeout Analytics
 
 Closeout Analytics is a derived Dispatch layer. It reads existing runbooks, artifact inspection metadata, deploy sessions, host evidence, runbook verification evidence, manual deployment records, backup/rollback references, and related deployment report packets.
@@ -170,7 +172,16 @@ Session steps are manual:
 
 Each step can be `pending`, `in-progress`, `confirmed`, `skipped`, or `blocked`, and each step supports human notes and evidence text. These fields are evidence for an operator, not proof that Atlas performed any action.
 
+Checklist presets are explicit human shortcuts for common review moments:
+
+- `Confirm pre-upload review`: marks preflight, artifact inspection, preserve paths, and backup readiness as reviewed.
+- `Confirm closeout review`: marks outside-Atlas upload, verification checks, operator notes, and wrap-up as reviewed.
+
+These presets only update the selected deploy session. They do not run commands, upload artifacts, create deployment records, or mutate Atlas/Dispatch source-of-truth status.
+
 When host or runbook verification evidence has been captured, the active session can explicitly attach the latest evidence IDs and summaries to the relevant session steps. Attachment updates only the selected session notes/evidence fields. It does not change target status, readiness, verification, or deployment records.
+
+Project Dispatch panels can show the latest 5, latest 10, or all retained evidence runs. Dispatch retains the newest evidence records according to its local history limit and displays host probe context as TCP, local-mirror, or SFTP read-only with the configured auth reference type.
 
 After review, a human can create one manual `DeploymentRecord` from a session. This requires typing `RECORD MANUAL DEPLOYMENT`. The record defaults to `verification` status and includes safety notes stating that Atlas did not upload, extract, delete, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch production databases.
 

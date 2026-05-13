@@ -15,6 +15,37 @@ import type {
 
 export const MANUAL_DEPLOYMENT_RECORD_CONFIRMATION = 'RECORD MANUAL DEPLOYMENT'
 
+export type DeploySessionChecklistPresetId =
+  | 'pre-upload-evidence-reviewed'
+  | 'post-upload-closeout-reviewed'
+
+export interface DeploySessionChecklistPreset {
+  id: DeploySessionChecklistPresetId
+  label: string
+  detail: string
+  stepKinds: DispatchDeploySessionStepKind[]
+  note: string
+}
+
+export const DEPLOY_SESSION_CHECKLIST_PRESETS: DeploySessionChecklistPreset[] = [
+  {
+    id: 'pre-upload-evidence-reviewed',
+    label: 'Confirm pre-upload review',
+    detail:
+      'Marks preflight, artifact inspection, preserve paths, and backup readiness as reviewed by a human.',
+    stepKinds: ['preflight', 'artifact-inspection', 'preserve-paths', 'backup-readiness'],
+    note: 'Checklist preset applied: pre-upload evidence reviewed by human operator.',
+  },
+  {
+    id: 'post-upload-closeout-reviewed',
+    label: 'Confirm closeout review',
+    detail:
+      'Marks outside-Atlas upload, verification checks, operator notes, and wrap-up as reviewed by a human.',
+    stepKinds: ['outside-atlas-upload', 'verification-checks', 'notes', 'post-deploy-wrap-up'],
+    note: 'Checklist preset applied: post-upload closeout reviewed by human operator.',
+  },
+]
+
 const CPANEL_QUEUE_RUNBOOK_IDS = [
   'mms-cpanel-runbook',
   'mmh-cpanel-runbook',
@@ -511,6 +542,59 @@ export function canRecordManualDeployment(confirmation: string) {
 
 function appendEvidenceLine(value: string, line: string) {
   return value.trim() ? `${value.trim()}\n${line}` : line
+}
+
+export function applyDeploySessionChecklistPreset(
+  state: DispatchState,
+  sessionId: string,
+  presetId: DeploySessionChecklistPresetId,
+  now = new Date(),
+): DispatchState {
+  const preset = DEPLOY_SESSION_CHECKLIST_PRESETS.find((candidate) => candidate.id === presetId)
+
+  if (!preset) {
+    return state
+  }
+
+  const updatedAt = stamp(now)
+
+  return {
+    ...state,
+    deploySessions: state.deploySessions.map((session) => {
+      if (session.id !== sessionId || session.status === 'recorded' || session.status === 'archived') {
+        return session
+      }
+
+      const steps = session.steps.map((step) =>
+        preset.stepKinds.includes(step.kind)
+          ? {
+              ...step,
+              status: 'confirmed' as const,
+              notes: appendEvidenceLine(step.notes, preset.note),
+              updatedAt,
+            }
+          : step,
+      )
+      const status = nextSessionStatus(steps, session.status)
+
+      return {
+        ...session,
+        steps,
+        status,
+        completedAt: status === 'completed' && !session.completedAt ? updatedAt : session.completedAt,
+        updatedAt,
+        events: [
+          ...session.events,
+          createDeploySessionEvent({
+            sessionId,
+            type: status === 'completed' && session.status !== 'completed' ? 'completed' : 'session-updated',
+            detail: `Applied deploy session checklist preset: ${preset.label}.`,
+            now,
+          }),
+        ],
+      }
+    }),
+  }
 }
 
 export function attachEvidenceToDeploySession(

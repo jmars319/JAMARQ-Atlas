@@ -35,7 +35,9 @@ import {
   runDeploymentVerificationChecks,
 } from '../src/services/deployPreflight'
 import {
+  applyDeploySessionChecklistPreset,
   attachEvidenceToDeploySession,
+  DEPLOY_SESSION_CHECKLIST_PRESETS,
   MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
   recordManualDeploymentFromSession,
   startDeploySession,
@@ -47,6 +49,7 @@ import {
   addVerificationEvidenceRun,
   createHostEvidenceRun,
   createVerificationEvidenceRun,
+  formatHostEvidenceProbeLabel,
 } from '../src/services/dispatchEvidence'
 import {
   createHostConnectionStatus,
@@ -55,7 +58,10 @@ import {
 } from '../server/dispatchApi'
 import { flattenProjects } from '../src/domain/atlas'
 import { seedWorkspace } from '../src/data/seedWorkspace'
-import { deriveDispatchQueueItems } from '../src/services/dispatchQueue'
+import {
+  deriveDispatchQueueItems,
+  summarizeArtifactInspectionDetails,
+} from '../src/services/dispatchQueue'
 import { deriveDispatchCloseoutForTarget } from '../src/services/dispatchCloseout'
 import { emptyPlanningStore } from '../src/services/planning'
 import { addReportPacket, createReportPacket, emptyReportsStore } from '../src/services/reports'
@@ -691,10 +697,36 @@ describe('dispatch readiness', () => {
     })[0]
 
     expect(missingEvidenceItem.state).toBe('needs-evidence')
+    expect(missingEvidenceItem.stateDetail).toContain('read-only evidence')
+    expect(missingEvidenceItem.artifactSummary.totalRequired).toBe(2)
+    expect(missingEvidenceItem.artifactSummary.inspectedRequired).toBe(2)
     expect(readyItem.state).toBe('ready-for-manual-upload')
+    expect(readyItem.stateDetail).toContain('outside Atlas')
     expect(readyItem.hostStatus.label).toContain('sftp-readonly')
+    expect(readyItem.hostStatus.detail).toContain('SFTP read-only')
     expect(missingHostItem.state).toBe('needs-evidence')
     expect(missingHostItem.warnings.join(' ')).toContain('not configured')
+  })
+
+  it('summarizes artifact inspection evidence for operator queue rows', () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
+
+    if (!runbook) {
+      throw new Error('Expected MMS runbook')
+    }
+
+    const summary = summarizeArtifactInspectionDetails(runbook.artifacts)
+    const inspectedState = inspectRequiredRunbookArtifacts(seedDispatchState, runbook.id)
+    const inspectedRunbook = getRunbookForTarget(inspectedState, runbook.targetId)
+    const inspectedSummary = inspectedRunbook
+      ? summarizeArtifactInspectionDetails(inspectedRunbook.artifacts)
+      : null
+
+    expect(summary.totalRequired).toBe(2)
+    expect(summary.inspectedRequired).toBe(0)
+    expect(summary.lines.join(' ')).toContain('frontend-deploy.zip')
+    expect(inspectedSummary?.inspectedRequired).toBe(2)
+    expect(inspectedSummary?.lastInspectedAt).toBeTruthy()
   })
 
   it('derives closeout analytics without mutating dispatch or report state', () => {
@@ -901,6 +933,40 @@ describe('dispatch readiness', () => {
         true,
       )
     }
+  })
+
+  it('applies deploy session checklist presets only after explicit human action', () => {
+    const state = startDeploySession(
+      seedDispatchState,
+      'mms-cpanel-runbook',
+      new Date('2026-05-10T12:00:00Z'),
+    )
+    const session = state.deploySessions[0]
+    const targetsBefore = JSON.stringify(state.targets)
+    const readinessBefore = JSON.stringify(state.readiness)
+    const updated = applyDeploySessionChecklistPreset(
+      state,
+      session.id,
+      'pre-upload-evidence-reviewed',
+      new Date('2026-05-10T12:20:00Z'),
+    )
+    const updatedSession = updated.deploySessions.find((candidate) => candidate.id === session.id)
+
+    expect(DEPLOY_SESSION_CHECKLIST_PRESETS.map((preset) => preset.id)).toContain(
+      'pre-upload-evidence-reviewed',
+    )
+    expect(
+      updatedSession?.steps
+        .filter((step) =>
+          ['preflight', 'artifact-inspection', 'preserve-paths', 'backup-readiness'].includes(
+            step.kind,
+          ),
+        )
+        .every((step) => step.status === 'confirmed'),
+    ).toBe(true)
+    expect(updatedSession?.events.at(-1)?.detail).toContain('checklist preset')
+    expect(JSON.stringify(updated.targets)).toBe(targetsBefore)
+    expect(JSON.stringify(updated.readiness)).toBe(readinessBefore)
   })
 
   it('persists deploy session step notes and evidence without mutating target status or readiness', () => {
@@ -1306,6 +1372,22 @@ describe('dispatch readiness', () => {
     expect(serialized).not.toContain('never-return-this')
     expect(serialized).not.toContain('cpanel_user')
     expect(serialized).not.toContain('TARGET_SFTP_PASSWORD')
+  })
+
+  it('formats host evidence probe labels without exposing secrets', () => {
+    expect(
+      formatHostEvidenceProbeLabel({
+        probeMode: 'sftp-readonly',
+        authMethod: 'private-key-env',
+        credentialRef: 'godaddy-mms-production',
+      }),
+    ).toBe('SFTP read-only / private key env ref / godaddy-mms-production')
+    expect(
+      formatHostEvidenceProbeLabel({
+        probeMode: 'tcp',
+        authMethod: 'none',
+      }),
+    ).toBe('TCP reachability / no auth')
   })
 
   it('stores missing SFTP env credentials as scoped host evidence without mutating posture', async () => {

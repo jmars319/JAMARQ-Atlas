@@ -21,7 +21,9 @@ import {
 } from '../services/dispatchStorage'
 import type { DispatchDeploySessionStepKind } from '../domain/dispatch'
 import {
+  applyDeploySessionChecklistPreset,
   attachEvidenceToDeploySession,
+  type DeploySessionChecklistPresetId,
   recordManualDeploymentFromSession,
   startDeploySession,
   updateDeploySession,
@@ -184,6 +186,13 @@ export function useLocalDispatch() {
     )
   }
 
+  function applyDeploySessionPreset(
+    sessionId: string,
+    presetId: DeploySessionChecklistPresetId,
+  ) {
+    setDispatch((current) => applyDeploySessionChecklistPreset(current, sessionId, presetId))
+  }
+
   return {
     dispatch,
     setDispatch,
@@ -197,6 +206,7 @@ export function useLocalDispatch() {
     updateDeploySessionStepFields,
     recordManualDeployment,
     attachDeploySessionEvidence,
+    applyDeploySessionPreset,
     addHostEvidenceRun,
     addVerificationEvidenceRun,
     addPreflightRun,
