@@ -244,21 +244,93 @@ export const githubIngestionContract: GithubIngestionContract = {
   ],
 }
 
-type GithubFetchCacheMode = 'default' | 'reload'
+export type GithubFetchCacheMode = 'default' | 'reload'
 
 interface GithubFetchOptions {
   cache?: GithubFetchCacheMode
 }
 
+export interface GithubFetchCacheMetadata {
+  cacheKey: string
+  cacheHit: boolean
+  cacheMode: GithubFetchCacheMode
+  storedAt: string | null
+  fetchedAt: string | null
+  expiresAt: string | null
+  ageMs: number | null
+  ttlMs: number
+  pageInfo: GithubPageInfo | null
+}
+
+export interface GithubFetchResult<T> {
+  value: T
+  metadata: GithubFetchCacheMetadata
+}
+
 interface GithubFetchCacheEntry<T> {
   storedAt: number
   value: T
+  pageInfo: GithubPageInfo | null
 }
 
 const GITHUB_FETCH_CACHE_TTL_MS = 30_000
 const githubFetchCache = new Map<string, GithubFetchCacheEntry<unknown>>()
 
-function readCachedGithubResponse<T>(path: string, cacheMode: GithubFetchCacheMode): T | null {
+function isGithubPageInfo(value: unknown): value is GithubPageInfo {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const candidate = value as Partial<GithubPageInfo>
+
+  return (
+    typeof candidate.currentPage === 'number' &&
+    typeof candidate.hasNextPage === 'boolean' &&
+    typeof candidate.perPage === 'number' &&
+    (typeof candidate.nextPage === 'number' || candidate.nextPage === null)
+  )
+}
+
+function readPageInfo(value: unknown): GithubPageInfo | null {
+  if (typeof value !== 'object' || value === null || !('pageInfo' in value)) {
+    return null
+  }
+
+  const pageInfo = (value as { pageInfo?: unknown }).pageInfo
+
+  return isGithubPageInfo(pageInfo) ? pageInfo : null
+}
+
+function cacheMetadata({
+  path,
+  cacheMode,
+  entry,
+  cacheHit,
+}: {
+  path: string
+  cacheMode: GithubFetchCacheMode
+  entry: GithubFetchCacheEntry<unknown> | null
+  cacheHit: boolean
+}): GithubFetchCacheMetadata {
+  const ageMs = entry ? Date.now() - entry.storedAt : null
+
+  return {
+    cacheKey: path,
+    cacheHit,
+    cacheMode,
+    storedAt: entry ? new Date(entry.storedAt).toISOString() : null,
+    fetchedAt: entry ? new Date(entry.storedAt).toISOString() : null,
+    expiresAt: entry ? new Date(entry.storedAt + GITHUB_FETCH_CACHE_TTL_MS).toISOString() : null,
+    ageMs,
+    ttlMs: GITHUB_FETCH_CACHE_TTL_MS,
+    pageInfo: entry?.pageInfo ?? null,
+  }
+}
+
+function readCachedGithubResponse<T>(
+  path: string,
+  cacheMode: GithubFetchCacheMode,
+): GithubFetchResult<T> | null {
   if (cacheMode === 'reload') {
     githubFetchCache.delete(path)
     return null
@@ -275,25 +347,53 @@ function readCachedGithubResponse<T>(path: string, cacheMode: GithubFetchCacheMo
     return null
   }
 
-  return cached.value as T
+  return {
+    value: cached.value as T,
+    metadata: cacheMetadata({
+      path,
+      cacheMode,
+      entry: cached,
+      cacheHit: true,
+    }),
+  }
 }
 
 function writeCachedGithubResponse<T>(path: string, value: T) {
-  githubFetchCache.set(path, {
+  const entry: GithubFetchCacheEntry<T> = {
     storedAt: Date.now(),
     value,
-  })
+    pageInfo: readPageInfo(value),
+  }
+
+  githubFetchCache.set(path, entry)
+
+  return entry
 }
 
 export function clearGithubRequestCache() {
   githubFetchCache.clear()
 }
 
-export async function fetchGithubJson<T>(
+export function getGithubRequestCacheMetadata(path: string): GithubFetchCacheMetadata | null {
+  const entry = githubFetchCache.get(path)
+
+  if (!entry) {
+    return null
+  }
+
+  return cacheMetadata({
+    path,
+    cacheMode: 'default',
+    entry,
+    cacheHit: false,
+  })
+}
+
+export async function fetchGithubJsonWithMetadata<T>(
   path: string,
   signal?: AbortSignal,
   options: GithubFetchOptions = {},
-): Promise<T> {
+): Promise<GithubFetchResult<T>> {
   const cacheMode = options.cache ?? 'default'
   const cached = readCachedGithubResponse<T>(path, cacheMode)
 
@@ -307,7 +407,25 @@ export async function fetchGithubJson<T>(
     retrySafe: true,
     timeoutMs: 15_000,
   })
-  writeCachedGithubResponse(path, value)
+  const entry = writeCachedGithubResponse(path, value)
 
-  return value
+  return {
+    value,
+    metadata: cacheMetadata({
+      path,
+      cacheMode,
+      entry,
+      cacheHit: false,
+    }),
+  }
+}
+
+export async function fetchGithubJson<T>(
+  path: string,
+  signal?: AbortSignal,
+  options: GithubFetchOptions = {},
+): Promise<T> {
+  const result = await fetchGithubJsonWithMetadata<T>(path, signal, options)
+
+  return result.value
 }

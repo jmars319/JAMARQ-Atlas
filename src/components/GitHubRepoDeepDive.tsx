@@ -26,6 +26,7 @@ import type {
   GithubWorkflow,
   GithubWorkflowRun,
 } from '../services/githubIntegration'
+import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubHealthSummary } from './GitHubHealthSummary'
 
 const deepDiveTabs: Array<{ id: GithubResourceName; label: string }> = [
@@ -331,6 +332,12 @@ function GitHubRepoDeepDiveContent({
             Refresh
           </button>
         </div>
+
+        <GitHubCacheMeta
+          metadata={resource.cacheMetadata}
+          page={resource.page}
+          hasNextPage={resource.hasNextPage}
+        />
 
         {resource.loading && !resource.data ? (
           <p className="empty-state">Loading GitHub data...</p>

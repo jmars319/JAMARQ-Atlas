@@ -16,6 +16,7 @@ import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import { findRepositoryBinding, repositorySummaryToLink } from '../services/repoBinding'
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
+import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
@@ -77,9 +78,22 @@ interface SourceNoticeProps {
   loading: boolean
   error: ReturnType<typeof useGithubRepositories>['error']
   count: number
+  cacheMetadata: ReturnType<typeof useGithubRepositories>['cacheMetadata']
+  page: number
+  hasNextPage: boolean
+  onReload: () => void
 }
 
-function SourceNotice({ label, loading, error, count }: SourceNoticeProps) {
+function SourceNotice({
+  label,
+  loading,
+  error,
+  count,
+  cacheMetadata,
+  page,
+  hasNextPage,
+  onReload,
+}: SourceNoticeProps) {
   if (loading) {
     return (
       <div className="github-source-state">
@@ -107,6 +121,13 @@ function SourceNotice({ label, loading, error, count }: SourceNoticeProps) {
       <span>
         {label}: {count} repos
       </span>
+      <GitHubCacheMeta
+        metadata={cacheMetadata}
+        page={page}
+        hasNextPage={hasNextPage}
+        onReload={onReload}
+        loading={loading}
+      />
     </div>
   )
 }
@@ -206,12 +227,20 @@ export function GitHubIntakeDashboard({
           loading={configuredRepos.loading}
           error={configuredRepos.error}
           count={configuredRepos.data.length}
+          cacheMetadata={configuredRepos.cacheMetadata}
+          page={configuredRepos.page}
+          hasNextPage={configuredRepos.hasNextPage}
+          onReload={configuredRepos.reload}
         />
         <SourceNotice
           label="Viewer repos"
           loading={viewerRepos.loading}
           error={viewerRepos.error}
           count={viewerRepos.data.length}
+          cacheMetadata={viewerRepos.cacheMetadata}
+          page={viewerRepos.page}
+          hasNextPage={viewerRepos.hasNextPage}
+          onReload={viewerRepos.reload}
         />
       </div>
 

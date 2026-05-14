@@ -13,8 +13,9 @@ import type {
   GithubCheckRun,
   GithubBranch,
   GithubTag,
+  GithubFetchCacheMetadata,
 } from '../services/githubIntegration'
-import { fetchGithubJson } from '../services/githubIntegration'
+import { fetchGithubJsonWithMetadata } from '../services/githubIntegration'
 
 type GithubResourceData = {
   overview: GithubRepositorySummary
@@ -44,6 +45,7 @@ interface ResourceState<T> {
   loading: boolean
   error: GithubApiResponse<T>['error']
   permission: GithubApiResponse<T>['permission']
+  cacheMetadata: GithubFetchCacheMetadata | null
 }
 
 function resourcePath({
@@ -85,6 +87,7 @@ export function useGithubResource<K extends GithubResourceName>(
     loading: false,
     error: null,
     permission: 'unknown',
+    cacheMetadata: null,
   })
 
   const requestKey = useMemo(
@@ -102,11 +105,12 @@ export function useGithubResource<K extends GithubResourceName>(
       setState((current) => ({ ...current, loading: true }))
 
       try {
-        const response = await fetchGithubJson<GithubApiResponse<GithubResourceData[K]>>(
+        const result = await fetchGithubJsonWithMetadata<GithubApiResponse<GithubResourceData[K]>>(
           resourcePath({ owner, repo, resource, ref, page }),
           signal,
           { cache },
         )
+        const response = result.value
 
         setState((current) => ({
           data: mode === 'append' ? appendData(current.data, response.data) : response.data,
@@ -115,6 +119,10 @@ export function useGithubResource<K extends GithubResourceName>(
           loading: false,
           error: response.error,
           permission: response.permission,
+          cacheMetadata: {
+            ...result.metadata,
+            pageInfo: response.pageInfo,
+          },
         }))
       } catch (error) {
         if (signal?.aborted) {
@@ -131,6 +139,7 @@ export function useGithubResource<K extends GithubResourceName>(
             message: error instanceof Error ? error.message : 'Unable to reach Atlas GitHub API.',
           },
           permission: 'unknown',
+          cacheMetadata: current.cacheMetadata,
         }))
       }
     },
@@ -146,6 +155,7 @@ export function useGithubResource<K extends GithubResourceName>(
       loading: true,
       error: null,
       permission: 'unknown',
+      cacheMetadata: null,
     })
     void loadPage(1, 'replace', controller.signal)
 

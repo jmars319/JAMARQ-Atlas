@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   GithubApiResponse,
+  GithubFetchCacheMetadata,
   GithubRepositorySource,
   GithubRepositorySummary,
 } from '../services/githubIntegration'
-import { fetchGithubJson } from '../services/githubIntegration'
+import { fetchGithubJsonWithMetadata } from '../services/githubIntegration'
 
 interface RepositoryState {
   data: GithubRepositorySummary[]
@@ -13,6 +14,7 @@ interface RepositoryState {
   loading: boolean
   error: GithubApiResponse<GithubRepositorySummary[]>['error']
   permission: GithubApiResponse<GithubRepositorySummary[]>['permission']
+  cacheMetadata: GithubFetchCacheMetadata | null
 }
 
 function repositoriesPath(source: GithubRepositorySource, page: number) {
@@ -33,6 +35,7 @@ export function useGithubRepositories(source: GithubRepositorySource) {
     loading: false,
     error: null,
     permission: 'unknown',
+    cacheMetadata: null,
   })
   const requestKey = useMemo(() => `repositories/${source}`, [source])
 
@@ -46,11 +49,12 @@ export function useGithubRepositories(source: GithubRepositorySource) {
       setState((current) => ({ ...current, loading: true }))
 
       try {
-        const response = await fetchGithubJson<GithubApiResponse<GithubRepositorySummary[]>>(
+        const result = await fetchGithubJsonWithMetadata<GithubApiResponse<GithubRepositorySummary[]>>(
           repositoriesPath(source, page),
           signal,
           { cache },
         )
+        const response = result.value
 
         setState((current) => ({
           data:
@@ -62,6 +66,10 @@ export function useGithubRepositories(source: GithubRepositorySource) {
           loading: false,
           error: response.error,
           permission: response.permission,
+          cacheMetadata: {
+            ...result.metadata,
+            pageInfo: response.pageInfo,
+          },
         }))
       } catch (error) {
         if (signal?.aborted) {
@@ -78,6 +86,7 @@ export function useGithubRepositories(source: GithubRepositorySource) {
             message: error instanceof Error ? error.message : 'Unable to reach Atlas GitHub API.',
           },
           permission: 'unknown',
+          cacheMetadata: current.cacheMetadata,
         }))
       }
     },
@@ -93,6 +102,7 @@ export function useGithubRepositories(source: GithubRepositorySource) {
       loading: true,
       error: null,
       permission: 'unknown',
+      cacheMetadata: null,
     })
     void loadPage(1, 'replace', controller.signal)
 

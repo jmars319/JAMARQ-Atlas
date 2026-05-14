@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { normalizeGithubResource, summarizeConfiguredRepoFailures } from '../server/githubApi'
-import { clearGithubRequestCache, fetchGithubJson } from '../src/services/githubIntegration'
+import {
+  clearGithubRequestCache,
+  fetchGithubJson,
+  fetchGithubJsonWithMetadata,
+  getGithubRequestCacheMetadata,
+} from '../src/services/githubIntegration'
 
 afterEach(() => {
   clearGithubRequestCache()
@@ -68,6 +73,29 @@ describe('GitHub API normalization', () => {
     ).resolves.toEqual({ data: 'fresh' })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('exposes GitHub cache metadata without persisting repository resources', async () => {
+    const response = {
+      data: [{ id: 1 }],
+      pageInfo: { currentPage: 2, hasNextPage: true, nextPage: 3, perPage: 20 },
+      error: null,
+      permission: 'available',
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const first = await fetchGithubJsonWithMetadata<typeof response>('/api/github/repos?page=2')
+    const second = await fetchGithubJsonWithMetadata<typeof response>('/api/github/repos?page=2')
+    const metadata = getGithubRequestCacheMetadata('/api/github/repos?page=2')
+
+    expect(first.metadata.cacheHit).toBe(false)
+    expect(second.metadata.cacheHit).toBe(true)
+    expect(second.metadata.pageInfo).toEqual(response.pageInfo)
+    expect(metadata?.pageInfo?.nextPage).toBe(3)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('uses scoped GitHub API error messages when requests fail', async () => {
