@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { seedDispatchState } from '../src/data/seedDispatch'
 import { seedWorkspace } from '../src/data/seedWorkspace'
-import type { DeploymentTarget } from '../src/domain/dispatch'
+import { flattenProjects } from '../src/domain/atlas'
+import { getRunbookForTarget, type DeploymentTarget } from '../src/domain/dispatch'
 import {
   applyCalibrationImportPreview,
   calibrationValueToTargetUpdate,
@@ -322,6 +323,166 @@ describe('Atlas calibration checks', () => {
         expect.stringContaining('Duplicate dispatch target row'),
       ]),
     )
+  })
+
+  it('previews and applies operational project, recovery, and runbook imports', () => {
+    const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')!
+    const preview = parseCalibrationImportPreview(
+      JSON.stringify({
+        rows: [
+          {
+            kind: 'project-manual',
+            projectId: 'midway-mobile-storage-site',
+            status: 'Verification',
+            verificationCadence: 'weekly',
+            nextAction: 'Confirm daily ops checklist.',
+            blockers: 'DNS review|Content approval',
+          },
+          {
+            kind: 'recovery-plan',
+            targetId: 'midway-mobile-storage-production',
+            backupCadence: 'Before every manual upload',
+            backupLocationRef: 'mms-backup-ledger',
+            rollbackReference: 'mms-rollback-note',
+            rollbackSteps: 'Restore previous frontend zip|Run health verification',
+            escalationContactRef: 'jamarq-ops-card',
+            lastReviewedAt: '2026-05-13T12:00:00Z',
+          },
+          {
+            kind: 'runbook-artifact',
+            runbookId: runbook.id,
+            artifactId: runbook.artifacts[0].id,
+            checksum: 'sha256:abc123',
+            inspectedAt: '2026-05-13T12:00:00Z',
+            warnings: 'Verify bundle size',
+          },
+          {
+            kind: 'runbook-preserve-path',
+            runbookId: runbook.id,
+            path: '/api/cache',
+            reason: 'Runtime cache survives manual uploads.',
+            required: 'true',
+          },
+          {
+            kind: 'runbook-verification-check',
+            runbookId: runbook.id,
+            label: 'Robots file responds',
+            method: 'GET',
+            urlPath: '/robots.txt',
+            expectedStatuses: '200|404',
+            protectedResource: 'false',
+          },
+        ],
+      }),
+      seedWorkspace,
+      seedDispatchState,
+      emptyCalibrationState(),
+    )
+
+    expect(preview.rejectedRows).toHaveLength(0)
+    expect(preview.kindSummaries.map((summary) => summary.kind)).toEqual(
+      expect.arrayContaining([
+        'project-manual',
+        'recovery-plan',
+        'runbook-artifact',
+        'runbook-preserve-path',
+        'runbook-verification-check',
+      ]),
+    )
+
+    const result = applyCalibrationImportPreview({
+      workspace: seedWorkspace,
+      dispatch: seedDispatchState,
+      calibration: emptyCalibrationState(new Date('2026-05-13T12:00:00Z')),
+      preview,
+      operatorLabel: 'operator',
+      now: new Date('2026-05-13T12:00:00Z'),
+    })
+    const project = flattenProjects(result.workspace).find(
+      (record) => record.project.id === 'midway-mobile-storage-site',
+    )?.project
+    const recoveryPlan = result.dispatch.recoveryPlans.find(
+      (plan) => plan.targetId === 'midway-mobile-storage-production',
+    )
+    const updatedRunbook = getRunbookForTarget(result.dispatch, 'midway-mobile-storage-production')!
+
+    expect(project?.manual.status).toBe('Verification')
+    expect(project?.manual.blockers).toEqual(['DNS review', 'Content approval'])
+    expect(recoveryPlan?.rollbackSteps).toEqual([
+      'Restore previous frontend zip',
+      'Run health verification',
+    ])
+    expect(updatedRunbook.artifacts[0].checksum).toBe('sha256:abc123')
+    expect(updatedRunbook.preservePaths.some((path) => path.path === '/api/cache')).toBe(true)
+    expect(
+      updatedRunbook.verificationChecks.some((check) => check.urlPath === '/robots.txt'),
+    ).toBe(true)
+  })
+
+  it('rejects secret-shaped operation import values and warns on duplicates', () => {
+    const preview = parseCalibrationImportPreview(
+      JSON.stringify({
+        rows: [
+          {
+            kind: 'recovery-plan',
+            targetId: 'midway-mobile-storage-production',
+            backupLocationRef: 'password=do-not-store',
+          },
+          {
+            kind: 'recovery-plan',
+            targetId: 'midway-music-hall-production',
+            rollbackReference: 'mmh-rollback-note',
+          },
+          {
+            kind: 'recovery-plan',
+            targetId: 'midway-music-hall-production',
+            rollbackSteps: 'Restore previous zip',
+          },
+        ],
+      }),
+      seedWorkspace,
+      seedDispatchState,
+      emptyCalibrationState(),
+    )
+
+    expect(preview.rejectedRows).toHaveLength(1)
+    expect(preview.rejectedRows[0].errors.join(' ')).toContain('Secret-shaped values')
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('Duplicate recovery plan row')]),
+    )
+  })
+
+  it('applies only explicit non-empty fields from operational imports', () => {
+    const preview = parseCalibrationImportPreview(
+      JSON.stringify({
+        rows: [
+          {
+            kind: 'project-manual',
+            projectId: 'midway-mobile-storage-site',
+            nextAction: 'Only this field changes.',
+            currentRisk: '',
+          },
+        ],
+      }),
+      seedWorkspace,
+      seedDispatchState,
+      emptyCalibrationState(),
+    )
+    const original = flattenProjects(seedWorkspace).find(
+      (record) => record.project.id === 'midway-mobile-storage-site',
+    )!.project
+    const result = applyCalibrationImportPreview({
+      workspace: seedWorkspace,
+      dispatch: seedDispatchState,
+      calibration: emptyCalibrationState(),
+      preview,
+    })
+    const updated = flattenProjects(result.workspace).find(
+      (record) => record.project.id === 'midway-mobile-storage-site',
+    )!.project
+
+    expect(updated.manual.nextAction).toBe('Only this field changes.')
+    expect(updated.manual.currentRisk).toBe(original.manual.currentRisk)
   })
 
   it('summarizes calibration readiness from issues, progress, registry, and import warnings', () => {

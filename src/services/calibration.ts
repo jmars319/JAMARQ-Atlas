@@ -1,6 +1,22 @@
 import type { ProjectRecord, Workspace } from '../domain/atlas'
-import type { DeploymentTarget, DispatchState } from '../domain/dispatch'
-import { flattenProjects } from '../domain/atlas'
+import type {
+  DeploymentArtifact,
+  DeploymentArtifactRole,
+  DeploymentPreservePath,
+  DeploymentRunbook,
+  DeploymentTarget,
+  DeploymentVerificationCheck,
+  DispatchRecoveryPlan,
+  DispatchState,
+} from '../domain/dispatch'
+import {
+  VERIFICATION_CADENCES,
+  WORK_STATUSES,
+  flattenProjects,
+  updateProject,
+  type VerificationCadence,
+  type WorkStatus,
+} from '../domain/atlas'
 import {
   ATLAS_CALIBRATION_SCHEMA_VERSION,
   emptyAtlasCalibrationState,
@@ -13,6 +29,7 @@ import {
   type CalibrationFieldStatus,
 } from '../domain/calibration'
 import { bindRepositoryToProject, parseRepositoryFullName } from './repoBinding'
+import { upsertRecoveryPlan } from './dispatchRecovery'
 
 export type { CalibrationCategory } from '../domain/calibration'
 
@@ -927,6 +944,11 @@ export type CalibrationImportRowKind =
   | 'dispatch-target'
   | 'repo-binding'
   | 'credential-reference'
+  | 'project-manual'
+  | 'recovery-plan'
+  | 'runbook-artifact'
+  | 'runbook-preserve-path'
+  | 'runbook-verification-check'
 
 export interface CalibrationQualityMessage {
   field: string
@@ -1100,7 +1122,16 @@ function splitListValue(value: string) {
 }
 
 function normalizeImportKind(value: string): CalibrationImportRowKind | null {
-  if (value === 'dispatch-target' || value === 'repo-binding' || value === 'credential-reference') {
+  if (
+    value === 'dispatch-target' ||
+    value === 'repo-binding' ||
+    value === 'credential-reference' ||
+    value === 'project-manual' ||
+    value === 'recovery-plan' ||
+    value === 'runbook-artifact' ||
+    value === 'runbook-preserve-path' ||
+    value === 'runbook-verification-check'
+  ) {
     return value
   }
 
@@ -1212,10 +1243,139 @@ const DISPATCH_IMPORT_FIELDS: CalibrationEditableTargetField[] = [
   'credentialRef',
 ]
 
+const PROJECT_MANUAL_IMPORT_FIELDS = [
+  'summary',
+  'status',
+  'verificationCadence',
+  'nextAction',
+  'lastMeaningfulChange',
+  'lastVerified',
+  'currentRisk',
+  'blockers',
+  'deferredItems',
+  'notDoingItems',
+  'notes',
+  'decisions',
+] as const
+
+const RECOVERY_PLAN_IMPORT_FIELDS = [
+  'backupCadence',
+  'backupLocationRef',
+  'rollbackReference',
+  'rollbackSteps',
+  'maintenanceWindow',
+  'escalationContactRef',
+  'lastReviewedAt',
+  'notes',
+] as const
+
+const RUNBOOK_ARTIFACT_IMPORT_FIELDS = [
+  'filename',
+  'role',
+  'sourceRepo',
+  'targetPath',
+  'required',
+  'onlyWhenFullAppReady',
+  'checksum',
+  'inspectedAt',
+  'warnings',
+  'notes',
+] as const
+
+const RUNBOOK_PRESERVE_PATH_IMPORT_FIELDS = [
+  'path',
+  'reason',
+  'required',
+  'temporary',
+  'notes',
+] as const
+
+const RUNBOOK_VERIFICATION_CHECK_IMPORT_FIELDS = [
+  'label',
+  'method',
+  'urlPath',
+  'expectedStatuses',
+  'protectedResource',
+  'notes',
+] as const
+
 function collectRowWarnings(row: Record<string, string>) {
   return Object.entries(row)
     .filter(([field]) => field !== 'kind')
     .flatMap(([field, value]) => validateCalibrationDataQuality(field, value))
+}
+
+function rowValue(row: Record<string, string>, ...fields: string[]) {
+  for (const field of fields) {
+    const value = row[field]?.trim()
+
+    if (value) {
+      return value
+    }
+  }
+
+  return ''
+}
+
+function hasImportValue(row: Record<string, string>, field: string) {
+  return Boolean(row[field]?.trim())
+}
+
+function readBooleanImport(value: string, fallback: boolean) {
+  const normalized = value.trim().toLowerCase()
+
+  if (!normalized) {
+    return fallback
+  }
+
+  if (['true', 'yes', '1', 'required'].includes(normalized)) {
+    return true
+  }
+
+  if (['false', 'no', '0', 'optional'].includes(normalized)) {
+    return false
+  }
+
+  return fallback
+}
+
+function parseExpectedStatuses(value: string) {
+  return splitListValue(value)
+    .flatMap((item) => item.split(';'))
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isInteger(item) && item >= 100 && item <= 599)
+}
+
+function findImportRunbook(dispatch: DispatchState, row: Record<string, string>) {
+  const runbookId = rowValue(row, 'runbookId')
+  const targetId = rowValue(row, 'targetId')
+
+  return dispatch.runbooks.find(
+    (runbook) => (runbookId && runbook.id === runbookId) || (targetId && runbook.targetId === targetId),
+  )
+}
+
+function runbookEntityId(prefix: string, runbook: DeploymentRunbook, value: string) {
+  return `${runbook.targetId}-${prefix}-${value.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()}`
+}
+
+function getArtifactRole(value: string, fallback: DeploymentArtifactRole): DeploymentArtifactRole {
+  return value === 'frontend' || value === 'backend' || value === 'placeholder' ? value : fallback
+}
+
+function getVerificationMethod(value: string, fallback: DeploymentVerificationCheck['method']) {
+  const upper = value.trim().toUpperCase()
+
+  return upper === 'GET' || upper === 'HEAD' ? upper : fallback
+}
+
+function valueFromRecoveryPlan(plan: DispatchRecoveryPlan | undefined, field: string) {
+  if (!plan) {
+    return ''
+  }
+
+  const value = plan[field as keyof DispatchRecoveryPlan]
+  return Array.isArray(value) ? value.join('|') : String(value ?? '')
 }
 
 function createKindSummaries(
@@ -1262,6 +1422,10 @@ function duplicateImportWarnings(
   const credentialRows = new Map<string, number[]>()
   const targetRows = new Map<string, number[]>()
   const repoRows = new Map<string, number[]>()
+  const recoveryRows = new Map<string, number[]>()
+  const artifactRows = new Map<string, number[]>()
+  const preserveRows = new Map<string, number[]>()
+  const verificationRows = new Map<string, number[]>()
   const existingCredentialLabels = new Set(
     calibration?.credentialReferences.map((reference) => reference.label.toLowerCase()) ?? [],
   )
@@ -1303,6 +1467,31 @@ function duplicateImportWarnings(
         }
       }
     }
+
+    if (kind === 'recovery-plan' && row.targetId?.trim()) {
+      recoveryRows.set(row.targetId, [...(recoveryRows.get(row.targetId) ?? []), index])
+    }
+
+    if (kind === 'runbook-artifact') {
+      const key = row.artifactId || `${row.runbookId || row.targetId}:${row.filename || row.role}`
+      if (key.trim()) {
+        artifactRows.set(key, [...(artifactRows.get(key) ?? []), index])
+      }
+    }
+
+    if (kind === 'runbook-preserve-path') {
+      const key = row.preservePathId || `${row.runbookId || row.targetId}:${row.path}`
+      if (key.trim()) {
+        preserveRows.set(key, [...(preserveRows.get(key) ?? []), index])
+      }
+    }
+
+    if (kind === 'runbook-verification-check') {
+      const key = row.verificationCheckId || `${row.runbookId || row.targetId}:${row.urlPath || row.label}`
+      if (key.trim()) {
+        verificationRows.set(key, [...(verificationRows.get(key) ?? []), index])
+      }
+    }
   })
 
   for (const [label, indexes] of credentialRows) {
@@ -1323,6 +1512,32 @@ function duplicateImportWarnings(
     if (indexes.length > 1) {
       const [, repository] = key.split('::')
       warnings.push(`Duplicate repo binding "${repository}" appears in rows ${indexes.join(', ')}.`)
+    }
+  }
+
+  for (const [targetId, indexes] of recoveryRows) {
+    if (indexes.length > 1) {
+      warnings.push(`Duplicate recovery plan row "${targetId}" appears in rows ${indexes.join(', ')}.`)
+    }
+  }
+
+  for (const [key, indexes] of artifactRows) {
+    if (indexes.length > 1) {
+      warnings.push(`Duplicate runbook artifact row "${key}" appears in rows ${indexes.join(', ')}.`)
+    }
+  }
+
+  for (const [key, indexes] of preserveRows) {
+    if (indexes.length > 1) {
+      warnings.push(`Duplicate runbook preserve-path row "${key}" appears in rows ${indexes.join(', ')}.`)
+    }
+  }
+
+  for (const [key, indexes] of verificationRows) {
+    if (indexes.length > 1) {
+      warnings.push(
+        `Duplicate runbook verification-check row "${key}" appears in rows ${indexes.join(', ')}.`,
+      )
     }
   }
 
@@ -1375,6 +1590,10 @@ export function parseCalibrationImportPreview(
     const kind = normalizeImportKind(readString(row.kind).trim())
     const identifier =
       readString(row.targetId) ||
+      readString(row.runbookId) ||
+      readString(row.artifactId) ||
+      readString(row.preservePathId) ||
+      readString(row.verificationCheckId) ||
       readString(row.projectId) ||
       readString(row.label) ||
       `row-${index}`
@@ -1383,7 +1602,9 @@ export function parseCalibrationImportPreview(
     const blocked = warnings.filter((warning) => warning.level === 'blocked')
 
     if (!kind) {
-      errors.push('Row kind must be dispatch-target, repo-binding, or credential-reference.')
+      errors.push(
+        'Row kind must be dispatch-target, repo-binding, credential-reference, project-manual, recovery-plan, runbook-artifact, runbook-preserve-path, or runbook-verification-check.',
+      )
     }
 
     if (blocked.length > 0) {
@@ -1448,6 +1669,142 @@ export function parseCalibrationImportPreview(
       }
     }
 
+    if (kind === 'project-manual') {
+      const project = records.find((record) => record.project.id === row.projectId)
+      if (!project) {
+        errors.push('Project ID was not found.')
+      } else {
+        if (hasImportValue(row, 'status')) {
+          const status = row.status as WorkStatus
+          if (!WORK_STATUSES.some((definition) => definition.id === status)) {
+            errors.push('Project status is not a known Atlas work status.')
+          }
+        }
+        if (hasImportValue(row, 'verificationCadence')) {
+          const cadence = row.verificationCadence as VerificationCadence
+          if (!VERIFICATION_CADENCES.some((definition) => definition.id === cadence)) {
+            errors.push('Verification cadence is not a known Atlas cadence.')
+          }
+        }
+
+        for (const field of PROJECT_MANUAL_IMPORT_FIELDS) {
+          if (hasImportValue(row, field)) {
+            const before =
+              field === 'summary'
+                ? project.project.summary
+                : valueLabel(project.project.manual[field] as string | string[])
+            const change = createImportChange(field, before, row[field])
+
+            changeDetails.push(change)
+            changes.push(change.summary)
+          }
+        }
+      }
+    }
+
+    if (kind === 'recovery-plan') {
+      const target = dispatch.targets.find((candidate) => candidate.id === row.targetId)
+      const existing = dispatch.recoveryPlans.find((plan) => plan.targetId === row.targetId)
+
+      if (!target) {
+        errors.push('Dispatch target ID was not found.')
+      } else {
+        for (const field of RECOVERY_PLAN_IMPORT_FIELDS) {
+          if (hasImportValue(row, field)) {
+            const change = createImportChange(field, valueFromRecoveryPlan(existing, field), row[field])
+
+            changeDetails.push(change)
+            changes.push(change.summary)
+          }
+        }
+      }
+    }
+
+    if (kind === 'runbook-artifact') {
+      const runbook = findImportRunbook(dispatch, row)
+      if (!runbook) {
+        errors.push('Runbook was not found for runbookId or targetId.')
+      } else {
+        const artifactId = rowValue(row, 'artifactId')
+        const existing = runbook.artifacts.find((artifact) => artifact.id === artifactId)
+        if (!existing && !rowValue(row, 'filename')) {
+          errors.push('New runbook artifact rows require filename or an existing artifactId.')
+        }
+
+        for (const field of RUNBOOK_ARTIFACT_IMPORT_FIELDS) {
+          if (hasImportValue(row, field)) {
+            const before = existing
+              ? valueLabel(existing[field] as string | string[])
+              : ''
+            const change = createImportChange(field, before, row[field])
+
+            changeDetails.push(change)
+            changes.push(change.summary)
+          }
+        }
+      }
+    }
+
+    if (kind === 'runbook-preserve-path') {
+      const runbook = findImportRunbook(dispatch, row)
+      if (!runbook) {
+        errors.push('Runbook was not found for runbookId or targetId.')
+      } else {
+        const preservePathId = rowValue(row, 'preservePathId')
+        const existing =
+          runbook.preservePaths.find((preservePath) => preservePath.id === preservePathId) ??
+          runbook.preservePaths.find((preservePath) => preservePath.path === rowValue(row, 'path'))
+        if (!existing && !rowValue(row, 'path')) {
+          errors.push('New runbook preserve path rows require path or an existing preservePathId.')
+        }
+
+        for (const field of RUNBOOK_PRESERVE_PATH_IMPORT_FIELDS) {
+          if (hasImportValue(row, field)) {
+            const before = existing
+              ? valueLabel(existing[field] as string | string[])
+              : ''
+            const change = createImportChange(field, before, row[field])
+
+            changeDetails.push(change)
+            changes.push(change.summary)
+          }
+        }
+      }
+    }
+
+    if (kind === 'runbook-verification-check') {
+      const runbook = findImportRunbook(dispatch, row)
+      if (!runbook) {
+        errors.push('Runbook was not found for runbookId or targetId.')
+      } else {
+        const checkId = rowValue(row, 'verificationCheckId')
+        const existing =
+          runbook.verificationChecks.find((check) => check.id === checkId) ??
+          runbook.verificationChecks.find((check) => check.urlPath === rowValue(row, 'urlPath'))
+        if (!existing && (!rowValue(row, 'label') || !rowValue(row, 'urlPath'))) {
+          errors.push('New runbook verification check rows require label and urlPath.')
+        }
+        if (hasImportValue(row, 'method') && !['GET', 'HEAD'].includes(row.method.toUpperCase())) {
+          errors.push('Verification check method must be HEAD or GET.')
+        }
+        if (hasImportValue(row, 'expectedStatuses') && parseExpectedStatuses(row.expectedStatuses).length === 0) {
+          errors.push('Expected statuses must include at least one HTTP status code.')
+        }
+
+        for (const field of RUNBOOK_VERIFICATION_CHECK_IMPORT_FIELDS) {
+          if (hasImportValue(row, field)) {
+            const before = existing
+              ? valueLabel(existing[field] as string | string[])
+              : ''
+            const change = createImportChange(field, before, row[field])
+
+            changeDetails.push(change)
+            changes.push(change.summary)
+          }
+        }
+      }
+    }
+
     if (errors.length > 0 || !kind) {
       rejectedRows.push({
         index,
@@ -1480,6 +1837,237 @@ export function parseCalibrationImportPreview(
     rejectedRows,
     warnings,
     kindSummaries: createKindSummaries(acceptedRows, rejectedRows),
+  }
+}
+
+function applyProjectManualImport(workspace: Workspace, row: Record<string, string>) {
+  return updateProject(workspace, row.projectId, (project) => ({
+    ...project,
+    ...(hasImportValue(row, 'summary') ? { summary: row.summary } : {}),
+    manual: {
+      ...project.manual,
+      ...(hasImportValue(row, 'status') ? { status: row.status as WorkStatus } : {}),
+      ...(hasImportValue(row, 'verificationCadence')
+        ? { verificationCadence: row.verificationCadence as VerificationCadence }
+        : {}),
+      ...(hasImportValue(row, 'nextAction') ? { nextAction: row.nextAction } : {}),
+      ...(hasImportValue(row, 'lastMeaningfulChange')
+        ? { lastMeaningfulChange: row.lastMeaningfulChange }
+        : {}),
+      ...(hasImportValue(row, 'lastVerified') ? { lastVerified: row.lastVerified } : {}),
+      ...(hasImportValue(row, 'currentRisk') ? { currentRisk: row.currentRisk } : {}),
+      ...(hasImportValue(row, 'blockers') ? { blockers: splitListValue(row.blockers) } : {}),
+      ...(hasImportValue(row, 'deferredItems')
+        ? { deferredItems: splitListValue(row.deferredItems) }
+        : {}),
+      ...(hasImportValue(row, 'notDoingItems')
+        ? { notDoingItems: splitListValue(row.notDoingItems) }
+        : {}),
+      ...(hasImportValue(row, 'notes') ? { notes: splitListValue(row.notes) } : {}),
+      ...(hasImportValue(row, 'decisions') ? { decisions: splitListValue(row.decisions) } : {}),
+    },
+  }))
+}
+
+function applyRecoveryPlanImport(
+  state: DispatchState,
+  row: Record<string, string>,
+  now: Date,
+) {
+  const target = state.targets.find((candidate) => candidate.id === row.targetId)
+
+  if (!target) {
+    return state
+  }
+
+  const existing = state.recoveryPlans.find((plan) => plan.targetId === target.id)
+  const result = upsertRecoveryPlan(
+    state,
+    {
+      id: existing?.id,
+      projectId: row.projectId || target.projectId,
+      targetId: target.id,
+      ...(hasImportValue(row, 'backupCadence') ? { backupCadence: row.backupCadence } : {}),
+      ...(hasImportValue(row, 'backupLocationRef')
+        ? { backupLocationRef: row.backupLocationRef }
+        : {}),
+      ...(hasImportValue(row, 'rollbackReference')
+        ? { rollbackReference: row.rollbackReference }
+        : {}),
+      ...(hasImportValue(row, 'rollbackSteps')
+        ? { rollbackSteps: splitListValue(row.rollbackSteps) }
+        : {}),
+      ...(hasImportValue(row, 'maintenanceWindow')
+        ? { maintenanceWindow: row.maintenanceWindow }
+        : {}),
+      ...(hasImportValue(row, 'escalationContactRef')
+        ? { escalationContactRef: row.escalationContactRef }
+        : {}),
+      ...(hasImportValue(row, 'lastReviewedAt') ? { lastReviewedAt: row.lastReviewedAt } : {}),
+      ...(hasImportValue(row, 'notes') ? { notes: splitListValue(row.notes) } : {}),
+    },
+    now,
+  )
+
+  return result.ok ? result.state : state
+}
+
+function applyArtifactImport(runbook: DeploymentRunbook, row: Record<string, string>) {
+  const artifactId =
+    rowValue(row, 'artifactId') || runbookEntityId('artifact', runbook, rowValue(row, 'filename'))
+  const existing = runbook.artifacts.find((artifact) => artifact.id === artifactId)
+  const fallback: DeploymentArtifact = {
+    id: artifactId,
+    projectId: runbook.projectId,
+    targetId: runbook.targetId,
+    filename: rowValue(row, 'filename'),
+    role: getArtifactRole(rowValue(row, 'role'), 'frontend'),
+    sourceRepo: '',
+    targetPath: '',
+    required: true,
+    onlyWhenFullAppReady: false,
+    checksum: '',
+    inspectedAt: '',
+    warnings: [],
+    notes: [],
+  }
+  const artifact: DeploymentArtifact = {
+    ...(existing ?? fallback),
+    ...(hasImportValue(row, 'filename') ? { filename: row.filename } : {}),
+    ...(hasImportValue(row, 'role')
+      ? { role: getArtifactRole(row.role, existing?.role ?? fallback.role) }
+      : {}),
+    ...(hasImportValue(row, 'sourceRepo') ? { sourceRepo: row.sourceRepo } : {}),
+    ...(hasImportValue(row, 'targetPath') ? { targetPath: row.targetPath } : {}),
+    ...(hasImportValue(row, 'required')
+      ? { required: readBooleanImport(row.required, existing?.required ?? true) }
+      : {}),
+    ...(hasImportValue(row, 'onlyWhenFullAppReady')
+      ? {
+          onlyWhenFullAppReady: readBooleanImport(
+            row.onlyWhenFullAppReady,
+            existing?.onlyWhenFullAppReady ?? false,
+          ),
+        }
+      : {}),
+    ...(hasImportValue(row, 'checksum') ? { checksum: row.checksum } : {}),
+    ...(hasImportValue(row, 'inspectedAt') ? { inspectedAt: row.inspectedAt } : {}),
+    ...(hasImportValue(row, 'warnings') ? { warnings: splitListValue(row.warnings) } : {}),
+    ...(hasImportValue(row, 'notes') ? { notes: splitListValue(row.notes) } : {}),
+  }
+
+  return {
+    ...runbook,
+    artifacts: existing
+      ? runbook.artifacts.map((candidate) => (candidate.id === artifact.id ? artifact : candidate))
+      : [...runbook.artifacts, artifact],
+  }
+}
+
+function applyPreservePathImport(runbook: DeploymentRunbook, row: Record<string, string>) {
+  const preservePathId =
+    rowValue(row, 'preservePathId') || runbookEntityId('preserve', runbook, rowValue(row, 'path'))
+  const existing =
+    runbook.preservePaths.find((preservePath) => preservePath.id === preservePathId) ??
+    runbook.preservePaths.find((preservePath) => preservePath.path === rowValue(row, 'path'))
+  const fallback: DeploymentPreservePath = {
+    id: preservePathId,
+    projectId: runbook.projectId,
+    targetId: runbook.targetId,
+    path: rowValue(row, 'path'),
+    reason: '',
+    required: true,
+    temporary: false,
+    notes: [],
+  }
+  const preservePath: DeploymentPreservePath = {
+    ...(existing ?? fallback),
+    ...(hasImportValue(row, 'path') ? { path: row.path } : {}),
+    ...(hasImportValue(row, 'reason') ? { reason: row.reason } : {}),
+    ...(hasImportValue(row, 'required')
+      ? { required: readBooleanImport(row.required, existing?.required ?? true) }
+      : {}),
+    ...(hasImportValue(row, 'temporary')
+      ? { temporary: readBooleanImport(row.temporary, existing?.temporary ?? false) }
+      : {}),
+    ...(hasImportValue(row, 'notes') ? { notes: splitListValue(row.notes) } : {}),
+  }
+
+  return {
+    ...runbook,
+    preservePaths: existing
+      ? runbook.preservePaths.map((candidate) =>
+          candidate.id === existing.id ? preservePath : candidate,
+        )
+      : [...runbook.preservePaths, preservePath],
+  }
+}
+
+function applyVerificationCheckImport(runbook: DeploymentRunbook, row: Record<string, string>) {
+  const checkId =
+    rowValue(row, 'verificationCheckId') ||
+    runbookEntityId('verify', runbook, rowValue(row, 'urlPath') || rowValue(row, 'label'))
+  const existing =
+    runbook.verificationChecks.find((check) => check.id === checkId) ??
+    runbook.verificationChecks.find((check) => check.urlPath === rowValue(row, 'urlPath'))
+  const fallback: DeploymentVerificationCheck = {
+    id: checkId,
+    projectId: runbook.projectId,
+    targetId: runbook.targetId,
+    label: rowValue(row, 'label'),
+    method: getVerificationMethod(rowValue(row, 'method'), 'HEAD'),
+    urlPath: rowValue(row, 'urlPath'),
+    expectedStatuses: parseExpectedStatuses(rowValue(row, 'expectedStatuses')),
+    protectedResource: false,
+    notes: [],
+  }
+  const check: DeploymentVerificationCheck = {
+    ...(existing ?? fallback),
+    ...(hasImportValue(row, 'label') ? { label: row.label } : {}),
+    ...(hasImportValue(row, 'method')
+      ? { method: getVerificationMethod(row.method, existing?.method ?? fallback.method) }
+      : {}),
+    ...(hasImportValue(row, 'urlPath') ? { urlPath: row.urlPath } : {}),
+    ...(hasImportValue(row, 'expectedStatuses')
+      ? { expectedStatuses: parseExpectedStatuses(row.expectedStatuses) }
+      : {}),
+    ...(hasImportValue(row, 'protectedResource')
+      ? {
+          protectedResource: readBooleanImport(
+            row.protectedResource,
+            existing?.protectedResource ?? false,
+          ),
+        }
+      : {}),
+    ...(hasImportValue(row, 'notes') ? { notes: splitListValue(row.notes) } : {}),
+  }
+
+  return {
+    ...runbook,
+    verificationChecks: existing
+      ? runbook.verificationChecks.map((candidate) =>
+          candidate.id === existing.id ? check : candidate,
+        )
+      : [...runbook.verificationChecks, check],
+  }
+}
+
+function updateImportRunbook(
+  state: DispatchState,
+  row: Record<string, string>,
+  update: (runbook: DeploymentRunbook) => DeploymentRunbook,
+) {
+  const runbook = findImportRunbook(state, row)
+
+  if (!runbook) {
+    return state
+  }
+
+  return {
+    ...state,
+    runbooks: state.runbooks.map((candidate) =>
+      candidate.id === runbook.id ? update(candidate) : candidate,
+    ),
   }
 }
 
@@ -1551,6 +2139,32 @@ export function applyCalibrationImportPreview({
       }
     }
 
+    if (row.kind === 'project-manual') {
+      nextWorkspace = applyProjectManualImport(nextWorkspace, row.data)
+    }
+
+    if (row.kind === 'recovery-plan') {
+      nextDispatch = applyRecoveryPlanImport(nextDispatch, row.data, now)
+    }
+
+    if (row.kind === 'runbook-artifact') {
+      nextDispatch = updateImportRunbook(nextDispatch, row.data, (runbook) =>
+        applyArtifactImport(runbook, row.data),
+      )
+    }
+
+    if (row.kind === 'runbook-preserve-path') {
+      nextDispatch = updateImportRunbook(nextDispatch, row.data, (runbook) =>
+        applyPreservePathImport(runbook, row.data),
+      )
+    }
+
+    if (row.kind === 'runbook-verification-check') {
+      nextDispatch = updateImportRunbook(nextDispatch, row.data, (runbook) =>
+        applyVerificationCheckImport(runbook, row.data),
+      )
+    }
+
     nextCalibration = recordCalibrationAuditEvent(nextCalibration, {
       type: 'import-apply',
       summary: `Applied calibration import row ${row.index}: ${row.changes.join('; ')}`,
@@ -1570,6 +2184,10 @@ const TEMPLATE_HEADERS = [
   'kind',
   'targetId',
   'projectId',
+  'runbookId',
+  'artifactId',
+  'preservePathId',
+  'verificationCheckId',
   'remoteHost',
   'remoteUser',
   'remoteFrontendPath',
@@ -1585,33 +2203,133 @@ const TEMPLATE_HEADERS = [
   'notes',
   'targetIds',
   'projectIds',
+  'summary',
+  'status',
+  'verificationCadence',
+  'nextAction',
+  'lastMeaningfulChange',
+  'lastVerified',
+  'currentRisk',
+  'blockers',
+  'deferredItems',
+  'notDoingItems',
+  'decisions',
+  'backupCadence',
+  'backupLocationRef',
+  'rollbackReference',
+  'rollbackSteps',
+  'maintenanceWindow',
+  'escalationContactRef',
+  'lastReviewedAt',
+  'filename',
+  'role',
+  'sourceRepo',
+  'targetPath',
+  'required',
+  'onlyWhenFullAppReady',
+  'checksum',
+  'inspectedAt',
+  'warnings',
+  'path',
+  'reason',
+  'temporary',
+  'method',
+  'urlPath',
+  'expectedStatuses',
+  'protectedResource',
 ]
 
 function csvEscape(value: string) {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
 }
 
+function templateRow(values: Record<string, string>) {
+  return TEMPLATE_HEADERS.map((header) => values[header] ?? '')
+}
+
 export function createCalibrationCsvTemplate(dispatch: DispatchState) {
-  const rows = dispatch.targets.map((target) => [
-    'dispatch-target',
-    target.id,
-    target.projectId,
-    target.remoteHost,
-    target.remoteUser,
-    target.remoteFrontendPath,
-    target.remoteBackendPath,
-    target.publicUrl,
-    target.healthCheckUrls.join('|'),
-    target.databaseName,
-    target.credentialRef,
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-  ])
+  const rows = [
+    ...dispatch.targets.map((target) =>
+      templateRow({
+        kind: 'dispatch-target',
+        targetId: target.id,
+        projectId: target.projectId,
+        remoteHost: target.remoteHost,
+        remoteUser: target.remoteUser,
+        remoteFrontendPath: target.remoteFrontendPath,
+        remoteBackendPath: target.remoteBackendPath,
+        publicUrl: target.publicUrl,
+        healthCheckUrls: target.healthCheckUrls.join('|'),
+        databaseName: target.databaseName,
+        credentialRef: target.credentialRef,
+      }),
+    ),
+    ...dispatch.recoveryPlans.map((plan) =>
+      templateRow({
+        kind: 'recovery-plan',
+        targetId: plan.targetId,
+        projectId: plan.projectId,
+        backupCadence: plan.backupCadence,
+        backupLocationRef: plan.backupLocationRef,
+        rollbackReference: plan.rollbackReference,
+        rollbackSteps: plan.rollbackSteps.join('|'),
+        maintenanceWindow: plan.maintenanceWindow,
+        escalationContactRef: plan.escalationContactRef,
+        lastReviewedAt: plan.lastReviewedAt,
+        notes: plan.notes.join('|'),
+      }),
+    ),
+    ...dispatch.runbooks.flatMap((runbook) => [
+      ...runbook.artifacts.map((artifact) =>
+        templateRow({
+          kind: 'runbook-artifact',
+          targetId: runbook.targetId,
+          projectId: runbook.projectId,
+          runbookId: runbook.id,
+          artifactId: artifact.id,
+          filename: artifact.filename,
+          role: artifact.role,
+          sourceRepo: artifact.sourceRepo,
+          targetPath: artifact.targetPath,
+          required: String(artifact.required),
+          onlyWhenFullAppReady: String(artifact.onlyWhenFullAppReady),
+          checksum: artifact.checksum,
+          inspectedAt: artifact.inspectedAt,
+          warnings: artifact.warnings.join('|'),
+          notes: artifact.notes.join('|'),
+        }),
+      ),
+      ...runbook.preservePaths.map((preservePath) =>
+        templateRow({
+          kind: 'runbook-preserve-path',
+          targetId: runbook.targetId,
+          projectId: runbook.projectId,
+          runbookId: runbook.id,
+          preservePathId: preservePath.id,
+          path: preservePath.path,
+          reason: preservePath.reason,
+          required: String(preservePath.required),
+          temporary: String(preservePath.temporary),
+          notes: preservePath.notes.join('|'),
+        }),
+      ),
+      ...runbook.verificationChecks.map((check) =>
+        templateRow({
+          kind: 'runbook-verification-check',
+          targetId: runbook.targetId,
+          projectId: runbook.projectId,
+          runbookId: runbook.id,
+          verificationCheckId: check.id,
+          label: check.label,
+          method: check.method,
+          urlPath: check.urlPath,
+          expectedStatuses: check.expectedStatuses.join('|'),
+          protectedResource: String(check.protectedResource),
+          notes: check.notes.join('|'),
+        }),
+      ),
+    ]),
+  ]
 
   return [TEMPLATE_HEADERS, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n')
 }
@@ -1638,6 +2356,22 @@ export function createCalibrationJsonTemplate(
           credentialRef: target.credentialRef,
         })),
         ...flattenProjects(workspace).map((record) => ({
+          kind: 'project-manual',
+          projectId: record.project.id,
+          summary: record.project.summary,
+          status: record.project.manual.status,
+          verificationCadence: record.project.manual.verificationCadence,
+          nextAction: record.project.manual.nextAction,
+          lastMeaningfulChange: record.project.manual.lastMeaningfulChange,
+          lastVerified: record.project.manual.lastVerified,
+          currentRisk: record.project.manual.currentRisk,
+          blockers: record.project.manual.blockers.join('|'),
+          deferredItems: record.project.manual.deferredItems.join('|'),
+          notDoingItems: record.project.manual.notDoingItems.join('|'),
+          notes: record.project.manual.notes.join('|'),
+          decisions: record.project.manual.decisions.join('|'),
+        })),
+        ...flattenProjects(workspace).map((record) => ({
           kind: 'repo-binding',
           projectId: record.project.id,
           repository: record.project.repositories[0]
@@ -1653,6 +2387,63 @@ export function createCalibrationJsonTemplate(
           targetIds: reference.targetIds.join('|'),
           projectIds: reference.projectIds.join('|'),
         })),
+        ...dispatch.recoveryPlans.map((plan) => ({
+          kind: 'recovery-plan',
+          targetId: plan.targetId,
+          projectId: plan.projectId,
+          backupCadence: plan.backupCadence,
+          backupLocationRef: plan.backupLocationRef,
+          rollbackReference: plan.rollbackReference,
+          rollbackSteps: plan.rollbackSteps.join('|'),
+          maintenanceWindow: plan.maintenanceWindow,
+          escalationContactRef: plan.escalationContactRef,
+          lastReviewedAt: plan.lastReviewedAt,
+          notes: plan.notes.join('|'),
+        })),
+        ...dispatch.runbooks.flatMap((runbook) => [
+          ...runbook.artifacts.map((artifact) => ({
+            kind: 'runbook-artifact',
+            targetId: runbook.targetId,
+            projectId: runbook.projectId,
+            runbookId: runbook.id,
+            artifactId: artifact.id,
+            filename: artifact.filename,
+            role: artifact.role,
+            sourceRepo: artifact.sourceRepo,
+            targetPath: artifact.targetPath,
+            required: String(artifact.required),
+            onlyWhenFullAppReady: String(artifact.onlyWhenFullAppReady),
+            checksum: artifact.checksum,
+            inspectedAt: artifact.inspectedAt,
+            warnings: artifact.warnings.join('|'),
+            notes: artifact.notes.join('|'),
+          })),
+          ...runbook.preservePaths.map((preservePath) => ({
+            kind: 'runbook-preserve-path',
+            targetId: runbook.targetId,
+            projectId: runbook.projectId,
+            runbookId: runbook.id,
+            preservePathId: preservePath.id,
+            path: preservePath.path,
+            reason: preservePath.reason,
+            required: String(preservePath.required),
+            temporary: String(preservePath.temporary),
+            notes: preservePath.notes.join('|'),
+          })),
+          ...runbook.verificationChecks.map((check) => ({
+            kind: 'runbook-verification-check',
+            targetId: runbook.targetId,
+            projectId: runbook.projectId,
+            runbookId: runbook.id,
+            verificationCheckId: check.id,
+            label: check.label,
+            method: check.method,
+            urlPath: check.urlPath,
+            expectedStatuses: check.expectedStatuses.join('|'),
+            protectedResource: String(check.protectedResource),
+            notes: check.notes.join('|'),
+          })),
+        ]),
       ],
     },
     null,
