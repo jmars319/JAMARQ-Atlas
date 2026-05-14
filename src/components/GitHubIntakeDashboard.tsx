@@ -265,6 +265,8 @@ export function GitHubIntakeDashboard({
             <button
               key={id}
               type="button"
+              role="tab"
+              aria-selected={filter === id}
               className={filter === id ? 'is-selected' : ''}
               onClick={() => setFilter(id as IntakeFilter)}
             >
