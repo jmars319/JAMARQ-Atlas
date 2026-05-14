@@ -30,15 +30,13 @@ import {
 import { getPlanningForProject } from './planning'
 import { getReviewForProject } from './review'
 import { evaluateVerification } from './verification'
+import { markdownList, slugifyFilename } from './markdownTemplates'
+import {
+  assembleReportMarkdown,
+  buildReportTemplateFocus,
+} from './reportTemplates'
 
-export const reportGuardrails = [
-  'Report packets are local review artifacts only.',
-  'Export does not mean anything was sent, published, deployed, shipped, or verified.',
-  'Reports must not change Atlas project status, risk, roadmap, verification, Dispatch readiness, GitHub bindings, Planning records, or Writing drafts.',
-  'GitHub, Dispatch, Verification, Planning, and Writing context remains advisory.',
-  'Closeout analytics are derived evidence only and do not prove Atlas deployed, verified, published, or completed anything.',
-  'Review Center notes are human-authored context only and do not decide follow-up, completion, readiness, or priority.',
-]
+export { reportGuardrails } from './reportTemplates'
 
 interface ReportContextInput {
   type: ReportPacketType
@@ -79,14 +77,6 @@ function safeDate(value: unknown, fallback: Date) {
 
 function nowStamp(now = new Date()) {
   return now.toISOString()
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 96)
 }
 
 function eventId(packetId: string, type: ReportAuditEventType, occurredAt: string) {
@@ -279,7 +269,7 @@ function summarizeProject(
 }
 
 function list(items: string[], fallback: string) {
-  return items.length > 0 ? items.map((item) => `- ${item}`).join('\n') : `- ${fallback}`
+  return markdownList(items, fallback)
 }
 
 function reportTitle(type: ReportPacketType, records: ProjectRecord[], now: Date) {
@@ -292,29 +282,6 @@ function reportTitle(type: ReportPacketType, records: ProjectRecord[], now: Date
         : 'No project scope'
 
   return `${packetType.label} - ${scope} - ${now.toISOString().slice(0, 10)}`
-}
-
-function buildReportTemplateFocus(type: ReportPacketType) {
-  const focusLines: Partial<Record<ReportPacketType, string[]>> = {
-    'client-update-packet': [
-      'Keep language client-safe, concrete, and free of internal-only uncertainty.',
-      'Use Dispatch, GitHub, and Review context as background only; do not imply anything shipped unless a human says so.',
-    ],
-    'internal-weekly-packet': [
-      'Emphasize operator review, blocked work, verification due state, Dispatch follow-up, and pending report/draft work.',
-      'This is an internal planning artifact, not an automated prioritization decision.',
-    ],
-    'internal-deploy-handoff-packet': [
-      'Emphasize runbook order, preserve paths, evidence captured, closeout posture, and remaining manual checks.',
-      'Do not imply Atlas uploaded artifacts or changed production state.',
-    ],
-    'dispatch-closeout-summary-packet': [
-      'Emphasize closeout state, evidence IDs, manual deployment records, report packet context, and follow-up gaps.',
-      'Closeout state is advisory and does not prove deployment or verification.',
-    ],
-  }
-
-  return list(focusLines[type] ?? [getReportPacketType(type).intent], 'No template focus recorded.')
 }
 
 function buildProjectSection(record: ProjectRecord, planning: PlanningState) {
@@ -762,81 +729,54 @@ export function buildReportMarkdown({
 }) {
   const packetType = getReportPacketType(type)
 
-  return [
-    `# ${reportTitle(type, records, now)}`,
-    '',
-    `Report type: ${packetType.label}`,
-    `Generated locally: ${now.toISOString()}`,
-    '',
-    '## Template Focus',
-    '',
-    buildReportTemplateFocus(type),
-    '',
-    '## Guardrails',
-    '',
-    ...reportGuardrails.map((guardrail) => `- ${guardrail}`),
-    '',
-    '## Included Writing Drafts',
-    '',
-    buildWritingSection(writingDrafts),
-    '',
-    '## Project Context',
-    '',
-    records.map((record) => buildProjectSection(record, planning)).join('\n\n'),
-    '',
-    '## Dispatch Posture',
-    '',
-    buildDispatchSection(records, dispatch),
-    '',
-    '## Deployment Runbooks & Artifact Readiness',
-    '',
-    buildDeploymentRunbookSection(records, dispatch),
-    '',
-    '## Deploy Session Evidence',
-    '',
-    buildDeploySessionSection(records, dispatch),
-    '',
-    ...(isDeploymentReportType(type)
-      ? [
-          '## Dispatch Closeout Analytics',
-          '',
-          buildDispatchCloseoutSection(records, dispatch, reports),
-          '',
-        ]
-      : []),
-    '## Stored Dispatch Evidence',
-    '',
-    buildStoredDispatchEvidenceSection(records, dispatch),
-    '',
-    '## GitHub Context',
-    '',
-    buildGithubSection(records, writingDrafts),
-    '',
-    ...(type === 'internal-weekly-packet' ||
-    type === 'project-handoff-packet' ||
-    selectedReviewNotes.length > 0 ||
-    selectedReviewSessions.length > 0
-      ? [
-          '## Review Center Notes',
-          '',
-          buildReviewSection({
-            records,
-            review,
-            selectedNotes: selectedReviewNotes,
-            selectedSessions: selectedReviewSessions,
-          }),
-          '',
-        ]
-      : []),
-    ...(shouldIncludeCalibrationSection(type)
-      ? [
-          '## Calibration Operations',
-          '',
-          buildCalibrationSection(calibration, calibrationIssues),
-          '',
-        ]
-      : []),
-  ].join('\n')
+  return assembleReportMarkdown({
+    title: reportTitle(type, records, now),
+    reportTypeLabel: packetType.label,
+    generatedAt: now.toISOString(),
+    templateFocus: buildReportTemplateFocus(type),
+    sections: [
+      { heading: 'Included Writing Drafts', body: buildWritingSection(writingDrafts) },
+      {
+        heading: 'Project Context',
+        body: records.map((record) => buildProjectSection(record, planning)).join('\n\n'),
+      },
+      { heading: 'Dispatch Posture', body: buildDispatchSection(records, dispatch) },
+      {
+        heading: 'Deployment Runbooks & Artifact Readiness',
+        body: buildDeploymentRunbookSection(records, dispatch),
+      },
+      { heading: 'Deploy Session Evidence', body: buildDeploySessionSection(records, dispatch) },
+      {
+        heading: 'Dispatch Closeout Analytics',
+        body: buildDispatchCloseoutSection(records, dispatch, reports),
+        include: isDeploymentReportType(type),
+      },
+      {
+        heading: 'Stored Dispatch Evidence',
+        body: buildStoredDispatchEvidenceSection(records, dispatch),
+      },
+      { heading: 'GitHub Context', body: buildGithubSection(records, writingDrafts) },
+      {
+        heading: 'Review Center Notes',
+        body: buildReviewSection({
+          records,
+          review,
+          selectedNotes: selectedReviewNotes,
+          selectedSessions: selectedReviewSessions,
+        }),
+        include:
+          type === 'internal-weekly-packet' ||
+          type === 'project-handoff-packet' ||
+          selectedReviewNotes.length > 0 ||
+          selectedReviewSessions.length > 0,
+      },
+      {
+        heading: 'Calibration Operations',
+        body: buildCalibrationSection(calibration, calibrationIssues),
+        include: shouldIncludeCalibrationSection(type),
+      },
+    ],
+  })
 }
 
 export function createReportPacket({
@@ -1014,5 +954,5 @@ export function archiveReportPacket(state: ReportsState, packetId: string, now =
 }
 
 export function reportFilename(packet: ReportPacket) {
-  return `${slugify(packet.title || 'atlas-report-packet')}.md`
+  return `${slugifyFilename(packet.title || 'atlas-report-packet')}.md`
 }

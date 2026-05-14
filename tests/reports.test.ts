@@ -37,6 +37,7 @@ import {
   reportGuardrails,
   updateReportPacketMarkdown,
 } from '../src/services/reports'
+import { buildReportTemplateFocus } from '../src/services/reportTemplates'
 import type { WritingDraft } from '../src/domain/writing'
 
 const now = new Date('2026-05-10T12:00:00Z')
@@ -144,6 +145,11 @@ describe('report packet builder', () => {
       projectId: 'vaexcore-studio',
       planningItems: 1,
     })
+  })
+
+  it('keeps report template focus definitions reusable by packet type', () => {
+    expect(buildReportTemplateFocus('client-update-packet')).toContain('client-safe')
+    expect(buildReportTemplateFocus('release-packet')).toContain('release context')
   })
 
   it('does not include unapproved writing drafts in packets', () => {

@@ -21,6 +21,11 @@ import {
   writingGuardrails,
 } from '../src/services/aiWritingAssistant'
 import {
+  buildWritingContextLines,
+  scaffoldForWritingTemplate,
+  writingTemplateDefinitions,
+} from '../src/services/writingTemplates'
+import {
   createWritingProviderInput,
   createWritingProviderNotConfiguredResponse,
   createWritingProviderStatus,
@@ -90,6 +95,24 @@ describe('AI writing assistant', () => {
     expect(drafts.every((draft) => draft.draftText.includes('Template draft - not AI generated.'))).toBe(
       true,
     )
+  })
+
+  it('uses reusable writing template definitions and context sections', () => {
+    const context = buildWritingContextSnapshot({
+      record,
+      dispatch: seedDispatchState,
+      github: githubContext,
+      now,
+    })
+
+    expect(writingTemplateDefinitions.map((template) => template.id)).toEqual([
+      'client-update',
+      'release-notes',
+      'weekly-summary',
+      'codex-handoff',
+    ])
+    expect(buildWritingContextLines(context)).toContain('GitHub snippets:')
+    expect(scaffoldForWritingTemplate('codex-handoff', context)).toContain('Do not change automatically')
   })
 
   it('captures Atlas, verification, Dispatch, and GitHub context without changing workspace data', () => {
