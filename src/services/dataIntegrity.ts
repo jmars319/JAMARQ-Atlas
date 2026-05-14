@@ -113,8 +113,9 @@ export function createDataIntegrityDiagnostics({
       ...dispatch.deploySessions.map((session) =>
         !projectIds.has(session.projectId) ? session.id : '',
       ),
+      ...dispatch.recoveryPlans.map((plan) => (!projectIds.has(plan.projectId) ? plan.id : '')),
     ],
-    detail: 'Dispatch targets, evidence, runbooks, or sessions point at projects that no longer exist.',
+    detail: 'Dispatch targets, evidence, runbooks, sessions, or recovery plans point at projects that no longer exist.',
     repairSuggestion: 'Recreate the missing project, restore from backup, or export then manually remove stale Dispatch records.',
   })
 
@@ -137,9 +138,22 @@ export function createDataIntegrityDiagnostics({
       ...dispatch.deploySessions.map((session) =>
         !targetIds.has(session.targetId) ? session.id : '',
       ),
+      ...dispatch.recoveryPlans.map((plan) => (!targetIds.has(plan.targetId) ? plan.id : '')),
     ],
-    detail: 'Dispatch evidence or operational records point at targets that are not configured.',
+    detail: 'Dispatch evidence, recovery plans, or operational records point at targets that are not configured.',
     repairSuggestion: 'Restore the target from backup or preserve evidence externally before manually removing stale references.',
+  })
+
+  pushDiagnostic(diagnostics, {
+    id: 'dispatch-duplicate-recovery-plans',
+    label: 'Duplicate recovery plans',
+    severity: 'warning',
+    storeId: 'dispatch',
+    affectedIds: dispatch.recoveryPlans.flatMap((plan, index, plans) =>
+      plans.findIndex((candidate) => candidate.targetId === plan.targetId) === index ? [] : [plan.id],
+    ),
+    detail: 'More than one recovery plan references the same Dispatch target.',
+    repairSuggestion: 'Keep the current reviewed recovery plan and preserve older entries externally if needed.',
   })
 
   pushDiagnostic(diagnostics, {

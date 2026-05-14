@@ -40,6 +40,7 @@ export interface AtlasBackupStoreSummary {
     preflightRuns: number
     hostEvidenceRuns: number
     verificationEvidenceRuns: number
+    recoveryPlans: number
   }
   writing: {
     drafts: number

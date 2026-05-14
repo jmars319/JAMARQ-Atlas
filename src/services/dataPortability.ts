@@ -63,6 +63,7 @@ function collectDispatchSummary(dispatch: DispatchState) {
     preflightRuns: dispatch.preflightRuns.length,
     hostEvidenceRuns: dispatch.hostEvidenceRuns.length,
     verificationEvidenceRuns: dispatch.verificationEvidenceRuns.length,
+    recoveryPlans: dispatch.recoveryPlans.length,
   }
 }
 
@@ -590,7 +591,7 @@ export function createAtlasStoreDiagnostics(
   diagnostics.push({
     ...storeDiagnosticMetadata('dispatch'),
     status: diagnosticStatus(dispatchMessages, summary.dispatch.targets === 0),
-    countSummary: `${summary.dispatch.targets} targets / ${dispatchEvidence} evidence runs`,
+    countSummary: `${summary.dispatch.targets} targets / ${dispatchEvidence} evidence runs / ${summary.dispatch.recoveryPlans} recovery plans`,
     messages: dispatchMessages,
     repairHint:
       'Use Dispatch runbooks, preflight, host evidence, and manual sessions to build evidence history.',
@@ -716,7 +717,7 @@ Schema: ${envelope.schemaVersion}
 - Workspace: ${workspace.sections} sections, ${workspace.groups} groups, ${workspace.projects} projects
 - Repository bindings: ${workspace.repositoryBindings}
 - Activity events: ${workspace.activityEvents}
-- Dispatch: ${dispatch.targets} targets, ${dispatch.records} records, ${dispatch.readinessEntries} readiness entries, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns} host evidence runs, ${dispatch.verificationEvidenceRuns} verification evidence runs
+- Dispatch: ${dispatch.targets} targets, ${dispatch.records} records, ${dispatch.readinessEntries} readiness entries, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns} host evidence runs, ${dispatch.verificationEvidenceRuns} verification evidence runs, ${dispatch.recoveryPlans} recovery plans
 - Writing: ${writing.drafts} drafts, ${writing.reviewEvents} review events, ${writing.approvedDrafts} approved, ${writing.exportedDrafts} exported, ${writing.archivedDrafts} archived
 - Planning: ${planning.objectives} objectives, ${planning.milestones} milestones, ${planning.workSessions} work sessions, ${planning.notes} notes
 - Reports: ${reports.packets} packets, ${reports.auditEvents} audit events, ${reports.exportedPackets} exported, ${reports.archivedPackets} archived
@@ -752,7 +753,7 @@ export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
   const { workspace, dispatch, writing, planning, reports, review, calibration, sync } =
     envelope.summary
 
-  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${calibration.progressRecords} calibration progress records, ${sync.snapshots} sync snapshots.`
+  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${dispatch.recoveryPlans} recovery plans, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${calibration.progressRecords} calibration progress records, ${sync.snapshots} sync snapshots.`
 }
 
 export function canApplyAtlasRestore(confirmation: string) {

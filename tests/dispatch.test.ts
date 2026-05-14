@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  getRecoveryPlanForTarget,
   getRunbookForTarget,
   type DeploymentTarget,
   type DispatchHostEvidenceRun,
@@ -30,6 +31,11 @@ import {
   normalizeDispatchState,
   replaceDeploymentArtifact,
 } from '../src/services/dispatchStorage'
+import {
+  evaluateRecoveryPlanReadiness,
+  normalizeRecoveryPlan,
+  upsertRecoveryPlan,
+} from '../src/services/dispatchRecovery'
 import {
   inspectDeploymentArtifact,
   runDeploymentVerificationChecks,
@@ -316,11 +322,100 @@ describe('dispatch readiness', () => {
     expect(normalized.deploySessions).toEqual([])
     expect(normalized.hostEvidenceRuns).toEqual([])
     expect(normalized.verificationEvidenceRuns).toEqual([])
+    expect(normalized.recoveryPlans).toEqual([])
     expect(normalized.evidenceRetentionPolicy).toMatchObject({
       hostRunLimit: 50,
       verificationRunLimit: 50,
       preserveFailedRuns: true,
     })
+  })
+
+  it('normalizes recovery readiness plans while rejecting secret-shaped values', () => {
+    const normalized = normalizeDispatchState(
+      {
+        targets: [target],
+        records: [],
+        readiness: [readiness],
+        recoveryPlans: [
+          {
+            projectId: target.projectId,
+            targetId: target.id,
+            backupCadence: 'Before each manual upload',
+            backupLocationRef: 'ops-backup-ledger',
+            rollbackReference: 'release rollback notes',
+            rollbackSteps: 'Restore previous zip|Re-run verification checks',
+            escalationContactRef: 'ops-contact-card',
+            lastReviewedAt: '2026-05-10T12:00:00Z',
+          },
+          {
+            projectId: target.projectId,
+            targetId: 'target-secret',
+            backupLocationRef: 'password=do-not-store',
+          },
+        ],
+      },
+      new Date('2026-05-13T12:00:00Z'),
+    )
+
+    expect(normalized.recoveryPlans).toHaveLength(1)
+    expect(normalized.recoveryPlans[0].rollbackSteps).toEqual([
+      'Restore previous zip',
+      'Re-run verification checks',
+    ])
+    expect(normalizeRecoveryPlan({ targetId: target.id }, [target])?.projectId).toBe(
+      target.projectId,
+    )
+  })
+
+  it('upserts recovery plans as references only and evaluates readiness freshness', () => {
+    const state = {
+      ...seedDispatchState,
+      recoveryPlans: [],
+    }
+    const target = state.targets.find((candidate) => candidate.id === 'midway-mobile-storage-production')!
+    const rejected = upsertRecoveryPlan(state, {
+      projectId: target.projectId,
+      targetId: target.id,
+      backupLocationRef: 'secret=do-not-store',
+    })
+
+    expect(rejected.ok).toBe(false)
+    expect(rejected.state.recoveryPlans).toHaveLength(0)
+
+    const accepted = upsertRecoveryPlan(
+      state,
+      {
+        projectId: target.projectId,
+        targetId: target.id,
+        backupCadence: 'Before each manual upload',
+        backupLocationRef: 'mms-backup-ledger',
+        rollbackReference: 'mms-rollback-note',
+        rollbackSteps: ['Restore previous frontend zip', 'Confirm health URLs'],
+        maintenanceWindow: 'After venue close',
+        escalationContactRef: 'jamarq-ops-contact',
+        lastReviewedAt: '2026-05-10T12:00:00Z',
+      },
+      new Date('2026-05-13T12:00:00Z'),
+    )
+
+    expect(accepted.ok).toBe(true)
+    expect(getRecoveryPlanForTarget(accepted.state, target.id)?.backupLocationRef).toBe(
+      'mms-backup-ledger',
+    )
+    expect(
+      evaluateRecoveryPlanReadiness({
+        target,
+        plan: accepted.plan,
+        now: new Date('2026-05-13T12:00:00Z'),
+      }).status,
+    ).toBe('current')
+    expect(
+      evaluateRecoveryPlanReadiness({
+        target,
+        plan: accepted.plan,
+        now: new Date('2026-06-20T12:00:00Z'),
+      }).status,
+    ).toBe('stale')
   })
 
   it('normalizes dispatch evidence retention policy safely', () => {
@@ -357,6 +452,7 @@ describe('dispatch readiness', () => {
         deploySessions: [],
         hostEvidenceRuns: [],
         verificationEvidenceRuns: [],
+        recoveryPlans: [],
         evidenceRetentionPolicy: {
           hostRunLimit: 5,
           verificationRunLimit: 5,

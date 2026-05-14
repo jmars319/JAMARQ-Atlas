@@ -27,6 +27,7 @@ import {
   normalizeHostEvidenceRuns,
   normalizeVerificationEvidenceRuns,
 } from './dispatchEvidence'
+import { normalizeRecoveryPlans } from './dispatchRecovery'
 
 const PREFLIGHT_HISTORY_LIMIT = 50
 
@@ -70,6 +71,7 @@ export function normalizeDispatchState(value: unknown, now = new Date()): Dispat
       now,
     ),
     evidenceRetentionPolicy: normalizeEvidenceRetentionPolicy(candidate.evidenceRetentionPolicy),
+    recoveryPlans: normalizeRecoveryPlans(candidate.recoveryPlans, targets, now),
   }
 
   return applyEvidenceRetentionPolicy(normalized)

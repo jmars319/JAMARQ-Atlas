@@ -374,6 +374,31 @@ export interface DispatchEvidenceRetentionPolicy {
   preserveFailedRuns: boolean
 }
 
+export interface DispatchRecoveryPlan {
+  id: string
+  projectId: string
+  targetId: string
+  backupCadence: string
+  backupLocationRef: string
+  rollbackReference: string
+  rollbackSteps: string[]
+  maintenanceWindow: string
+  escalationContactRef: string
+  lastReviewedAt: string
+  notes: string[]
+}
+
+export type DispatchRecoveryPlanStatus = 'missing' | 'incomplete' | 'stale' | 'current'
+
+export interface DispatchRecoveryPlanEvaluation {
+  status: DispatchRecoveryPlanStatus
+  label: string
+  detail: string
+  missingFields: string[]
+  stale: boolean
+  reviewedAt: string
+}
+
 export type DispatchDeploySessionStatus =
   | 'active'
   | 'blocked'
@@ -461,6 +486,7 @@ export interface DispatchState {
   hostEvidenceRuns: DispatchHostEvidenceRun[]
   verificationEvidenceRuns: DispatchVerificationEvidenceRun[]
   evidenceRetentionPolicy?: DispatchEvidenceRetentionPolicy
+  recoveryPlans: DispatchRecoveryPlan[]
 }
 
 export type DeploymentRunnerPhase =
@@ -555,6 +581,10 @@ export function getLatestVerificationEvidenceRun(
   runbookId?: string,
 ) {
   return getTargetVerificationEvidenceRuns(state, targetId, runbookId)[0]
+}
+
+export function getRecoveryPlanForTarget(state: DispatchState, targetId: string) {
+  return state.recoveryPlans.find((plan) => plan.targetId === targetId)
 }
 
 export function summarizePreflightStatus(checks: DispatchPreflightCheck[]): DispatchPreflightStatus {

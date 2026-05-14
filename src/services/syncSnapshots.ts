@@ -56,6 +56,7 @@ function emptySyncSummary(): AtlasSyncStoreSummary {
       records: 0,
       readinessEntries: 0,
       preflightRuns: 0,
+      recoveryPlans: 0,
     },
     writing: {
       drafts: 0,
@@ -125,6 +126,7 @@ function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
       records: Number(dispatch.records) || 0,
       readinessEntries: Number(dispatch.readinessEntries) || 0,
       preflightRuns: Number(dispatch.preflightRuns) || 0,
+      recoveryPlans: Number(dispatch.recoveryPlans) || 0,
     },
     writing: {
       drafts: Number(writing.drafts) || 0,
@@ -224,6 +226,7 @@ export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStore
       records: stores.dispatch.records.length,
       readinessEntries: stores.dispatch.readiness.length,
       preflightRuns: stores.dispatch.preflightRuns.length,
+      recoveryPlans: stores.dispatch.recoveryPlans.length,
     },
     writing: {
       drafts: stores.writing.drafts.length,
@@ -716,6 +719,7 @@ export function compareSyncSnapshot(
       `Repository bindings: local ${currentSummary.workspace.repositoryBindings}, snapshot ${snapshot.summary.workspace.repositoryBindings}`,
       `Dispatch targets: local ${currentSummary.dispatch.targets}, snapshot ${snapshot.summary.dispatch.targets}`,
       `Preflight runs: local ${currentSummary.dispatch.preflightRuns}, snapshot ${snapshot.summary.dispatch.preflightRuns}`,
+      `Recovery plans: local ${currentSummary.dispatch.recoveryPlans}, snapshot ${snapshot.summary.dispatch.recoveryPlans}`,
       `Writing drafts: local ${currentSummary.writing.drafts}, snapshot ${snapshot.summary.writing.drafts}`,
       `Writing review events: local ${currentSummary.writing.reviewEvents}, snapshot ${snapshot.summary.writing.reviewEvents}`,
       `Planning records: local ${

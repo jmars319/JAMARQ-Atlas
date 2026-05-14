@@ -36,6 +36,7 @@ export interface AtlasSyncStoreSummary {
     records: number
     readinessEntries: number
     preflightRuns: number
+    recoveryPlans: number
   }
   writing: {
     drafts: number

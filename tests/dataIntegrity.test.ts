@@ -97,4 +97,72 @@ describe('dataIntegrity', () => {
       diagnostics.find((diagnostic) => diagnostic.id === 'calibration-stale-links')?.affectedIds,
     ).toContain('credential-stale')
   })
+
+  test('reports stale recovery plan references and duplicates', () => {
+    const dispatch = {
+      ...seedDispatchState,
+      recoveryPlans: [
+        {
+          id: 'recovery-stale',
+          projectId: 'missing-project',
+          targetId: 'missing-target',
+          backupCadence: 'Before upload',
+          backupLocationRef: 'backup-ledger',
+          rollbackReference: 'rollback-note',
+          rollbackSteps: ['Restore previous zip'],
+          maintenanceWindow: '',
+          escalationContactRef: 'ops-card',
+          lastReviewedAt: '2026-05-13T00:00:00Z',
+          notes: [],
+        },
+        {
+          id: 'recovery-duplicate',
+          projectId: seedDispatchState.targets[0].projectId,
+          targetId: seedDispatchState.targets[0].id,
+          backupCadence: 'Before upload',
+          backupLocationRef: 'backup-ledger',
+          rollbackReference: 'rollback-note',
+          rollbackSteps: ['Restore previous zip'],
+          maintenanceWindow: '',
+          escalationContactRef: 'ops-card',
+          lastReviewedAt: '2026-05-13T00:00:00Z',
+          notes: [],
+        },
+        {
+          id: 'recovery-duplicate-two',
+          projectId: seedDispatchState.targets[0].projectId,
+          targetId: seedDispatchState.targets[0].id,
+          backupCadence: 'Before upload',
+          backupLocationRef: 'backup-ledger',
+          rollbackReference: 'rollback-note',
+          rollbackSteps: ['Restore previous zip'],
+          maintenanceWindow: '',
+          escalationContactRef: 'ops-card',
+          lastReviewedAt: '2026-05-13T00:00:00Z',
+          notes: [],
+        },
+      ],
+    }
+
+    const diagnostics = createDataIntegrityDiagnostics({
+      workspace: seedWorkspace,
+      dispatch,
+      writing: emptyWritingState,
+      planning: emptyPlanningStore(),
+      reports: emptyReportsStore(),
+      review: emptyReviewStore(),
+      calibration: emptyCalibrationState(),
+    })
+
+    expect(
+      diagnostics.find((diagnostic) => diagnostic.id === 'dispatch-missing-projects')?.affectedIds,
+    ).toContain('recovery-stale')
+    expect(
+      diagnostics.find((diagnostic) => diagnostic.id === 'dispatch-missing-targets')?.affectedIds,
+    ).toContain('recovery-stale')
+    expect(
+      diagnostics.find((diagnostic) => diagnostic.id === 'dispatch-duplicate-recovery-plans')
+        ?.affectedIds,
+    ).toContain('recovery-duplicate-two')
+  })
 })

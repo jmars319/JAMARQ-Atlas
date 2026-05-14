@@ -663,4 +663,5 @@ export const seedDispatchState: DispatchState = {
     verificationRunLimit: 50,
     preserveFailedRuns: true,
   },
+  recoveryPlans: [],
 }
