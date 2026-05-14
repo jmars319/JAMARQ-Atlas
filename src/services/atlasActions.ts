@@ -38,6 +38,7 @@ import {
   type CalibrationIssue,
 } from './calibration'
 import { runDeploymentVerificationChecks } from './deployPreflight'
+import { createDataIntegrityDiagnostics } from './dataIntegrity'
 import { createHostEvidenceRun, createVerificationEvidenceRun } from './dispatchEvidence'
 import { runDispatchPreflight } from './dispatchPreflight'
 import { requestHostConnectionPreflight } from './hostConnection'
@@ -281,6 +282,44 @@ export function createAtlasActions(context: AtlasActionsContext) {
     context.setAppView('reports')
   }
 
+  function createOperationsReadinessReport(projectId?: string) {
+    const scopedProjectIds = projectId
+      ? [projectId]
+      : context.projectRecords.map((record) => record.project.id)
+    const packet = createReportPacket({
+      type: 'operations-readiness-packet',
+      projectRecords: context.projectRecords,
+      dispatch: context.dispatch,
+      reports: context.reports,
+      planning: context.planning,
+      writingDrafts: context.writing.drafts,
+      review: context.review,
+      projectIds: scopedProjectIds,
+      writingDraftIds: [],
+      calibration: context.calibration,
+      calibrationIssues: context.calibrationIssues,
+      workspace: context.workspace,
+      sync: context.sync,
+      dataIntegrityDiagnostics: createDataIntegrityDiagnostics({
+        workspace: context.workspace,
+        dispatch: context.dispatch,
+        writing: context.writing,
+        planning: context.planning,
+        reports: context.reports,
+        review: context.review,
+        calibration: context.calibration,
+      }),
+    })
+
+    context.addReportPacket(packet)
+
+    if (projectId) {
+      selectProject(projectId)
+    }
+
+    context.setAppView('reports')
+  }
+
   function bindRepository(projectId: string, repository: GithubRepositorySummary) {
     const link = repositorySummaryToLink(repository)
     context.setWorkspace((currentWorkspace) =>
@@ -489,6 +528,7 @@ export function createAtlasActions(context: AtlasActionsContext) {
     runDeploymentVerification,
     runQueueEvidenceSweep,
     createReadinessReport,
+    createOperationsReadinessReport,
     bindRepository,
     createInboxProject,
     unbindRepository,

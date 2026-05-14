@@ -48,6 +48,11 @@ export const REPORT_PACKET_TYPES = [
     label: 'Dispatch closeout summary packet',
     intent: 'Assemble closeout posture, evidence, and follow-up notes for deployment review.',
   },
+  {
+    id: 'operations-readiness-packet',
+    label: 'Operations readiness packet',
+    intent: 'Assemble Ops Cockpit queue, stale evidence, recovery, calibration, data integrity, and snapshot posture.',
+  },
 ] as const
 
 export type ReportPacketType = (typeof REPORT_PACKET_TYPES)[number]['id']

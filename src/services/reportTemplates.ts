@@ -32,6 +32,10 @@ export const reportTemplateFocusLines: Partial<Record<ReportPacketType, string[]
     'Emphasize closeout state, evidence IDs, manual deployment records, report packet context, and follow-up gaps.',
     'Closeout state is advisory and does not prove deployment or verification.',
   ],
+  'operations-readiness-packet': [
+    'Emphasize Ops Cockpit queue order, stale evidence, recovery gaps, calibration issues, data integrity diagnostics, snapshot posture, and next local actions.',
+    'This packet is advisory and must not imply Atlas executed deployment, rollback, restore, or production write actions.',
+  ],
 }
 
 export function buildReportTemplateFocus(type: ReportPacketType) {

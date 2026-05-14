@@ -38,6 +38,9 @@ import {
   updateReportPacketMarkdown,
 } from '../src/services/reports'
 import { buildReportTemplateFocus } from '../src/services/reportTemplates'
+import { createDataIntegrityDiagnostics } from '../src/services/dataIntegrity'
+import { emptySyncState } from '../src/services/syncSnapshots'
+import { emptyWritingState } from '../src/domain/writing'
 import type { WritingDraft } from '../src/domain/writing'
 
 const now = new Date('2026-05-10T12:00:00Z')
@@ -242,6 +245,48 @@ describe('report packet builder', () => {
     expect(packet.markdown).toContain('Credential references: 1')
     expect(packet.markdown).toContain('Unregistered credential refs:')
     expect(packet.markdown).toContain('godaddy-mmh-production: GoDaddy cPanel')
+  })
+
+  it('creates operations readiness packets from Ops Cockpit context', () => {
+    const calibration = emptyCalibrationState(now)
+    const planning = emptyPlanningStore(now)
+    const reports = emptyReportsStore(now)
+    const review = emptyReviewStore(now)
+    const diagnostics = createDataIntegrityDiagnostics({
+      workspace: seedWorkspace,
+      dispatch: seedDispatchState,
+      writing: emptyWritingState,
+      planning,
+      reports,
+      review,
+      calibration,
+    })
+    const packet = createReportPacket({
+      type: 'operations-readiness-packet',
+      workspace: seedWorkspace,
+      projectRecords,
+      dispatch: seedDispatchState,
+      reports,
+      review,
+      planning,
+      writingDrafts: [],
+      projectIds: ['midway-mobile-storage-site'],
+      writingDraftIds: [],
+      calibration,
+      calibrationIssues: scanAtlasCalibration(seedWorkspace, seedDispatchState, [], []),
+      sync: emptySyncState(now),
+      dataIntegrityDiagnostics: diagnostics,
+      now,
+    })
+
+    expect(packet.type).toBe('operations-readiness-packet')
+    expect(packet.markdown).toContain('Ops Cockpit Summary')
+    expect(packet.markdown).toContain('Top Daily Queue')
+    expect(packet.markdown).toContain('Recovery Gaps')
+    expect(packet.markdown).toContain('Snapshot Status')
+    expect(packet.contextWarnings).not.toContain(
+      'No approved or exported Writing drafts are included.',
+    )
   })
 
   it('includes explicitly selected Review sessions and notes in report packets', () => {

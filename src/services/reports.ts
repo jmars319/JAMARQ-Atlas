@@ -1,5 +1,6 @@
-import { formatDateLabel, type ProjectRecord } from '../domain/atlas'
+import { formatDateLabel, type ProjectRecord, type Workspace } from '../domain/atlas'
 import type { AtlasCalibrationState } from '../domain/calibration'
+import type { DataIntegrityDiagnostic } from '../domain/dataIntegrity'
 import { findReadiness, type DispatchState } from '../domain/dispatch'
 import type { PlanningState } from '../domain/planning'
 import {
@@ -16,6 +17,7 @@ import {
   type ReportsState,
 } from '../domain/reports'
 import type { ReviewNote, ReviewSession, ReviewState } from '../domain/review'
+import type { AtlasSyncState } from '../domain/sync'
 import type { WritingDraft } from '../domain/writing'
 import {
   closeoutStateLabels,
@@ -35,6 +37,7 @@ import {
   assembleReportMarkdown,
   buildReportTemplateFocus,
 } from './reportTemplates'
+import { createOperationsCockpitSummary } from './operations'
 
 export { reportGuardrails } from './reportTemplates'
 
@@ -52,6 +55,9 @@ interface ReportContextInput {
   reviewSessionIds?: string[]
   calibration?: AtlasCalibrationState
   calibrationIssues?: CalibrationIssue[]
+  workspace?: Workspace
+  sync?: AtlasSyncState
+  dataIntegrityDiagnostics?: DataIntegrityDiagnostic[]
   now?: Date
 }
 
@@ -700,6 +706,133 @@ function buildCalibrationSection(
   ].join('\n')
 }
 
+function buildOperationsReadinessSections({
+  workspace,
+  dispatch,
+  reports,
+  sync,
+  calibration,
+  calibrationIssues,
+  dataIntegrityDiagnostics = [],
+  now,
+}: {
+  workspace?: Workspace
+  dispatch: DispatchState
+  reports: ReportsState
+  sync?: AtlasSyncState
+  calibration?: AtlasCalibrationState
+  calibrationIssues?: CalibrationIssue[]
+  dataIntegrityDiagnostics?: DataIntegrityDiagnostic[]
+  now: Date
+}) {
+  if (!workspace || !sync || !calibration) {
+    return [
+      {
+        heading: 'Ops Cockpit Summary',
+        body: '_Ops Cockpit context was not supplied for this packet._',
+      },
+    ]
+  }
+
+  const summary = createOperationsCockpitSummary({
+    workspace,
+    dispatch,
+    reports,
+    sync,
+    calibration,
+    calibrationIssues: calibrationIssues ?? [],
+    dataIntegrityDiagnostics,
+    now,
+  })
+  const topQueue = summary.queue.slice(0, 10)
+  const staleEvidence = summary.queue.filter((item) =>
+    item.reasons.some((reason) => reason.id === 'stale-evidence' || reason.id === 'missing-evidence'),
+  )
+  const recoveryGaps = summary.queue.filter((item) =>
+    item.reasons.some((reason) => reason.id === 'recovery'),
+  )
+  const calibrationRows = summary.queue.filter((item) =>
+    item.reasons.some((reason) => reason.id === 'calibration'),
+  )
+  const integrityRows = summary.queue.filter((item) =>
+    item.reasons.some((reason) => reason.id === 'data-integrity'),
+  )
+
+  return [
+    {
+      heading: 'Ops Cockpit Summary',
+      body: [
+        `- Readiness grade: ${summary.grade}`,
+        `- Queue items: ${summary.queue.length}`,
+        `- Dispatch targets: ${summary.counts.dispatchTargets}`,
+        `- Blocked targets: ${summary.counts.blockedTargets}`,
+        `- Attention targets: ${summary.counts.attentionTargets}`,
+        `- Current recovery plans: ${summary.counts.currentRecoveryPlans}`,
+        `- Latest local snapshot: ${summary.latestSnapshotAt ?? 'not created'}`,
+        `- Hosted sync warnings: ${summary.counts.syncWarnings}`,
+      ].join('\n'),
+    },
+    {
+      heading: 'Top Daily Queue',
+      body: list(
+        topQueue.map(
+          (item) =>
+            `${item.grade}: ${item.label}${item.targetName ? ` / ${item.targetName}` : ''} - ${item.summary}`,
+        ),
+        'No active Ops queue items.',
+      ),
+    },
+    {
+      heading: 'Stale Evidence',
+      body: list(
+        staleEvidence.map((item) => `${item.label}: ${item.summary}`),
+        'No stale or missing evidence queue items.',
+      ),
+    },
+    {
+      heading: 'Recovery Gaps',
+      body: list(
+        recoveryGaps.map((item) => `${item.label}: ${item.summary}`),
+        'No recovery gaps in the Ops queue.',
+      ),
+    },
+    {
+      heading: 'Calibration and Data Integrity',
+      body: [
+        'Calibration:',
+        list(
+          calibrationRows.map((item) => `${item.grade}: ${item.summary}`),
+          'No calibration queue item.',
+        ),
+        '',
+        'Data integrity:',
+        list(
+          integrityRows.map((item) => `${item.grade}: ${item.summary}`),
+          'No data integrity queue item.',
+        ),
+      ].join('\n'),
+    },
+    {
+      heading: 'Snapshot Status',
+      body: [
+        `- Latest local snapshot: ${summary.latestSnapshotAt ?? 'not created'}`,
+        `- Missing snapshot flag: ${summary.counts.missingSnapshots}`,
+        `- Stale snapshot flag: ${summary.counts.staleSnapshots}`,
+        `- Snapshot stale threshold: ${summary.staleSnapshotDays} day(s)`,
+      ].join('\n'),
+    },
+    {
+      heading: 'Next Operator Actions',
+      body: list(
+        topQueue.flatMap((item) =>
+          item.actions.slice(0, 3).map((action) => `${item.label}: ${action.label}`),
+        ),
+        'No next actions derived from the Ops queue.',
+      ),
+    },
+  ]
+}
+
 export function buildReportMarkdown({
   type,
   records,
@@ -708,6 +841,9 @@ export function buildReportMarkdown({
   review,
   calibration,
   calibrationIssues = [],
+  workspace,
+  sync,
+  dataIntegrityDiagnostics = [],
   planning,
   writingDrafts,
   selectedReviewNotes = [],
@@ -721,6 +857,9 @@ export function buildReportMarkdown({
   review?: ReviewState
   calibration?: AtlasCalibrationState
   calibrationIssues?: CalibrationIssue[]
+  workspace?: Workspace
+  sync?: AtlasSyncState
+  dataIntegrityDiagnostics?: DataIntegrityDiagnostic[]
   planning: PlanningState
   writingDrafts: WritingDraft[]
   selectedReviewNotes?: ReviewNote[]
@@ -728,54 +867,67 @@ export function buildReportMarkdown({
   now?: Date
 }) {
   const packetType = getReportPacketType(type)
+  const sections =
+    type === 'operations-readiness-packet'
+      ? buildOperationsReadinessSections({
+          workspace,
+          dispatch,
+          reports,
+          sync,
+          calibration,
+          calibrationIssues,
+          dataIntegrityDiagnostics,
+          now,
+        })
+      : [
+          { heading: 'Included Writing Drafts', body: buildWritingSection(writingDrafts) },
+          {
+            heading: 'Project Context',
+            body: records.map((record) => buildProjectSection(record, planning)).join('\n\n'),
+          },
+          { heading: 'Dispatch Posture', body: buildDispatchSection(records, dispatch) },
+          {
+            heading: 'Deployment Runbooks & Artifact Readiness',
+            body: buildDeploymentRunbookSection(records, dispatch),
+          },
+          { heading: 'Deploy Session Evidence', body: buildDeploySessionSection(records, dispatch) },
+          {
+            heading: 'Dispatch Closeout Analytics',
+            body: buildDispatchCloseoutSection(records, dispatch, reports),
+            include: isDeploymentReportType(type),
+          },
+          {
+            heading: 'Stored Dispatch Evidence',
+            body: buildStoredDispatchEvidenceSection(records, dispatch),
+          },
+          { heading: 'GitHub Context', body: buildGithubSection(records, writingDrafts) },
+          {
+            heading: 'Review Center Notes',
+            body: buildReviewSection({
+              records,
+              review,
+              selectedNotes: selectedReviewNotes,
+              selectedSessions: selectedReviewSessions,
+            }),
+            include:
+              type === 'internal-weekly-packet' ||
+              type === 'project-handoff-packet' ||
+              selectedReviewNotes.length > 0 ||
+              selectedReviewSessions.length > 0,
+          },
+          {
+            heading: 'Calibration Operations',
+            body: buildCalibrationSection(calibration, calibrationIssues),
+            include: shouldIncludeCalibrationSection(type),
+          },
+        ]
 
   return assembleReportMarkdown({
     title: reportTitle(type, records, now),
     reportTypeLabel: packetType.label,
     generatedAt: now.toISOString(),
     templateFocus: buildReportTemplateFocus(type),
-    sections: [
-      { heading: 'Included Writing Drafts', body: buildWritingSection(writingDrafts) },
-      {
-        heading: 'Project Context',
-        body: records.map((record) => buildProjectSection(record, planning)).join('\n\n'),
-      },
-      { heading: 'Dispatch Posture', body: buildDispatchSection(records, dispatch) },
-      {
-        heading: 'Deployment Runbooks & Artifact Readiness',
-        body: buildDeploymentRunbookSection(records, dispatch),
-      },
-      { heading: 'Deploy Session Evidence', body: buildDeploySessionSection(records, dispatch) },
-      {
-        heading: 'Dispatch Closeout Analytics',
-        body: buildDispatchCloseoutSection(records, dispatch, reports),
-        include: isDeploymentReportType(type),
-      },
-      {
-        heading: 'Stored Dispatch Evidence',
-        body: buildStoredDispatchEvidenceSection(records, dispatch),
-      },
-      { heading: 'GitHub Context', body: buildGithubSection(records, writingDrafts) },
-      {
-        heading: 'Review Center Notes',
-        body: buildReviewSection({
-          records,
-          review,
-          selectedNotes: selectedReviewNotes,
-          selectedSessions: selectedReviewSessions,
-        }),
-        include:
-          type === 'internal-weekly-packet' ||
-          type === 'project-handoff-packet' ||
-          selectedReviewNotes.length > 0 ||
-          selectedReviewSessions.length > 0,
-      },
-      {
-        heading: 'Calibration Operations',
-        body: buildCalibrationSection(calibration, calibrationIssues),
-        include: shouldIncludeCalibrationSection(type),
-      },
-    ],
+    sections,
   })
 }
 
@@ -793,6 +945,9 @@ export function createReportPacket({
   reviewSessionIds = [],
   calibration,
   calibrationIssues = [],
+  workspace,
+  sync,
+  dataIntegrityDiagnostics = [],
   now = new Date(),
 }: ReportContextInput): ReportPacket {
   const records = selectedRecords(projectRecords, projectIds)
@@ -812,7 +967,7 @@ export function createReportPacket({
   const sourceSummary = records.map((record) => summarizeProject(record, dispatch, planning, now))
   const contextWarnings = [
     ...(records.length === 0 ? ['No project records are included in this report packet.'] : []),
-    ...(selectedDrafts.length === 0
+    ...(selectedDrafts.length === 0 && type !== 'operations-readiness-packet'
       ? ['No approved or exported Writing drafts are included.']
       : []),
   ]
@@ -836,6 +991,9 @@ export function createReportPacket({
       review,
       calibration,
       calibrationIssues,
+      workspace,
+      sync,
+      dataIntegrityDiagnostics,
       planning,
       writingDrafts: selectedDrafts,
       selectedReviewNotes,

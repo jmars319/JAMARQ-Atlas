@@ -414,6 +414,18 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await clickAtlasNav(page, 'Ops')
   await expect(page.getByRole('heading', { name: 'Ops Cockpit' })).toBeVisible()
   await expect(page.getByLabel('Ops daily queue')).toContainText('Midway Mobile Storage')
+  await page
+    .getByLabel('Ops daily queue')
+    .locator('li')
+    .filter({ hasText: 'Midway Mobile Storage' })
+    .getByRole('button', { name: 'Create report packet' })
+    .click()
+  await expect(page.getByRole('heading', { name: 'Report Packet Builder' })).toBeVisible()
+  const opsReportMarkdownField = page.getByRole('textbox', { name: 'Report Markdown' })
+  await expect(opsReportMarkdownField).toHaveValue(/Ops Cockpit Summary/)
+  await expect(opsReportMarkdownField).toHaveValue(/Top Daily Queue/)
+  await expect(opsReportMarkdownField).toHaveValue(/Recovery Gaps/)
+  await expect(opsReportMarkdownField).toHaveValue(/Snapshot Status/)
   await clickAtlasNav(page, 'Dispatch')
   const mmsQueueItem = queue.locator('.dispatch-queue-item').filter({
     hasText: 'Midway Mobile Storage',

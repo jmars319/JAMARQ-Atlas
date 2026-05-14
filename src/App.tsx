@@ -578,7 +578,9 @@ function App() {
               atlasActions.selectProject(projectId)
               setAppView('planning')
             }}
-            onCreateReportPacket={(projectId) => atlasActions.createReadinessReport(projectId)}
+            onCreateReportPacket={(projectId) =>
+              atlasActions.createOperationsReadinessReport(projectId)
+            }
             onCreateSnapshot={() =>
               atlasActions.createSnapshot('Ops cockpit snapshot', 'Created from Ops Cockpit.')
             }
