@@ -892,7 +892,21 @@ describe('dispatch readiness', () => {
       ),
       verificationEvidenceRun(runbook.projectId, runbook.targetId, runbook.id),
     )
-    const readyItem = deriveDispatchQueueItems({ dispatch: withEvidence, projectRecords })[0]
+    const withRecovery = upsertRecoveryPlan(
+      withEvidence,
+      {
+        projectId: runbook.projectId,
+        targetId: runbook.targetId,
+        backupCadence: 'Before each manual upload',
+        backupLocationRef: 'mms-backup-ledger',
+        rollbackReference: 'mms-rollback-note',
+        rollbackSteps: ['Restore previous zip', 'Run verification checks'],
+        escalationContactRef: 'jamarq-ops-card',
+        lastReviewedAt: '2026-05-10T12:00:00Z',
+      },
+      new Date('2026-05-10T12:00:00Z'),
+    ).state
+    const readyItem = deriveDispatchQueueItems({ dispatch: withRecovery, projectRecords })[0]
     const missingHostConfig = addDispatchHostEvidenceRun(
       addDispatchPreflightRun(
         artifactReady,
@@ -909,11 +923,12 @@ describe('dispatch readiness', () => {
     })[0]
 
     expect(missingEvidenceItem.state).toBe('needs-evidence')
-    expect(missingEvidenceItem.stateDetail).toContain('read-only evidence')
+    expect(missingEvidenceItem.stateDetail).toContain('evidence or recovery')
     expect(missingEvidenceItem.artifactSummary.totalRequired).toBe(2)
     expect(missingEvidenceItem.artifactSummary.inspectedRequired).toBe(2)
     expect(readyItem.state).toBe('ready-for-manual-upload')
     expect(readyItem.stateDetail).toContain('outside Atlas')
+    expect(readyItem.recoveryStatus.label).toBe('Recovery plan current')
     expect(readyItem.hostStatus.label).toContain('sftp-readonly')
     expect(readyItem.hostStatus.detail).toContain('SFTP read-only')
     expect(missingHostItem.state).toBe('needs-evidence')
@@ -1042,9 +1057,23 @@ describe('dispatch readiness', () => {
       },
       new Date('2026-05-10T12:30:00Z'),
     )
-    const recorded = recordManualDeploymentFromSession(
+    const withRecovery = upsertRecoveryPlan(
       withReferences,
-      withReferences.deploySessions[0].id,
+      {
+        projectId: runbook.projectId,
+        targetId: runbook.targetId,
+        backupCadence: 'Before each manual upload',
+        backupLocationRef: 'mms-backup-ledger',
+        rollbackReference: 'mms-rollback-note',
+        rollbackSteps: ['Restore previous zip', 'Run verification checks'],
+        escalationContactRef: 'jamarq-ops-card',
+        lastReviewedAt: '2026-05-10T12:00:00Z',
+      },
+      new Date('2026-05-10T12:30:00Z'),
+    ).state
+    const recorded = recordManualDeploymentFromSession(
+      withRecovery,
+      withRecovery.deploySessions[0].id,
       MANUAL_DEPLOYMENT_RECORD_CONFIRMATION,
       new Date('2026-05-10T12:35:00Z'),
     )

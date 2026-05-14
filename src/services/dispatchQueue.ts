@@ -2,6 +2,7 @@ import type { ProjectRecord } from '../domain/atlas'
 import type {
   DeploymentArtifact,
   DeploymentRecord,
+  DispatchRecoveryPlanEvaluation,
   DeploymentRunbook,
   DeploymentTarget,
   DispatchDeploySession,
@@ -14,6 +15,7 @@ import {
   getActiveDeploySession,
   getLatestHostEvidenceRun,
   getLatestPreflightRun,
+  getRecoveryPlanForTarget,
   getLatestVerificationEvidenceRun,
   getTargetDeploySessions,
 } from '../domain/dispatch'
@@ -23,6 +25,7 @@ import {
   type DispatchCloseoutSummary,
 } from './dispatchCloseout'
 import { formatHostEvidenceProbeLabel } from './dispatchEvidence'
+import { evaluateRecoveryPlanReadiness } from './dispatchRecovery'
 
 export const CPANEL_QUEUE_GROUP_ID = 'current-cpanel-sites'
 
@@ -64,6 +67,7 @@ export interface DispatchQueueItem {
   preflightStatus: DispatchQueueSignal
   hostStatus: DispatchQueueSignal
   verificationStatus: DispatchQueueSignal
+  recoveryStatus: DispatchQueueSignal
   activeSession?: DispatchDeploySession
   latestSession?: DispatchDeploySession
   latestManualDeploymentRecord?: DeploymentRecord
@@ -222,8 +226,23 @@ function summarizeVerification(
   }
 }
 
+function summarizeRecovery(
+  evaluation: DispatchRecoveryPlanEvaluation,
+): DispatchQueueSignal {
+  return {
+    status: evaluation.status === 'current' ? 'passing' : 'warning',
+    label: evaluation.label,
+    detail: evaluation.detail,
+    checkedAt: evaluation.reviewedAt,
+  }
+}
+
 function blockingEvidenceStatus(status: DispatchQueueSignalStatus) {
   return status === 'missing' || status === 'not-configured' || status === 'failed'
+}
+
+function blockingRecoveryStatus(status: DispatchQueueSignalStatus) {
+  return status === 'missing' || status === 'warning' || status === 'failed'
 }
 
 function queueState({
@@ -231,6 +250,7 @@ function queueState({
   preflightStatus,
   hostStatus,
   verificationStatus,
+  recoveryStatus,
   activeSession,
   latestManualRecord,
 }: {
@@ -238,6 +258,7 @@ function queueState({
   preflightStatus: DispatchQueueSignal
   hostStatus: DispatchQueueSignal
   verificationStatus: DispatchQueueSignal
+  recoveryStatus: DispatchQueueSignal
   activeSession?: DispatchDeploySession
   latestManualRecord?: DeploymentRecord
 }): DispatchQueueState {
@@ -261,6 +282,10 @@ function queueState({
     return 'needs-evidence'
   }
 
+  if (blockingRecoveryStatus(recoveryStatus.status)) {
+    return 'needs-evidence'
+  }
+
   return 'ready-for-manual-upload'
 }
 
@@ -270,6 +295,7 @@ export function explainDispatchQueueState({
   preflightStatus,
   hostStatus,
   verificationStatus,
+  recoveryStatus,
   activeSession,
   latestManualRecord,
 }: {
@@ -278,6 +304,7 @@ export function explainDispatchQueueState({
   preflightStatus: DispatchQueueSignal
   hostStatus: DispatchQueueSignal
   verificationStatus: DispatchQueueSignal
+  recoveryStatus: DispatchQueueSignal
   activeSession?: DispatchDeploySession
   latestManualRecord?: DeploymentRecord
 }) {
@@ -298,12 +325,17 @@ export function explainDispatchQueueState({
       preflightStatus,
       hostStatus,
       verificationStatus,
-    ].filter((signal) => blockingEvidenceStatus(signal.status))
+      recoveryStatus,
+    ].filter((signal) =>
+      signal === recoveryStatus
+        ? blockingRecoveryStatus(signal.status)
+        : blockingEvidenceStatus(signal.status),
+    )
 
-    return `${missing.length} read-only evidence area(s) still need capture or review before Atlas can describe the row as ready for manual upload.`
+    return `${missing.length} evidence or recovery area(s) still need capture or review before Atlas can describe the row as ready for manual upload.`
   }
 
-  return 'Required artifacts and read-only evidence have been captured. A human can decide whether to upload outside Atlas; no production action will run here.'
+  return 'Required artifacts, read-only evidence, and recovery references have been captured. A human can decide whether to upload outside Atlas; no production action will run here.'
 }
 
 function warningLines(signals: DispatchQueueSignal[]) {
@@ -352,6 +384,12 @@ export function deriveDispatchQueueItems({
     const preflightStatus = summarizePreflight(latestPreflight)
     const hostStatus = summarizeHost(latestHostEvidence)
     const verificationStatus = summarizeVerification(latestVerificationEvidence)
+    const recoveryStatus = summarizeRecovery(
+      evaluateRecoveryPlanReadiness({
+        target,
+        plan: getRecoveryPlanForTarget(dispatch, target.id),
+      }),
+    )
     const closeout = deriveDispatchCloseoutForTarget({
       dispatch,
       reports,
@@ -363,6 +401,7 @@ export function deriveDispatchQueueItems({
       preflightStatus,
       hostStatus,
       verificationStatus,
+      recoveryStatus,
       activeSession,
       latestManualRecord: manualRecord,
     })
@@ -373,6 +412,7 @@ export function deriveDispatchQueueItems({
       preflightStatus,
       hostStatus,
       verificationStatus,
+      recoveryStatus,
       activeSession,
       latestManualRecord: manualRecord,
     })
@@ -389,6 +429,7 @@ export function deriveDispatchQueueItems({
         preflightStatus,
         hostStatus,
         verificationStatus,
+        recoveryStatus,
         activeSession,
         latestSession: sessions[0],
         latestManualDeploymentRecord: manualRecord,
@@ -401,6 +442,7 @@ export function deriveDispatchQueueItems({
           preflightStatus,
           hostStatus,
           verificationStatus,
+          recoveryStatus,
         ]).concat(closeout.warnings.slice(0, 2)),
       },
     ]

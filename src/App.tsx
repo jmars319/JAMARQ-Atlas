@@ -29,6 +29,7 @@ import type {
   DispatchDeploySessionStep,
   DispatchDeploySessionStepKind,
   DispatchHostEvidenceRun,
+  DispatchRecoveryPlan,
   DispatchVerificationEvidenceRun,
 } from './domain/dispatch'
 import type { DeploySessionChecklistPresetId } from './services/deploySessions'
@@ -117,6 +118,9 @@ function App() {
     updateReadiness,
     updateAutomationReadiness,
     updateDeploymentArtifact,
+    updateDeploymentPreservePath,
+    updateDeploymentVerificationCheck,
+    updateRecoveryPlan,
     createDeploySession,
     updateDeploySessionFields,
     updateDeploySessionStepFields,
@@ -613,6 +617,11 @@ function App() {
               onDispatchReadinessChange={atlasActions.updateDispatchReadiness}
               onDispatchAutomationReadinessChange={atlasActions.updateDispatchAutomationReadiness}
               onDeploymentArtifactChange={updateDeploymentArtifact}
+              onDeploymentPreservePathChange={updateDeploymentPreservePath}
+              onDeploymentVerificationCheckChange={updateDeploymentVerificationCheck}
+              onRecoveryPlanChange={(targetId: string, update: Partial<DispatchRecoveryPlan>) =>
+                updateRecoveryPlan(targetId, update)
+              }
               onStartDeploySession={createDeploySession}
               onDeploySessionChange={(
                 sessionId: string,

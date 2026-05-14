@@ -177,6 +177,7 @@ export function DispatchQueueCommandCenter({
                 <SignalCard label="Preflight" signal={item.preflightStatus} />
                 <SignalCard label="Host" signal={item.hostStatus} />
                 <SignalCard label="Verify" signal={item.verificationStatus} />
+                <SignalCard label="Recovery" signal={item.recoveryStatus} />
               </div>
 
               <div className="dispatch-queue-runbook">

@@ -25,13 +25,16 @@ import {
 import type { CalibrationCredentialReference } from '../domain/calibration'
 import type {
   DeploymentArtifact,
+  DeploymentPreservePath,
   DeploymentTarget,
+  DeploymentVerificationCheck,
   DispatchAutomationReadiness,
   DispatchDeploySession,
   DispatchDeploySessionStep,
   DispatchDeploySessionStepKind,
   DispatchHostEvidenceRun,
   DispatchReadiness,
+  DispatchRecoveryPlan,
   DispatchState,
   DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
@@ -82,6 +85,17 @@ interface ProjectDetailProps {
     artifactId: string,
     update: Partial<DeploymentArtifact>,
   ) => void
+  onDeploymentPreservePathChange: (
+    runbookId: string,
+    preservePathId: string,
+    update: Partial<DeploymentPreservePath>,
+  ) => void
+  onDeploymentVerificationCheckChange: (
+    runbookId: string,
+    checkId: string,
+    update: Partial<DeploymentVerificationCheck>,
+  ) => void
+  onRecoveryPlanChange: (targetId: string, update: Partial<DispatchRecoveryPlan>) => void
   onStartDeploySession: (runbookId: string) => void
   onDeploySessionChange: (
     sessionId: string,
@@ -178,6 +192,9 @@ export function ProjectDetail({
   onDispatchReadinessChange,
   onDispatchAutomationReadinessChange,
   onDeploymentArtifactChange,
+  onDeploymentPreservePathChange,
+  onDeploymentVerificationCheckChange,
+  onRecoveryPlanChange,
   onStartDeploySession,
   onDeploySessionChange,
   onDeploySessionStepChange,
@@ -352,6 +369,9 @@ export function ProjectDetail({
           onReadinessChange={onDispatchReadinessChange}
           onAutomationReadinessChange={onDispatchAutomationReadinessChange}
           onDeploymentArtifactChange={onDeploymentArtifactChange}
+          onDeploymentPreservePathChange={onDeploymentPreservePathChange}
+          onDeploymentVerificationCheckChange={onDeploymentVerificationCheckChange}
+          onRecoveryPlanChange={onRecoveryPlanChange}
           onStartDeploySession={onStartDeploySession}
           onDeploySessionChange={onDeploySessionChange}
           onDeploySessionStepChange={onDeploySessionStepChange}

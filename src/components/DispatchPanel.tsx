@@ -23,6 +23,7 @@ import {
   getLatestHostEvidenceRun,
   getLatestPreflightRun,
   getLatestVerificationEvidenceRun,
+  getRecoveryPlanForTarget,
   getRunbookForTarget,
   getTargetDeploySessions,
   getTargetHostEvidenceRuns,
@@ -36,9 +37,12 @@ import {
   type DispatchDeploySessionStepKind,
   type DispatchHostEvidenceRun,
   type DeploymentArtifact,
+  type DeploymentPreservePath,
   type DeploymentStatus,
   type DeploymentTarget,
+  type DeploymentVerificationCheck,
   type DispatchReadiness,
+  type DispatchRecoveryPlan,
   type DispatchState,
   type DispatchVerificationEvidenceRun,
   type HostConnectionPreflightResult,
@@ -74,6 +78,7 @@ import {
   type DeploySessionChecklistPresetId,
 } from '../services/deploySessions'
 import { canStoreCalibrationValue } from '../services/calibration'
+import { evaluateRecoveryPlanReadiness } from '../services/dispatchRecovery'
 import { requestHostConnectionPreflight } from '../services/hostConnection'
 import {
   backupLabel,
@@ -106,6 +111,17 @@ interface DispatchPanelProps {
     artifactId: string,
     update: Partial<DeploymentArtifact>,
   ) => void
+  onDeploymentPreservePathChange: (
+    runbookId: string,
+    preservePathId: string,
+    update: Partial<DeploymentPreservePath>,
+  ) => void
+  onDeploymentVerificationCheckChange: (
+    runbookId: string,
+    checkId: string,
+    update: Partial<DeploymentVerificationCheck>,
+  ) => void
+  onRecoveryPlanChange: (targetId: string, update: Partial<DispatchRecoveryPlan>) => void
   onStartDeploySession: (runbookId: string) => void
   onDeploySessionChange: (
     sessionId: string,
@@ -158,6 +174,9 @@ export function DispatchPanel({
   onReadinessChange,
   onAutomationReadinessChange,
   onDeploymentArtifactChange,
+  onDeploymentPreservePathChange,
+  onDeploymentVerificationCheckChange,
+  onRecoveryPlanChange,
   onStartDeploySession,
   onDeploySessionChange,
   onDeploySessionStepChange,
@@ -186,6 +205,25 @@ export function DispatchPanel({
   const [credentialMessages, setCredentialMessages] = useState<Record<string, string>>({})
   const [evidenceHistoryLimit, setEvidenceHistoryLimit] = useState(5)
   const targets = dispatch.targets.filter((target) => target.projectId === record.project.id)
+
+  function dateInputValue(value: string) {
+    return value ? value.slice(0, 10) : ''
+  }
+
+  function reviewedDateValue(value: string) {
+    return value ? `${value}T12:00:00Z` : ''
+  }
+
+  function statusesToText(statuses: number[]) {
+    return statuses.join('|')
+  }
+
+  function textToStatuses(value: string) {
+    return value
+      .split(/\||\n/)
+      .map((item) => Number(item.trim()))
+      .filter((item) => Number.isInteger(item) && item >= 100 && item <= 599)
+  }
 
   function handleCredentialRefChange(targetId: string, value: string) {
     const check = canStoreCalibrationValue(value)
@@ -221,6 +259,11 @@ export function DispatchPanel({
         const deploymentRecords = getTargetRecords(dispatch, target.id)
         const latestPreflight = getLatestPreflightRun(dispatch, target.id)
         const runbook = getRunbookForTarget(dispatch, target.id)
+        const recoveryPlan = getRecoveryPlanForTarget(dispatch, target.id)
+        const recoveryEvaluation = evaluateRecoveryPlanReadiness({
+          target,
+          plan: recoveryPlan,
+        })
         const closeout = deriveDispatchCloseoutForTarget({
           dispatch,
           reports,
@@ -345,6 +388,10 @@ export function DispatchPanel({
                   <strong>{backupLabel(target, readiness)}</strong>
                 </div>
                 <div>
+                  <span>Recovery</span>
+                  <strong>{recoveryEvaluation.label}</strong>
+                </div>
+                <div>
                   <span>Preflight</span>
                   <strong>
                     {latestPreflight ? formatPreflightStatus(latestPreflight.status) : 'Not run'}
@@ -370,6 +417,108 @@ export function DispatchPanel({
               limit={evidenceHistoryLimit}
               onLimitChange={setEvidenceHistoryLimit}
             />
+
+            <div className="dispatch-preflight" aria-label={`${target.name} recovery readiness`}>
+              <div className="panel-heading">
+                <Shield size={17} />
+                <h3>Recovery Readiness</h3>
+              </div>
+              <div className="dispatch-signal-grid">
+                <div>
+                  <strong>{recoveryEvaluation.label}</strong>
+                  <span>{recoveryEvaluation.detail}</span>
+                </div>
+                <div>
+                  <strong>{formatDateTimeLabel(recoveryEvaluation.reviewedAt || null)}</strong>
+                  <span>Last reviewed</span>
+                </div>
+                <div>
+                  <strong>{recoveryEvaluation.missingFields.length}</strong>
+                  <span>Missing fields</span>
+                </div>
+              </div>
+              <div className="field-grid">
+                <label className="field">
+                  <span>Backup cadence</span>
+                  <input
+                    value={recoveryPlan?.backupCadence ?? ''}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, { backupCadence: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Backup location ref</span>
+                  <input
+                    value={recoveryPlan?.backupLocationRef ?? ''}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, { backupLocationRef: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Rollback reference</span>
+                  <input
+                    value={recoveryPlan?.rollbackReference ?? ''}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, { rollbackReference: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Maintenance window</span>
+                  <input
+                    value={recoveryPlan?.maintenanceWindow ?? ''}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, { maintenanceWindow: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Escalation contact ref</span>
+                  <input
+                    value={recoveryPlan?.escalationContactRef ?? ''}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, { escalationContactRef: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Last reviewed</span>
+                  <input
+                    type="date"
+                    value={dateInputValue(recoveryPlan?.lastReviewedAt ?? '')}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, {
+                        lastReviewedAt: reviewedDateValue(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field field-full">
+                  <span>Rollback steps</span>
+                  <textarea
+                    rows={3}
+                    value={linesToText(recoveryPlan?.rollbackSteps ?? [])}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, {
+                        rollbackSteps: textToLines(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field field-full">
+                  <span>Recovery notes</span>
+                  <textarea
+                    rows={3}
+                    value={linesToText(recoveryPlan?.notes ?? [])}
+                    onChange={(event) =>
+                      onRecoveryPlanChange(target.id, { notes: textToLines(event.target.value) })
+                    }
+                  />
+                </label>
+              </div>
+            </div>
 
             <div className="dispatch-runbook" aria-label={`${target.name} deploy runbook`}>
               <div className="panel-heading">
@@ -413,6 +562,92 @@ export function DispatchPanel({
                       <ul className="dispatch-list">
                         {runbook.artifacts.map((artifact) => (
                           <li key={artifact.id}>
+                            <div className="field-grid">
+                              <label className="field">
+                                <span>Filename</span>
+                                <input
+                                  value={artifact.filename}
+                                  onChange={(event) =>
+                                    onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                      filename: event.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field">
+                                <span>Role</span>
+                                <select
+                                  value={artifact.role}
+                                  onChange={(event) =>
+                                    onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                      role: event.target.value as DeploymentArtifact['role'],
+                                    })
+                                  }
+                                >
+                                  <option value="frontend">frontend</option>
+                                  <option value="backend">backend</option>
+                                  <option value="placeholder">placeholder</option>
+                                </select>
+                              </label>
+                              <label className="field">
+                                <span>Source repo</span>
+                                <input
+                                  value={artifact.sourceRepo}
+                                  onChange={(event) =>
+                                    onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                      sourceRepo: event.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field">
+                                <span>Target path</span>
+                                <input
+                                  value={artifact.targetPath}
+                                  onChange={(event) =>
+                                    onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                      targetPath: event.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field checkbox-field">
+                                <input
+                                  type="checkbox"
+                                  checked={artifact.required}
+                                  onChange={(event) =>
+                                    onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                      required: event.target.checked,
+                                    })
+                                  }
+                                />
+                                <span>Required</span>
+                              </label>
+                              <label className="field checkbox-field">
+                                <input
+                                  type="checkbox"
+                                  checked={artifact.onlyWhenFullAppReady}
+                                  onChange={(event) =>
+                                    onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                      onlyWhenFullAppReady: event.target.checked,
+                                    })
+                                  }
+                                />
+                                <span>Full app only</span>
+                              </label>
+                              <label className="field field-full">
+                                <span>Artifact notes</span>
+                                <textarea
+                                  rows={2}
+                                  value={linesToText(artifact.notes)}
+                                  onChange={(event) =>
+                                    onDeploymentArtifactChange(runbook.id, artifact.id, {
+                                      notes: textToLines(event.target.value),
+                                    })
+                                  }
+                                />
+                              </label>
+                            </div>
                             <div className="dispatch-artifact-line">
                               <span>
                                 {artifact.filename} {'->'} {artifact.targetPath} ({artifact.role})
@@ -484,8 +719,66 @@ export function DispatchPanel({
                         <ul className="dispatch-list">
                           {runbook.preservePaths.map((path) => (
                             <li key={path.id}>
-                              {path.path}
-                              {path.temporary ? ' (temporary)' : ''}: {path.reason}
+                              <div className="field-grid">
+                                <label className="field">
+                                  <span>Path</span>
+                                  <input
+                                    value={path.path}
+                                    onChange={(event) =>
+                                      onDeploymentPreservePathChange(runbook.id, path.id, {
+                                        path: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="field">
+                                  <span>Reason</span>
+                                  <input
+                                    value={path.reason}
+                                    onChange={(event) =>
+                                      onDeploymentPreservePathChange(runbook.id, path.id, {
+                                        reason: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="field checkbox-field">
+                                  <input
+                                    type="checkbox"
+                                    checked={path.required}
+                                    onChange={(event) =>
+                                      onDeploymentPreservePathChange(runbook.id, path.id, {
+                                        required: event.target.checked,
+                                      })
+                                    }
+                                  />
+                                  <span>Required</span>
+                                </label>
+                                <label className="field checkbox-field">
+                                  <input
+                                    type="checkbox"
+                                    checked={path.temporary}
+                                    onChange={(event) =>
+                                      onDeploymentPreservePathChange(runbook.id, path.id, {
+                                        temporary: event.target.checked,
+                                      })
+                                    }
+                                  />
+                                  <span>Temporary</span>
+                                </label>
+                                <label className="field field-full">
+                                  <span>Path notes</span>
+                                  <textarea
+                                    rows={2}
+                                    value={linesToText(path.notes)}
+                                    onChange={(event) =>
+                                      onDeploymentPreservePathChange(runbook.id, path.id, {
+                                        notes: textToLines(event.target.value),
+                                      })
+                                    }
+                                  />
+                                </label>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -498,7 +791,80 @@ export function DispatchPanel({
                       <ul className="dispatch-list">
                         {runbook.verificationChecks.map((check) => (
                           <li key={check.id}>
-                            {check.method} {check.urlPath} {'->'} {check.expectedStatuses.join('/')}
+                            <div className="field-grid">
+                              <label className="field">
+                                <span>Label</span>
+                                <input
+                                  value={check.label}
+                                  onChange={(event) =>
+                                    onDeploymentVerificationCheckChange(runbook.id, check.id, {
+                                      label: event.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field">
+                                <span>Method</span>
+                                <select
+                                  value={check.method}
+                                  onChange={(event) =>
+                                    onDeploymentVerificationCheckChange(runbook.id, check.id, {
+                                      method: event.target
+                                        .value as DeploymentVerificationCheck['method'],
+                                    })
+                                  }
+                                >
+                                  <option value="HEAD">HEAD</option>
+                                  <option value="GET">GET</option>
+                                </select>
+                              </label>
+                              <label className="field">
+                                <span>URL path</span>
+                                <input
+                                  value={check.urlPath}
+                                  onChange={(event) =>
+                                    onDeploymentVerificationCheckChange(runbook.id, check.id, {
+                                      urlPath: event.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field">
+                                <span>Expected statuses</span>
+                                <input
+                                  value={statusesToText(check.expectedStatuses)}
+                                  onChange={(event) =>
+                                    onDeploymentVerificationCheckChange(runbook.id, check.id, {
+                                      expectedStatuses: textToStatuses(event.target.value),
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field checkbox-field">
+                                <input
+                                  type="checkbox"
+                                  checked={check.protectedResource}
+                                  onChange={(event) =>
+                                    onDeploymentVerificationCheckChange(runbook.id, check.id, {
+                                      protectedResource: event.target.checked,
+                                    })
+                                  }
+                                />
+                                <span>Protected resource</span>
+                              </label>
+                              <label className="field field-full">
+                                <span>Check notes</span>
+                                <textarea
+                                  rows={2}
+                                  value={linesToText(check.notes)}
+                                  onChange={(event) =>
+                                    onDeploymentVerificationCheckChange(runbook.id, check.id, {
+                                      notes: textToLines(event.target.value),
+                                    })
+                                  }
+                                />
+                              </label>
+                            </div>
                           </li>
                         ))}
                       </ul>

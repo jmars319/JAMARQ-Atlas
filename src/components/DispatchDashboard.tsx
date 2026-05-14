@@ -19,6 +19,7 @@ import {
   getLatestHostEvidenceRun,
   getLatestDeploymentRecord,
   getLatestPreflightRun,
+  getRecoveryPlanForTarget,
   getLatestVerificationEvidenceRun,
   getRunbookForTarget,
   getTargetDeploySessions,
@@ -40,6 +41,7 @@ import {
   compareHostEvidenceRuns,
   compareVerificationEvidenceRuns,
 } from '../services/dispatchEvidence'
+import { evaluateRecoveryPlanReadiness } from '../services/dispatchRecovery'
 
 interface DispatchDashboardProps {
   dispatch: DispatchState
@@ -107,6 +109,13 @@ export function DispatchDashboard({
     return evaluateDispatchReadiness({ target, readiness, latestRecord: latest }).blocked
   }).length
   const backupRequired = dispatch.targets.filter((target) => target.backupRequired).length
+  const currentRecoveryPlans = dispatch.targets.filter(
+    (target) =>
+      evaluateRecoveryPlanReadiness({
+        target,
+        plan: getRecoveryPlanForTarget(dispatch, target.id),
+      }).status === 'current',
+  ).length
   const activeSessions = dispatch.deploySessions.filter((session) =>
     ['active', 'blocked', 'completed'].includes(session.status),
   )
@@ -154,6 +163,11 @@ export function DispatchDashboard({
             <DatabaseBackup size={16} />
             <strong>{backupRequired}</strong>
             <span>Backups</span>
+          </div>
+          <div>
+            <ShieldAlert size={16} />
+            <strong>{currentRecoveryPlans}</strong>
+            <span>Recovery</span>
           </div>
           <div>
             <Rocket size={16} />
@@ -293,6 +307,10 @@ export function DispatchDashboard({
           const latestDeployment = getLatestDeploymentRecord(dispatch, target.id)
           const latestPreflight = getLatestPreflightRun(dispatch, target.id)
           const runbook = getRunbookForTarget(dispatch, target.id)
+          const recoveryEvaluation = evaluateRecoveryPlanReadiness({
+            target,
+            plan: getRecoveryPlanForTarget(dispatch, target.id),
+          })
           const latestHostEvidence = getLatestHostEvidenceRun(dispatch, target.id)
           const hostEvidenceRuns = getTargetHostEvidenceRuns(dispatch, target.id)
           const hostEvidenceComparison = compareHostEvidenceRuns(
@@ -375,6 +393,10 @@ export function DispatchDashboard({
                 <div>
                   <span>Runbook</span>
                   <strong>{runbook ? `#${runbook.deployOrder}` : 'None'}</strong>
+                </div>
+                <div>
+                  <span>Recovery</span>
+                  <strong>{recoveryEvaluation.status}</strong>
                 </div>
                 <div>
                   <span>Session</span>

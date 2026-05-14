@@ -2,11 +2,14 @@ import { seedDispatchState } from '../data/seedDispatch'
 import type {
   DeploymentTarget,
   DeploymentArtifact,
+  DeploymentPreservePath,
+  DeploymentVerificationCheck,
   DispatchAutomationReadiness,
   DispatchDeploySessionStep,
   DispatchHostEvidenceRun,
   DispatchPreflightRun,
   DispatchReadiness,
+  DispatchRecoveryPlan,
   DispatchState,
   DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
@@ -16,8 +19,11 @@ import {
   addDispatchVerificationEvidenceRun,
   normalizeDispatchState,
   replaceDeploymentArtifact,
+  replaceDeploymentPreservePath,
+  replaceDeploymentVerificationCheck,
   replaceDispatchAutomationReadiness,
 } from '../services/dispatchStorage'
+import { upsertRecoveryPlan } from '../services/dispatchRecovery'
 import type { DispatchDeploySessionStepKind } from '../domain/dispatch'
 import {
   applyDeploySessionChecklistPreset,
@@ -123,6 +129,42 @@ export function useLocalDispatch() {
     setDispatch((current) => replaceDeploymentArtifact(current, runbookId, artifactId, update))
   }
 
+  function updateDeploymentPreservePath(
+    runbookId: string,
+    preservePathId: string,
+    update: Partial<DeploymentPreservePath>,
+  ) {
+    setDispatch((current) =>
+      replaceDeploymentPreservePath(current, runbookId, preservePathId, update),
+    )
+  }
+
+  function updateDeploymentVerificationCheck(
+    runbookId: string,
+    checkId: string,
+    update: Partial<DeploymentVerificationCheck>,
+  ) {
+    setDispatch((current) =>
+      replaceDeploymentVerificationCheck(current, runbookId, checkId, update),
+    )
+  }
+
+  function updateRecoveryPlan(targetId: string, update: Partial<DispatchRecoveryPlan>) {
+    setDispatch((current) => {
+      const target = current.targets.find((candidate) => candidate.id === targetId)
+
+      if (!target) {
+        return current
+      }
+
+      return upsertRecoveryPlan(current, {
+        projectId: target.projectId,
+        targetId,
+        ...update,
+      }).state
+    })
+  }
+
   function createDeploySession(runbookId: string) {
     setDispatch((current) => startDeploySession(current, runbookId))
   }
@@ -183,6 +225,9 @@ export function useLocalDispatch() {
     updateReadiness,
     updateAutomationReadiness,
     updateDeploymentArtifact,
+    updateDeploymentPreservePath,
+    updateDeploymentVerificationCheck,
+    updateRecoveryPlan,
     createDeploySession,
     updateDeploySessionFields,
     updateDeploySessionStepFields,

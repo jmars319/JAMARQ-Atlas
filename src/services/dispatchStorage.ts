@@ -1,9 +1,11 @@
 import type {
   DeploymentArtifact,
+  DeploymentPreservePath,
   DeploymentRecord,
   DeploymentRunbook,
   DeploymentTarget,
   DeploymentOrderGroup,
+  DeploymentVerificationCheck,
   DispatchHostEvidenceRun,
   DispatchState,
   DispatchPreflightRun,
@@ -241,6 +243,48 @@ export function replaceDeploymentArtifact(
             ...runbook,
             artifacts: runbook.artifacts.map((artifact) =>
               artifact.id === artifactId ? { ...artifact, ...update } : artifact,
+            ),
+          }
+        : runbook,
+    ),
+  }
+}
+
+export function replaceDeploymentPreservePath(
+  state: DispatchState,
+  runbookId: string,
+  preservePathId: string,
+  update: Partial<DeploymentPreservePath>,
+): DispatchState {
+  return {
+    ...state,
+    runbooks: state.runbooks.map((runbook) =>
+      runbook.id === runbookId
+        ? {
+            ...runbook,
+            preservePaths: runbook.preservePaths.map((preservePath) =>
+              preservePath.id === preservePathId ? { ...preservePath, ...update } : preservePath,
+            ),
+          }
+        : runbook,
+    ),
+  }
+}
+
+export function replaceDeploymentVerificationCheck(
+  state: DispatchState,
+  runbookId: string,
+  checkId: string,
+  update: Partial<DeploymentVerificationCheck>,
+): DispatchState {
+  return {
+    ...state,
+    runbooks: state.runbooks.map((runbook) =>
+      runbook.id === runbookId
+        ? {
+            ...runbook,
+            verificationChecks: runbook.verificationChecks.map((check) =>
+              check.id === checkId ? { ...check, ...update } : check,
             ),
           }
         : runbook,

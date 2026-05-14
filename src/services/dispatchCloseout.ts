@@ -10,6 +10,7 @@ import {
   getActiveDeploySession,
   getLatestHostEvidenceRun,
   getLatestVerificationEvidenceRun,
+  getRecoveryPlanForTarget,
   getRunbookForTarget,
   getTargetDeploySessions,
 } from '../domain/dispatch'
@@ -19,6 +20,7 @@ import {
   type ReportPacketType,
   type ReportsState,
 } from '../domain/reports'
+import { evaluateRecoveryPlanReadiness } from './dispatchRecovery'
 
 export type DispatchCloseoutState =
   | 'not-started'
@@ -357,6 +359,35 @@ function rollbackRequirement({
   }
 }
 
+function recoveryRequirement({
+  dispatch,
+  target,
+}: {
+  dispatch: DispatchState
+  target: DeploymentTarget
+}): DispatchCloseoutRequirement {
+  const evaluation = evaluateRecoveryPlanReadiness({
+    target,
+    plan: getRecoveryPlanForTarget(dispatch, target.id),
+  })
+
+  if (evaluation.status === 'current') {
+    return {
+      id: 'recovery-plan',
+      label: 'Recovery plan',
+      status: 'satisfied',
+      detail: evaluation.detail,
+    }
+  }
+
+  return {
+    id: 'recovery-plan',
+    label: 'Recovery plan',
+    status: evaluation.status === 'stale' ? 'warning' : 'missing',
+    detail: evaluation.detail,
+  }
+}
+
 function reportRequirement(packet: ReportPacket | undefined): DispatchCloseoutRequirement {
   if (!packet) {
     return {
@@ -518,6 +549,7 @@ export function deriveDispatchCloseoutForTarget({
     manualRecordRequirement(latestManualRecord),
     backupRequirement({ target, session: latestSession, record: latestManualRecord }),
     rollbackRequirement({ session: latestSession, record: latestManualRecord }),
+    recoveryRequirement({ dispatch, target }),
     reportRequirement(latestReport),
   ]
   const hasArtifactAttempt = requiredArtifacts(runbook).some(
