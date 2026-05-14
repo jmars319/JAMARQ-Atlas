@@ -1,6 +1,13 @@
 import { History } from 'lucide-react'
-import type { DispatchDeploySessionStep, DispatchReadiness, DeploymentTarget } from '../domain/dispatch'
-import { DISPATCH_EVIDENCE_HISTORY_LIMIT } from '../services/dispatchEvidence'
+import type {
+  DispatchDeploySessionStep,
+  DispatchReadiness,
+  DeploymentTarget,
+} from '../domain/dispatch'
+import {
+  DISPATCH_EVIDENCE_HISTORY_LIMIT,
+  type DispatchEvidenceComparison,
+} from '../services/dispatchEvidence'
 
 export function linesToText(lines: string[]) {
   return lines.join('\n')
@@ -74,6 +81,39 @@ export function EvidenceHistoryDisplayControl({
         </select>
       </label>
       <span>Showing {evidenceHistoryLabel(limit)}. Atlas keeps the newest retained evidence only.</span>
+    </div>
+  )
+}
+
+export function EvidenceComparisonSummary({
+  label,
+  comparison,
+}: {
+  label: string
+  comparison: DispatchEvidenceComparison
+}) {
+  return (
+    <div className="dispatch-evidence-comparison" aria-label={`${label} evidence comparison`}>
+      <strong>{comparison.summary}</strong>
+      {comparison.baselineId ? (
+        <span>
+          Compared {comparison.currentId ?? 'latest evidence'} against {comparison.baselineId}.
+        </span>
+      ) : (
+        <span>Capture at least two evidence runs to compare changes.</span>
+      )}
+      {comparison.changes.some((change) => change.kind !== 'unchanged') ? (
+        <ul className="dispatch-list">
+          {comparison.changes
+            .filter((change) => change.kind !== 'unchanged')
+            .slice(0, 4)
+            .map((change) => (
+              <li key={change.id}>
+                {change.label}: {change.kind} from {change.before} to {change.after}
+              </li>
+            ))}
+        </ul>
+      ) : null}
     </div>
   )
 }

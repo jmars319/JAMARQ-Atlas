@@ -62,6 +62,8 @@ import {
   type DeploymentVerificationEvidence,
 } from '../services/deployPreflight'
 import {
+  compareHostEvidenceRuns,
+  compareVerificationEvidenceRuns,
   createHostEvidenceRun,
   createVerificationEvidenceRun,
   formatHostEvidenceProbeLabel,
@@ -76,6 +78,7 @@ import { requestHostConnectionPreflight } from '../services/hostConnection'
 import {
   backupLabel,
   DEPLOY_SESSION_STEP_STATUSES,
+  EvidenceComparisonSummary,
   EvidenceHistoryDisplayControl,
   evidenceLinkDetail,
   linesToText,
@@ -226,12 +229,20 @@ export function DispatchPanel({
         })
         const latestHostEvidence = getLatestHostEvidenceRun(dispatch, target.id)
         const hostEvidenceRuns = getTargetHostEvidenceRuns(dispatch, target.id)
+        const hostEvidenceComparison = compareHostEvidenceRuns(
+          latestHostEvidence,
+          hostEvidenceRuns[1],
+        )
         const latestVerificationEvidence = runbook
           ? getLatestVerificationEvidenceRun(dispatch, target.id, runbook.id)
           : undefined
         const verificationEvidenceRuns = runbook
           ? getTargetVerificationEvidenceRuns(dispatch, target.id, runbook.id)
           : []
+        const verificationEvidenceComparison = compareVerificationEvidenceRuns(
+          latestVerificationEvidence,
+          verificationEvidenceRuns[1],
+        )
         const targetDeploySessions = getTargetDeploySessions(dispatch, target.id)
         const latestDeploySession = targetDeploySessions[0]
         const activeDeploySession = getActiveDeploySession(dispatch, target.id)
@@ -566,6 +577,10 @@ export function DispatchPanel({
                       {latestVerificationEvidence ? (
                         <div className="dispatch-preflight-history">
                           <strong>Stored verification evidence</strong>
+                          <EvidenceComparisonSummary
+                            label="Runbook verification"
+                            comparison={verificationEvidenceComparison}
+                          />
                           <ol>
                             {visibleVerificationEvidenceRuns.map((run) => (
                               <li key={run.id}>
@@ -1183,6 +1198,10 @@ export function DispatchPanel({
                   {hostEvidenceRuns.length > 0 ? (
                     <div className="dispatch-preflight-history">
                       <strong>Host evidence history</strong>
+                      <EvidenceComparisonSummary
+                        label="Host"
+                        comparison={hostEvidenceComparison}
+                      />
                       <ol>
                         {visibleHostEvidenceRuns.map((run) => (
                           <li key={run.id}>

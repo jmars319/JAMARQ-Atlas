@@ -368,6 +368,12 @@ export interface DispatchVerificationEvidenceRun {
   warnings: string[]
 }
 
+export interface DispatchEvidenceRetentionPolicy {
+  hostRunLimit: number
+  verificationRunLimit: number
+  preserveFailedRuns: boolean
+}
+
 export type DispatchDeploySessionStatus =
   | 'active'
   | 'blocked'
@@ -454,6 +460,7 @@ export interface DispatchState {
   deploySessions: DispatchDeploySession[]
   hostEvidenceRuns: DispatchHostEvidenceRun[]
   verificationEvidenceRuns: DispatchVerificationEvidenceRun[]
+  evidenceRetentionPolicy?: DispatchEvidenceRetentionPolicy
 }
 
 export type DeploymentRunnerPhase =

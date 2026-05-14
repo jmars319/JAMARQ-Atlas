@@ -5,9 +5,9 @@ import type {
   DeploymentTarget,
   DeploymentOrderGroup,
   DispatchHostEvidenceRun,
+  DispatchState,
   DispatchPreflightRun,
   DispatchReadiness,
-  DispatchState,
   DispatchAutomationReadiness,
   DispatchVerificationEvidenceRun,
 } from '../domain/dispatch'
@@ -22,6 +22,8 @@ import { normalizeDeploySessions } from './deploySessions'
 import {
   addHostEvidenceRun as appendHostEvidenceRun,
   addVerificationEvidenceRun as appendVerificationEvidenceRun,
+  applyEvidenceRetentionPolicy,
+  normalizeEvidenceRetentionPolicy,
   normalizeHostEvidenceRuns,
   normalizeVerificationEvidenceRuns,
 } from './dispatchEvidence'
@@ -49,7 +51,7 @@ export function normalizeDispatchState(value: unknown, now = new Date()): Dispat
       )
     : targets.map((target) => normalizeAutomationReadiness(null, target, now))
 
-  return {
+  const normalized: DispatchState = {
     targets,
     records: Array.isArray(candidate.records) ? candidate.records : [],
     readiness: Array.isArray(candidate.readiness) ? candidate.readiness : [],
@@ -67,7 +69,10 @@ export function normalizeDispatchState(value: unknown, now = new Date()): Dispat
       candidate.verificationEvidenceRuns,
       now,
     ),
+    evidenceRetentionPolicy: normalizeEvidenceRetentionPolicy(candidate.evidenceRetentionPolicy),
   }
+
+  return applyEvidenceRetentionPolicy(normalized)
 }
 
 export function getProjectDeploymentTargets(state: DispatchState, projectId: string) {

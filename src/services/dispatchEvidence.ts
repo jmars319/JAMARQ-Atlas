@@ -1,5 +1,6 @@
 import type {
   DispatchEvidenceStatus,
+  DispatchEvidenceRetentionPolicy,
   DispatchHostEvidenceRun,
   DispatchState,
   DispatchVerificationEvidenceCheck,
@@ -14,6 +15,30 @@ import type {
 import type { DeploymentVerificationEvidence } from './deployPreflight'
 
 export const DISPATCH_EVIDENCE_HISTORY_LIMIT = 50
+export const DISPATCH_EVIDENCE_MIN_HISTORY_LIMIT = 5
+export const DEFAULT_DISPATCH_EVIDENCE_RETENTION_POLICY: DispatchEvidenceRetentionPolicy = {
+  hostRunLimit: DISPATCH_EVIDENCE_HISTORY_LIMIT,
+  verificationRunLimit: DISPATCH_EVIDENCE_HISTORY_LIMIT,
+  preserveFailedRuns: true,
+}
+
+export type DispatchEvidenceChangeKind = 'added' | 'removed' | 'changed' | 'unchanged'
+
+export interface DispatchEvidenceChange {
+  id: string
+  label: string
+  kind: DispatchEvidenceChangeKind
+  before: string
+  after: string
+}
+
+export interface DispatchEvidenceComparison {
+  changed: boolean
+  summary: string
+  baselineId: string | null
+  currentId: string | null
+  changes: DispatchEvidenceChange[]
+}
 
 function stamp(now = new Date()) {
   return now.toISOString()
@@ -43,6 +68,44 @@ function readNumberArray(value: unknown) {
 
 function readBoolean(value: unknown) {
   return typeof value === 'boolean' ? value : false
+}
+
+function readPositiveInteger(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : fallback
+}
+
+function clampHistoryLimit(value: number) {
+  return Math.min(
+    DISPATCH_EVIDENCE_HISTORY_LIMIT,
+    Math.max(DISPATCH_EVIDENCE_MIN_HISTORY_LIMIT, value),
+  )
+}
+
+export function normalizeEvidenceRetentionPolicy(
+  value: unknown,
+): DispatchEvidenceRetentionPolicy {
+  if (!isRecord(value)) {
+    return DEFAULT_DISPATCH_EVIDENCE_RETENTION_POLICY
+  }
+
+  return {
+    hostRunLimit: clampHistoryLimit(
+      readPositiveInteger(
+        value.hostRunLimit,
+        DEFAULT_DISPATCH_EVIDENCE_RETENTION_POLICY.hostRunLimit,
+      ),
+    ),
+    verificationRunLimit: clampHistoryLimit(
+      readPositiveInteger(
+        value.verificationRunLimit,
+        DEFAULT_DISPATCH_EVIDENCE_RETENTION_POLICY.verificationRunLimit,
+      ),
+    ),
+    preserveFailedRuns:
+      typeof value.preserveFailedRuns === 'boolean'
+        ? value.preserveFailedRuns
+        : DEFAULT_DISPATCH_EVIDENCE_RETENTION_POLICY.preserveFailedRuns,
+  }
 }
 
 function safeDate(value: unknown, fallback: Date) {
@@ -254,6 +317,137 @@ function summarizeEvidenceStatuses(statuses: DispatchEvidenceStatus[]): Dispatch
   return 'passing'
 }
 
+function describeHostCheck(check: HostConnectionCheck) {
+  const status = check.status
+  const countParts = [
+    typeof check.entryCount === 'number' ? `${check.entryCount} entries` : '',
+    typeof check.fileCount === 'number' ? `${check.fileCount} files` : '',
+    typeof check.directoryCount === 'number' ? `${check.directoryCount} folders` : '',
+    typeof check.symlinkCount === 'number' ? `${check.symlinkCount} links` : '',
+  ].filter(Boolean)
+  const locationParts = [check.host, check.path, check.probeMode, check.authMethod].filter(Boolean)
+  const details = [...locationParts, ...countParts]
+
+  return [status, check.message, details.join(' / ')].filter(Boolean).join(' - ')
+}
+
+function describeVerificationCheck(check: DispatchVerificationEvidenceCheck) {
+  const observed =
+    typeof check.observedStatusCode === 'number' ? `observed ${check.observedStatusCode}` : 'no status'
+
+  return [
+    check.status,
+    observed,
+    check.message,
+    check.expectedStatuses.length > 0 ? `expected ${check.expectedStatuses.join('/')}` : '',
+  ]
+    .filter(Boolean)
+    .join(' - ')
+}
+
+function compareEvidenceItems<T extends { id: string; label: string }>(
+  beforeItems: T[],
+  afterItems: T[],
+  describe: (item: T) => string,
+): DispatchEvidenceChange[] {
+  const beforeById = new Map(beforeItems.map((item) => [item.id, item]))
+  const afterById = new Map(afterItems.map((item) => [item.id, item]))
+  const ids = Array.from(new Set([...beforeById.keys(), ...afterById.keys()])).sort()
+
+  return ids.flatMap((id): DispatchEvidenceChange[] => {
+    const before = beforeById.get(id)
+    const after = afterById.get(id)
+
+    if (!before && after) {
+      return [
+        {
+          id,
+          label: after.label,
+          kind: 'added',
+          before: 'Not present in previous evidence.',
+          after: describe(after),
+        },
+      ]
+    }
+
+    if (before && !after) {
+      return [
+        {
+          id,
+          label: before.label,
+          kind: 'removed',
+          before: describe(before),
+          after: 'Not present in latest evidence.',
+        },
+      ]
+    }
+
+    if (!before || !after) {
+      return []
+    }
+
+    const beforeDescription = describe(before)
+    const afterDescription = describe(after)
+
+    return [
+      {
+        id,
+        label: after.label,
+        kind: beforeDescription === afterDescription ? 'unchanged' : 'changed',
+        before: beforeDescription,
+        after: afterDescription,
+      },
+    ]
+  })
+}
+
+function comparisonSummary(changes: DispatchEvidenceChange[], baselineId: string | null) {
+  if (!baselineId) {
+    return 'No previous evidence run is available for comparison.'
+  }
+
+  const materialChanges = changes.filter((change) => change.kind !== 'unchanged')
+
+  if (materialChanges.length === 0) {
+    return 'No changes since last evidence.'
+  }
+
+  const changed = materialChanges.filter((change) => change.kind === 'changed').length
+  const added = materialChanges.filter((change) => change.kind === 'added').length
+  const removed = materialChanges.filter((change) => change.kind === 'removed').length
+  const parts = [
+    changed > 0 ? `${changed} changed` : '',
+    added > 0 ? `${added} added` : '',
+    removed > 0 ? `${removed} removed` : '',
+  ].filter(Boolean)
+
+  return `Changed since last evidence: ${parts.join(', ')}.`
+}
+
+function retainEvidenceRuns<T extends { id: string; status: DispatchEvidenceStatus; startedAt: string }>(
+  runs: T[],
+  limit: number,
+  preserveFailedRuns: boolean,
+) {
+  const orderedRuns = [...runs].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+
+  if (!preserveFailedRuns || orderedRuns.length <= limit) {
+    return orderedRuns.slice(0, limit)
+  }
+
+  const retained = orderedRuns.slice(0, limit)
+  const retainedIds = new Set(retained.map((run) => run.id))
+
+  for (const run of orderedRuns.slice(limit)) {
+    if (run.status === 'failed' && !retainedIds.has(run.id)) {
+      retained.push(run)
+      retainedIds.add(run.id)
+    }
+  }
+
+  return retained.slice(0, DISPATCH_EVIDENCE_HISTORY_LIMIT)
+}
+
 export function createHostEvidenceRun({
   projectId,
   result,
@@ -358,16 +552,77 @@ export function createVerificationEvidenceRun({
   }
 }
 
+export function compareHostEvidenceRuns(
+  current: DispatchHostEvidenceRun | undefined,
+  previous: DispatchHostEvidenceRun | undefined,
+): DispatchEvidenceComparison {
+  const changes =
+    current && previous
+      ? compareEvidenceItems(previous.checks, current.checks, describeHostCheck)
+      : []
+  const baselineId = previous?.id ?? null
+
+  return {
+    changed: changes.some((change) => change.kind !== 'unchanged'),
+    summary: comparisonSummary(changes, baselineId),
+    baselineId,
+    currentId: current?.id ?? null,
+    changes,
+  }
+}
+
+export function compareVerificationEvidenceRuns(
+  current: DispatchVerificationEvidenceRun | undefined,
+  previous: DispatchVerificationEvidenceRun | undefined,
+): DispatchEvidenceComparison {
+  const changes =
+    current && previous
+      ? compareEvidenceItems(previous.checks, current.checks, describeVerificationCheck)
+      : []
+  const baselineId = previous?.id ?? null
+
+  return {
+    changed: changes.some((change) => change.kind !== 'unchanged'),
+    summary: comparisonSummary(changes, baselineId),
+    baselineId,
+    currentId: current?.id ?? null,
+    changes,
+  }
+}
+
 export function addHostEvidenceRun(
   state: DispatchState,
   run: DispatchHostEvidenceRun,
 ): DispatchState {
+  const retentionPolicy = normalizeEvidenceRetentionPolicy(state.evidenceRetentionPolicy)
+
   return {
     ...state,
-    hostEvidenceRuns: [
-      run,
-      ...state.hostEvidenceRuns.filter((existingRun) => existingRun.id !== run.id),
-    ].slice(0, DISPATCH_EVIDENCE_HISTORY_LIMIT),
+    evidenceRetentionPolicy: retentionPolicy,
+    hostEvidenceRuns: retainEvidenceRuns(
+      [run, ...state.hostEvidenceRuns.filter((existingRun) => existingRun.id !== run.id)],
+      retentionPolicy.hostRunLimit,
+      retentionPolicy.preserveFailedRuns,
+    ),
+  }
+}
+
+export function applyEvidenceRetentionPolicy(state: DispatchState): DispatchState {
+  const retentionPolicy = normalizeEvidenceRetentionPolicy(state.evidenceRetentionPolicy)
+
+  return {
+    ...state,
+    evidenceRetentionPolicy: retentionPolicy,
+    hostEvidenceRuns: retainEvidenceRuns(
+      state.hostEvidenceRuns,
+      retentionPolicy.hostRunLimit,
+      retentionPolicy.preserveFailedRuns,
+    ),
+    verificationEvidenceRuns: retainEvidenceRuns(
+      state.verificationEvidenceRuns,
+      retentionPolicy.verificationRunLimit,
+      retentionPolicy.preserveFailedRuns,
+    ),
   }
 }
 
@@ -375,11 +630,18 @@ export function addVerificationEvidenceRun(
   state: DispatchState,
   run: DispatchVerificationEvidenceRun,
 ): DispatchState {
+  const retentionPolicy = normalizeEvidenceRetentionPolicy(state.evidenceRetentionPolicy)
+
   return {
     ...state,
-    verificationEvidenceRuns: [
-      run,
-      ...state.verificationEvidenceRuns.filter((existingRun) => existingRun.id !== run.id),
-    ].slice(0, DISPATCH_EVIDENCE_HISTORY_LIMIT),
+    evidenceRetentionPolicy: retentionPolicy,
+    verificationEvidenceRuns: retainEvidenceRuns(
+      [
+        run,
+        ...state.verificationEvidenceRuns.filter((existingRun) => existingRun.id !== run.id),
+      ],
+      retentionPolicy.verificationRunLimit,
+      retentionPolicy.preserveFailedRuns,
+    ),
   }
 }

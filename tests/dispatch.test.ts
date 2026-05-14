@@ -47,9 +47,12 @@ import {
 import {
   addHostEvidenceRun,
   addVerificationEvidenceRun,
+  compareHostEvidenceRuns,
+  compareVerificationEvidenceRuns,
   createHostEvidenceRun,
   createVerificationEvidenceRun,
   formatHostEvidenceProbeLabel,
+  normalizeEvidenceRetentionPolicy,
 } from '../src/services/dispatchEvidence'
 import {
   createHostConnectionStatus,
@@ -313,6 +316,119 @@ describe('dispatch readiness', () => {
     expect(normalized.deploySessions).toEqual([])
     expect(normalized.hostEvidenceRuns).toEqual([])
     expect(normalized.verificationEvidenceRuns).toEqual([])
+    expect(normalized.evidenceRetentionPolicy).toMatchObject({
+      hostRunLimit: 50,
+      verificationRunLimit: 50,
+      preserveFailedRuns: true,
+    })
+  })
+
+  it('normalizes dispatch evidence retention policy safely', () => {
+    expect(
+      normalizeEvidenceRetentionPolicy({
+        hostRunLimit: 2,
+        verificationRunLimit: 500,
+        preserveFailedRuns: false,
+      }),
+    ).toEqual({
+      hostRunLimit: 5,
+      verificationRunLimit: 50,
+      preserveFailedRuns: false,
+    })
+  })
+
+  it('retains dispatch evidence by normalized policy while preserving failed runs', () => {
+    const runs = Array.from({ length: 7 }, (_, index) => ({
+      ...hostEvidenceRun('project-1', 'target-1', index === 0 ? 'failed' : 'passing'),
+      id: `host-evidence-${index}`,
+      startedAt: `2026-05-10T12:0${index}:00Z`,
+      completedAt: `2026-05-10T12:0${index}:30Z`,
+    }))
+    const updated = runs.reduce(
+      (current, run) => addHostEvidenceRun(current, run),
+      {
+        targets: [target],
+        records: [],
+        readiness: [readiness],
+        preflightRuns: [],
+        automationReadiness: [],
+        runbooks: [],
+        orderGroups: [],
+        deploySessions: [],
+        hostEvidenceRuns: [],
+        verificationEvidenceRuns: [],
+        evidenceRetentionPolicy: {
+          hostRunLimit: 5,
+          verificationRunLimit: 5,
+          preserveFailedRuns: true,
+        },
+      } satisfies DispatchState,
+    )
+
+    expect(updated.hostEvidenceRuns.map((run) => run.id)).toContain('host-evidence-0')
+    expect(updated.hostEvidenceRuns).toHaveLength(6)
+  })
+
+  it('summarizes host and verification evidence changes against the previous run', () => {
+    const previousHost = {
+      ...hostEvidenceRun('project-1', 'target-1'),
+      id: 'host-previous',
+      checks: [
+        {
+          id: 'root',
+          type: 'target-root',
+          label: 'Target root',
+          status: 'passing',
+          message: 'Found target root.',
+          checkedAt: '2026-05-10T12:00:00Z',
+          path: '/public_html',
+          probeMode: 'sftp-readonly',
+          authMethod: 'password-env',
+        },
+      ],
+    } satisfies DispatchHostEvidenceRun
+    const currentHost = {
+      ...previousHost,
+      id: 'host-current',
+      checks: [
+        {
+          ...previousHost.checks[0],
+          status: 'failed',
+          message: 'Target root missing.',
+        },
+      ],
+    } satisfies DispatchHostEvidenceRun
+    const hostComparison = compareHostEvidenceRuns(currentHost, previousHost)
+
+    expect(hostComparison.changed).toBe(true)
+    expect(hostComparison.summary).toBe('Changed since last evidence: 1 changed.')
+
+    const previousVerification = verificationEvidenceRun('project-1', 'target-1', 'runbook-1')
+    const currentVerification = {
+      ...previousVerification,
+      id: 'verification-current',
+      checks: [
+        {
+          id: 'homepage',
+          label: 'Homepage',
+          method: 'HEAD',
+          url: 'https://example.com',
+          urlPath: '/',
+          expectedStatuses: [200],
+          protectedResource: false,
+          status: 'passing',
+          observedStatusCode: 200,
+          message: 'Matched expected status.',
+          checkedAt: '2026-05-10T12:10:00Z',
+        },
+      ],
+    } satisfies DispatchVerificationEvidenceRun
+    const verificationComparison = compareVerificationEvidenceRuns(
+      currentVerification,
+      previousVerification,
+    )
+
+    expect(verificationComparison.summary).toBe('Changed since last evidence: 1 added.')
   })
 
   it('returns safe preflight evidence when no target is configured', () => {

@@ -658,4 +658,9 @@ export const seedDispatchState: DispatchState = {
   deploySessions: [],
   hostEvidenceRuns: [],
   verificationEvidenceRuns: [],
+  evidenceRetentionPolicy: {
+    hostRunLimit: 50,
+    verificationRunLimit: 50,
+    preserveFailedRuns: true,
+  },
 }

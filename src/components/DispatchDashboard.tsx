@@ -22,6 +22,8 @@ import {
   getLatestVerificationEvidenceRun,
   getRunbookForTarget,
   getTargetDeploySessions,
+  getTargetHostEvidenceRuns,
+  getTargetVerificationEvidenceRuns,
   type DispatchState,
 } from '../domain/dispatch'
 import {
@@ -34,6 +36,10 @@ import { DispatchQueueCommandCenter } from './DispatchQueueCommandCenter'
 import type { DeploymentArtifact } from '../domain/dispatch'
 import type { ReportsState } from '../domain/reports'
 import { closeoutStateLabels, deriveDispatchCloseoutSummaries } from '../services/dispatchCloseout'
+import {
+  compareHostEvidenceRuns,
+  compareVerificationEvidenceRuns,
+} from '../services/dispatchEvidence'
 
 interface DispatchDashboardProps {
   dispatch: DispatchState
@@ -288,9 +294,21 @@ export function DispatchDashboard({
           const latestPreflight = getLatestPreflightRun(dispatch, target.id)
           const runbook = getRunbookForTarget(dispatch, target.id)
           const latestHostEvidence = getLatestHostEvidenceRun(dispatch, target.id)
+          const hostEvidenceRuns = getTargetHostEvidenceRuns(dispatch, target.id)
+          const hostEvidenceComparison = compareHostEvidenceRuns(
+            latestHostEvidence,
+            hostEvidenceRuns[1],
+          )
           const latestVerificationEvidence = runbook
             ? getLatestVerificationEvidenceRun(dispatch, target.id, runbook.id)
             : undefined
+          const verificationEvidenceRuns = runbook
+            ? getTargetVerificationEvidenceRuns(dispatch, target.id, runbook.id)
+            : []
+          const verificationEvidenceComparison = compareVerificationEvidenceRuns(
+            latestVerificationEvidence,
+            verificationEvidenceRuns[1],
+          )
           const activeSession = getActiveDeploySession(dispatch, target.id)
           const sessionCount = getTargetDeploySessions(dispatch, target.id).length
           const automationReadiness = findAutomationReadiness(
@@ -403,6 +421,10 @@ export function DispatchDashboard({
                     ? formatDateTimeLabel(latestVerificationEvidence.completedAt)
                     : 'not run'}
                 </span>
+              </div>
+              <div className="card-footer">
+                <span>Host compare: {hostEvidenceComparison.summary}</span>
+                <span>Verify compare: {verificationEvidenceComparison.summary}</span>
               </div>
               <div className="card-footer">
                 <span>

@@ -1779,6 +1779,20 @@ h3 {
   padding: 9px;
 }
 
+.dispatch-evidence-comparison {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.03);
+  color: var(--text-muted);
+  padding: 8px;
+}
+
+.dispatch-evidence-comparison span,
+.dispatch-evidence-comparison li {
+  font-size: 0.76rem;
+}
+
 .dispatch-preflight-history strong {
   color: var(--paper-white);
 }
