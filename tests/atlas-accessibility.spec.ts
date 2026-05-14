@@ -43,6 +43,10 @@ test.describe('critical screen accessibility', () => {
     await expectCriticalScreenAccessible(page, 'Dispatch', 'Deployment Readiness')
   })
 
+  test('Ops has no serious automated accessibility violations', async ({ page }) => {
+    await expectCriticalScreenAccessible(page, 'Ops', 'Ops Cockpit')
+  })
+
   test('GitHub has no serious automated accessibility violations', async ({ page }) => {
     await expectCriticalScreenAccessible(page, 'GitHub', 'Repository Intake')
   })

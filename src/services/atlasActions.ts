@@ -59,6 +59,7 @@ export type AtlasActionView =
   | 'planning'
   | 'reports'
   | 'review'
+  | 'ops'
   | 'verification'
   | 'dispatch'
   | 'writing'

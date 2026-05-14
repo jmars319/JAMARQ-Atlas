@@ -8,6 +8,7 @@ const criticalViews: Array<{ nav: AtlasNavLabel | null; heading: string; landmar
   { nav: 'Settings', heading: 'Settings & Connections', landmark: 'Calibration progress summary' },
   { nav: 'Data', heading: 'Backups & Restore', landmark: 'Local store diagnostics' },
   { nav: 'Dispatch', heading: 'Deployment Readiness', landmark: 'Dispatch closeout analytics' },
+  { nav: 'Ops', heading: 'Ops Cockpit', landmark: 'Ops daily queue' },
   { nav: 'GitHub', heading: 'Repository Intake', landmark: 'GitHub intake counts' },
   { nav: 'Writing', heading: 'Writing Workbench', landmark: 'Writing draft history' },
 ]

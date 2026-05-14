@@ -411,6 +411,10 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(queue).toContainText('#3 / Surplus Containers')
   await expect(queue).toContainText('#4 / Thunder Road')
   await expect(queue).toContainText('#5 / Bow Wow')
+  await clickAtlasNav(page, 'Ops')
+  await expect(page.getByRole('heading', { name: 'Ops Cockpit' })).toBeVisible()
+  await expect(page.getByLabel('Ops daily queue')).toContainText('Midway Mobile Storage')
+  await clickAtlasNav(page, 'Dispatch')
   const mmsQueueItem = queue.locator('.dispatch-queue-item').filter({
     hasText: 'Midway Mobile Storage',
   })

@@ -8,6 +8,7 @@ export type AtlasNavLabel =
   | 'Reports'
   | 'Review'
   | 'Dispatch'
+  | 'Ops'
   | 'Verification'
   | 'Writing'
   | 'Data'

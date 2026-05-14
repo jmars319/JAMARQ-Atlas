@@ -30,6 +30,7 @@ export type OperationsQueueReasonId =
   | 'verification'
   | 'active-session'
   | 'closeout'
+  | 'recovery'
   | 'artifacts'
 
 export interface OperationsQueueReason {
@@ -72,6 +73,8 @@ export interface OperationsCockpitCounts {
   overdueVerification: number
   activeSessions: number
   closeoutGaps: number
+  recoveryGaps: number
+  currentRecoveryPlans: number
   missingSnapshots: number
   staleSnapshots: number
   syncWarnings: number

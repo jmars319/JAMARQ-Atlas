@@ -47,6 +47,7 @@ import { githubIngestionContract } from './services/githubIntegration'
 import { deriveTimelineEvents } from './services/timeline'
 import { scanAtlasCalibration } from './services/calibration'
 import { createAtlasActions, type AtlasActionView } from './services/atlasActions'
+import { createDataIntegrityDiagnostics } from './services/dataIntegrity'
 
 const TimelineDashboard = lazy(() =>
   import('./components/TimelineDashboard').then((module) => ({
@@ -77,6 +78,9 @@ const DispatchDashboard = lazy(() =>
     default: module.DispatchDashboard,
   })),
 )
+const OpsCockpit = lazy(() =>
+  import('./components/OpsCockpit').then((module) => ({ default: module.OpsCockpit })),
+)
 const WritingWorkbench = lazy(() =>
   import('./components/WritingWorkbench').then((module) => ({ default: module.WritingWorkbench })),
 )
@@ -99,6 +103,7 @@ function appViewLabel(view: AppView) {
     planning: 'Planning',
     reports: 'Reports',
     review: 'Review',
+    ops: 'Ops',
     verification: 'Verification',
     dispatch: 'Dispatch',
     writing: 'Writing',
@@ -211,6 +216,19 @@ function App() {
         sync,
       }),
     [calibration, dispatch, planning, projectRecords, reports, review, sync, writing],
+  )
+  const dataIntegrityDiagnostics = useMemo(
+    () =>
+      createDataIntegrityDiagnostics({
+        workspace,
+        dispatch,
+        writing,
+        planning,
+        reports,
+        review,
+        calibration,
+      }),
+    [calibration, dispatch, planning, reports, review, workspace, writing],
   )
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -392,6 +410,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={appView === 'ops' ? 'is-selected' : ''}
+          onClick={() => setAppView('ops')}
+        >
+          Ops
+        </button>
+        <button
+          type="button"
           className={appView === 'verification' ? 'is-selected' : ''}
           onClick={() => setAppView('verification')}
         >
@@ -505,6 +530,58 @@ function App() {
             onCreatePlanningNote={atlasActions.createPlanningNoteFromReview}
             onOpenGitHub={() => setAppView('github')}
             onOpenPlanning={atlasActions.openPlanning}
+          />
+        ) : appView === 'ops' ? (
+          <OpsCockpit
+            workspace={workspace}
+            dispatch={dispatch}
+            reports={reports}
+            sync={sync}
+            calibration={calibration}
+            calibrationIssues={calibrationIssues}
+            dataIntegrityDiagnostics={dataIntegrityDiagnostics}
+            onOpenProject={(projectId) => {
+              atlasActions.selectProject(projectId)
+              setAppView('board')
+            }}
+            onOpenDispatchTarget={(projectId) => {
+              atlasActions.selectProject(projectId)
+              setAppView('dispatch')
+            }}
+            onOpenCalibration={() => setAppView('settings')}
+            onOpenDataCenter={() => setAppView('data')}
+            onRunEvidenceSweep={(targetIds) => atlasActions.runQueueEvidenceSweep(targetIds)}
+            evidenceSweepRunning={queueEvidenceSweepRunning}
+            onStartManualDeploySession={(targetId) => {
+              const runbook = dispatch.runbooks.find((candidate) => candidate.targetId === targetId)
+
+              if (runbook) {
+                createDeploySession(runbook.id)
+                atlasActions.selectProject(runbook.projectId)
+                setAppView('dispatch')
+              }
+            }}
+            onCreatePlanningFollowUp={(projectId, detail) => {
+              const record = findProjectRecord(workspace, projectId)
+
+              if (!record) {
+                return
+              }
+
+              createPlanningItem({
+                kind: 'note',
+                record,
+                title: 'Ops follow-up',
+                detail,
+                status: 'planned',
+              })
+              atlasActions.selectProject(projectId)
+              setAppView('planning')
+            }}
+            onCreateReportPacket={(projectId) => atlasActions.createReadinessReport(projectId)}
+            onCreateSnapshot={() =>
+              atlasActions.createSnapshot('Ops cockpit snapshot', 'Created from Ops Cockpit.')
+            }
           />
         ) : appView === 'verification' ? (
           <VerificationCenter

@@ -275,6 +275,20 @@ function targetCloseoutReason(item: DispatchQueueItem): OperationsQueueReason | 
   })
 }
 
+function targetRecoveryReason(item: DispatchQueueItem): OperationsQueueReason | null {
+  if (item.recoveryStatus.status === 'passing') {
+    return null
+  }
+
+  return reason({
+    id: 'recovery',
+    label: 'Recovery readiness',
+    grade: item.recoveryStatus.label.includes('missing') ? 'blocked' : 'attention',
+    priority: 700,
+    detail: item.recoveryStatus.detail,
+  })
+}
+
 function targetVerificationReason(
   item: DispatchQueueItem,
   now: Date,
@@ -315,6 +329,7 @@ function buildTargetQueueItems({
       missingEvidenceReason(item),
       staleEvidenceReason(item, now, staleEvidenceDays),
       targetVerificationReason(item, now),
+      targetRecoveryReason(item),
       targetSessionReason(item),
       targetCloseoutReason(item),
       targetArtifactReason(item),
@@ -680,6 +695,8 @@ export function createOperationsCockpitSummary({
       ).length,
       activeSessions: countReasons(queue, 'active-session'),
       closeoutGaps: countReasons(queue, 'closeout'),
+      recoveryGaps: countReasons(queue, 'recovery'),
+      currentRecoveryPlans: dispatch.targets.length - countReasons(queue, 'recovery'),
       missingSnapshots: snapshotItem?.id === 'sync:snapshot-missing' ? 1 : 0,
       staleSnapshots: snapshotItem?.id === 'sync:snapshot-stale' ? 1 : 0,
       syncWarnings: warnings.length,
