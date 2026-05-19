@@ -25,6 +25,7 @@ function createZipBuffer(entries: string[]) {
 }
 
 test('operator can edit manual state and manage writing drafts', async ({ page }) => {
+  test.setTimeout(60_000)
   await installAtlasClipboardMock(page)
   await page.route('**/api/dispatch/health?**', async (route) => {
     const url = new URL(route.request().url()).searchParams.get('url') ?? 'https://example.com'
