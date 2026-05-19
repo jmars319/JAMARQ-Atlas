@@ -28,6 +28,7 @@ import type {
 } from '../services/githubIntegration'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubHealthSummary } from './GitHubHealthSummary'
+import { LocalGitStatusInline } from './LocalGitStatus'
 
 const deepDiveTabs: Array<{ id: GithubResourceName; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -305,6 +306,7 @@ function GitHubRepoDeepDiveContent({
           defaultBranch: repository.defaultBranch,
         }}
       />
+      <LocalGitStatusInline owner={owner} repo={repository.name} />
 
       <div className="repo-tabs" role="tablist" aria-label="GitHub deep dive resources">
         {deepDiveTabs.map((tab) => (

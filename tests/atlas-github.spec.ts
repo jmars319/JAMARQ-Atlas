@@ -22,14 +22,101 @@ function repo(name: string, description: string) {
   }
 }
 
+function githubStatus() {
+  return {
+    configured: true,
+    githubAppConfigured: true,
+    envTokenConfigured: false,
+    authenticated: true,
+    configuredRepos: ['jmars319/JAMARQ-Atlas', 'jmars319/tenra.dev'],
+    authMode: 'github-app-user',
+    appSlug: 'atlas-local',
+    callbackUrlConfigured: true,
+    missingConfig: [],
+    user: {
+      login: 'jmars319',
+      id: 1,
+      name: 'Jason',
+      avatarUrl: 'https://github.com/images/error/octocat_happy.gif',
+      htmlUrl: 'https://github.com/jmars319',
+    },
+    tokenExpiresAt: '2026-05-18T20:00:00Z',
+    refreshTokenExpiresAt: '2026-11-18T20:00:00Z',
+    installCount: 1,
+    repoCount: 3,
+    writeControlsEnabled: false,
+    permissionPlan: [
+      { key: 'metadata', label: 'Metadata', access: 'read', activeControls: false },
+      { key: 'contents', label: 'Contents', access: 'write', activeControls: false },
+      { key: 'issues', label: 'Issues', access: 'write', activeControls: false },
+    ],
+    message: 'Signed in as jmars319 with 1 installation(s). Future write controls are locked.',
+  }
+}
+
 async function installGithubApiMocks(page: Page) {
   await page.route('**/api/github/status', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
+      body: JSON.stringify(githubStatus()),
+    })
+  })
+
+  await page.route('**/api/github/auth/status', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(githubStatus()),
+    })
+  })
+
+  await page.route('**/api/github/auth/logout', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, authenticated: false, writeControlsEnabled: false }),
+    })
+  })
+
+  await page.route('**/api/git/repositories/status?**', async (route) => {
+    const url = new URL(route.request().url())
+    const name = url.searchParams.get('repo') ?? 'unknown'
+    const available = name === 'JAMARQ-Atlas'
+
+    await route.fulfill({
+      contentType: 'application/json',
       body: JSON.stringify({
+        ok: available,
         configured: true,
-        configuredRepos: ['jmars319/JAMARQ-Atlas', 'jmars319/tenra.dev'],
-        authMode: 'server-env',
+        status: available ? 'available' : 'not-found',
+        roots: ['/Users/jason_marshall/JAMARQ'],
+        data: available
+          ? {
+              owner: 'jmars319',
+              repo: 'JAMARQ-Atlas',
+              path: '/Users/jason_marshall/JAMARQ/Side Projects/Atlas',
+              remoteUrl: 'git@github.com:jmars319/JAMARQ-Atlas.git',
+              branch: 'main',
+              upstream: 'origin/main',
+              dirty: false,
+              changedFiles: 0,
+              ahead: 0,
+              behind: 0,
+              latestCommit: {
+                sha: 'abcdef1234567890',
+                shortSha: 'abcdef1',
+                subject: 'GitHub checkpoint',
+                author: 'Jason',
+                date: '2026-05-18T14:00:00Z',
+              },
+              checkedAt: '2026-05-18T14:05:00Z',
+              diagnostic: 'Working tree is clean.',
+            }
+          : null,
+        error: available
+          ? null
+          : {
+              type: 'not-found',
+              message: `${name} was not found under configured local repo roots.`,
+            },
       }),
     })
   })
@@ -151,6 +238,10 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await page.goto('/')
   await clickAtlasNav(page, 'GitHub')
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
+  await expect(page.getByLabel('GitHub future controls locked')).toContainText(
+    'writeControlsEnabled: false',
+  )
+  await expect(page.getByText('Installed repos: 3 repos')).toBeVisible()
   const placementSuggestions = page.getByLabel('Suggested repository placement')
   await expect(placementSuggestions).toContainText('jmars319/midway-mobile-storage-website')
   await expect(placementSuggestions).toContainText('Midway Mobile Storage website')
@@ -168,6 +259,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await expect(page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })).toBeVisible()
   const deepDive = page.getByLabel('GitHub repo deep dive')
   await expect(deepDive).toContainText('jmars319/JAMARQ-Atlas')
+  await expect(deepDive).toContainText('Local main / clean / Synced with upstream')
   await deepDive.getByRole('tab', { name: 'Branches' }).click()
   await expect(deepDive).toContainText('Protected branch')
   await deepDive.getByRole('tab', { name: 'Tags' }).click()
@@ -203,4 +295,131 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await expect(page.locator('label.field').filter({ hasText: 'Status' }).locator('select')).toHaveValue(
     'Inbox',
   )
+})
+
+test('GitHub intake auto-loads later installed repo pages for search', async ({ page }) => {
+  await page.route('**/api/github/status', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...githubStatus(),
+        configuredRepos: [],
+        repoCount: 2,
+      }),
+    })
+  })
+
+  await page.route('**/api/git/repositories/status?**', async (route) => {
+    const url = new URL(route.request().url())
+    const name = url.searchParams.get('repo') ?? 'unknown'
+    const available = name === 'JAMARQ-Atlas'
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: available,
+        configured: true,
+        status: available ? 'available' : 'not-found',
+        roots: ['/Users/jason_marshall/JAMARQ'],
+        data: available
+          ? {
+              owner: 'jmars319',
+              repo: 'JAMARQ-Atlas',
+              path: '/Users/jason_marshall/JAMARQ/Side Projects/Atlas',
+              remoteUrl: 'git@github.com:jmars319/JAMARQ-Atlas.git',
+              branch: 'main',
+              upstream: 'origin/main',
+              dirty: true,
+              changedFiles: 30,
+              ahead: 0,
+              behind: 0,
+              latestCommit: null,
+              checkedAt: '2026-05-19T20:05:00Z',
+              diagnostic: '30 changed file(s) detected.',
+            }
+          : null,
+        error: available
+          ? null
+          : {
+              type: 'not-found',
+              message: `${name} was not found under configured local repo roots.`,
+            },
+      }),
+    })
+  })
+
+  await page.route('**/api/github/repos?**', async (route) => {
+    const url = new URL(route.request().url())
+    const source = url.searchParams.get('source')
+    const pageNumber = Number(url.searchParams.get('page') ?? '1')
+    const isInstalledFirstPage = source === 'viewer' && pageNumber === 1
+    const data =
+      source === 'configured'
+        ? []
+        : isInstalledFirstPage
+          ? [repo('Assembly', 'Assembly repo on the first installed page.')]
+          : [repo('JAMARQ-Atlas', 'Local-first operator dashboard.')]
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data,
+        pageInfo: {
+          currentPage: pageNumber,
+          hasNextPage: isInstalledFirstPage,
+          nextPage: isInstalledFirstPage ? 2 : null,
+          perPage: 100,
+        },
+        error: null,
+        permission: 'available',
+      }),
+    })
+  })
+
+  await page.route(/\/api\/github\/repos\/jmars319\/[^/?]+(?:\/([^?]+))?/, async (route) => {
+    const url = new URL(route.request().url())
+    const match = url.pathname.match(/\/api\/github\/repos\/jmars319\/([^/]+)(?:\/([^/]+))?/)
+    const name = match?.[1] ?? 'JAMARQ-Atlas'
+    const resource = match?.[2] ?? 'repo'
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: resource === 'repo' ? repo(name, `${name} overview.`) : [],
+        pageInfo: {
+          currentPage: 1,
+          hasNextPage: false,
+          nextPage: null,
+          perPage: 20,
+        },
+        error: null,
+        permission: 'available',
+      }),
+    })
+  })
+
+  await page.goto('/')
+  await clickAtlasNav(page, 'GitHub')
+
+  await expect(page.getByText('Installed repos: 2 repos')).toBeVisible()
+  await page.getByPlaceholder('Search repositories').fill('JAMARQ-Atlas')
+  await expect(
+    page.locator('.github-intake-card').filter({ hasText: 'jmars319/JAMARQ-Atlas' }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.github-intake-card').filter({ hasText: 'jmars319/Assembly' }),
+  ).toHaveCount(0)
+})
+
+test('settings shows GitHub App sign-in state without active write controls', async ({ page }) => {
+  await installGithubApiMocks(page)
+
+  await page.goto('/')
+  await clickAtlasNav(page, 'Settings')
+  const checkpoint = page.getByLabel('GitHub App auth checkpoint')
+
+  await expect(checkpoint).toContainText('Signed in as jmars319')
+  await expect(checkpoint).toContainText('Installed repos visible')
+  await expect(checkpoint).toContainText('controls are locked: false')
+  await expect(checkpoint.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })

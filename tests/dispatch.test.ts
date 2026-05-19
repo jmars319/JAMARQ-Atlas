@@ -792,7 +792,9 @@ describe('dispatch readiness', () => {
       'trbg-cpanel-runbook',
       'bow-wow-cpanel-runbook',
     ])
-    expect(seedDispatchState.runbooks).toHaveLength(5)
+    expect(
+      seedDispatchState.runbooks.filter((runbook) => runbook.id.endsWith('-cpanel-runbook')),
+    ).toHaveLength(5)
     expect(
       seedDispatchState.targets.every((target) =>
         target.id === 'jamarq-website-production' ||
@@ -800,6 +802,26 @@ describe('dispatch readiness', () => {
         Boolean(getRunbookForTarget(seedDispatchState, target.id)),
       ),
     ).toBe(true)
+  })
+
+  it('seeds an Atlas self-deployment Vercel target without execution controls', () => {
+    const target = seedDispatchState.targets.find(
+      (candidate) => candidate.id === 'jamarq-atlas-vercel-production',
+    )
+    const runbook = getRunbookForTarget(seedDispatchState, 'jamarq-atlas-vercel-production')
+    const group = seedDispatchState.orderGroups.find(
+      (candidate) => candidate.id === 'atlas-vercel-self-deploy',
+    )
+
+    expect(target).toMatchObject({
+      projectId: 'jamarq-atlas',
+      hostType: 'vercel',
+      publicUrl: 'https://atlas.jamarq.digital',
+    })
+    expect(target?.healthCheckUrls).toContain('https://jamarq-atlas.vercel.app')
+    expect(runbook?.notes.join(' ')).toContain('VERCEL_TOKEN')
+    expect(runbook?.manualDeployNotes.join(' ')).toContain('outside Atlas')
+    expect(group?.runbookIds).toEqual(['atlas-vercel-runbook'])
   })
 
   it('captures MMS config transition and Bow Wow placeholder-only posture', () => {

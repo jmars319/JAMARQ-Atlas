@@ -4,6 +4,8 @@ import {
   ClipboardList,
   Download,
   HardDrive,
+  LogIn,
+  LogOut,
   PlusCircle,
   RefreshCw,
   Settings2,
@@ -43,6 +45,7 @@ import {
   fetchHostConnectionStatus,
   type HostConnectionStatusResponse,
 } from '../services/hostConnection'
+import { clearGithubRequestCache } from '../services/githubIntegration'
 import {
   CALIBRATION_BULK_FIELDS,
   CALIBRATION_CATEGORIES,
@@ -75,18 +78,20 @@ import {
 } from '../services/writingProvider'
 import { createCalibrationWorkflow } from '../services/calibrationWorkflow'
 import {
+  CalibrationField,
+  CalibrationImportPreviewPanel,
+  ConnectionCard,
+  SnapshotSummary,
+} from './SettingsCenterParts'
+import {
   buildGithubCard,
   buildHostConnectionCard,
   buildHostedSyncCard,
   buildWritingProviderCard,
-  CalibrationField,
-  CalibrationImportPreviewPanel,
-  ConnectionCard,
   issueCountLabel,
-  SnapshotSummary,
   statusLabel,
   type GithubStatusResponse,
-} from './SettingsCenterParts'
+} from './SettingsCenterParts.helpers'
 
 interface SettingsCenterProps {
   settings: AtlasSettingsState
@@ -237,6 +242,30 @@ export function SettingsCenter({
     } catch (error) {
       setGithubError(error instanceof Error ? error.message : 'GitHub status request failed.')
       setGithubStatus(null)
+    } finally {
+      setLoadingGithub(false)
+    }
+  }
+
+  function handleGithubLogin() {
+    window.location.assign('/api/github/auth/login')
+  }
+
+  async function handleGithubLogout() {
+    setLoadingGithub(true)
+    setGithubError(null)
+
+    try {
+      const response = await fetch('/api/github/auth/logout', { method: 'POST' })
+
+      if (!response.ok) {
+        throw new Error(`GitHub logout returned ${response.status}.`)
+      }
+
+      clearGithubRequestCache()
+      setGithubStatus(await requestGithubStatus())
+    } catch (error) {
+      setGithubError(error instanceof Error ? error.message : 'GitHub logout failed.')
     } finally {
       setLoadingGithub(false)
     }
@@ -957,6 +986,67 @@ export function SettingsCenter({
             {connectionCards.map((card) => (
               <ConnectionCard key={card.id} card={card} />
             ))}
+          </div>
+          <div className="settings-calibration-readiness" aria-label="GitHub App auth checkpoint">
+            <div className="settings-subpanel-heading">
+              <ShieldCheck size={16} />
+              <strong>GitHub App Auth Checkpoint</strong>
+              <span>{githubStatus?.message ?? 'GitHub status has not loaded yet.'}</span>
+            </div>
+            <div className="settings-preview-grid">
+              <div className="settings-snapshot-summary">
+                <strong>{githubStatus?.githubAppConfigured ? 'Configured' : 'Missing config'}</strong>
+                <span>App slug: {githubStatus?.appSlug || 'not set'}</span>
+                <span>
+                  Missing:{' '}
+                  {githubStatus?.missingConfig.length
+                    ? githubStatus.missingConfig.join(', ')
+                    : 'none'}
+                </span>
+              </div>
+              <div className="settings-snapshot-summary">
+                <strong>{githubStatus?.authenticated ? 'Signed in' : 'Signed out'}</strong>
+                <span>User: {githubStatus?.user?.login ?? 'none'}</span>
+                <span>Token expires: {githubStatus?.tokenExpiresAt ?? 'not active'}</span>
+              </div>
+              <div className="settings-snapshot-summary">
+                <strong>{githubStatus?.repoCount ?? 0}</strong>
+                <span>Installed repos visible</span>
+                <span>{githubStatus?.installCount ?? 0} installation(s)</span>
+              </div>
+            </div>
+            <div className="dispatch-preflight-actions">
+              {githubStatus?.authenticated ? (
+                <button
+                  type="button"
+                  onClick={() => void handleGithubLogout()}
+                  disabled={loadingGithub}
+                >
+                  <LogOut size={15} />
+                  Sign out
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGithubLogin}
+                  disabled={loadingGithub || !githubStatus?.githubAppConfigured}
+                >
+                  <LogIn size={15} />
+                  Sign in with GitHub
+                </button>
+              )}
+              <span>
+                Future repository, workflow, deployment, commit, push, pull, and destructive
+                controls are locked: {String(githubStatus?.writeControlsEnabled ?? false)}.
+              </span>
+            </div>
+            <div className="resource-meta">
+              {(githubStatus?.permissionPlan ?? []).map((permission) => (
+                <span key={permission.key}>
+                  {permission.label}: {permission.access}
+                </span>
+              ))}
+            </div>
           </div>
         </section>
 

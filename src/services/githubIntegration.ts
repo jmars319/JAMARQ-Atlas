@@ -45,8 +45,33 @@ export interface GithubApiResponse<T> {
 
 export interface GithubConnectionState {
   configured: boolean
+  githubAppConfigured: boolean
+  envTokenConfigured: boolean
+  authenticated: boolean
   configuredRepos: string[]
-  authMode: 'server-env'
+  authMode: 'github-app-user' | 'server-env' | 'none'
+  appSlug: string
+  callbackUrlConfigured: boolean
+  missingConfig: string[]
+  user: {
+    login: string
+    id: number
+    name: string | null
+    avatarUrl: string
+    htmlUrl: string
+  } | null
+  tokenExpiresAt: string | null
+  refreshTokenExpiresAt: string | null
+  installCount: number
+  repoCount: number
+  writeControlsEnabled: false
+  permissionPlan: {
+    key: string
+    label: string
+    access: 'read' | 'write'
+    activeControls: false
+  }[]
+  message: string
 }
 
 export type GithubRepositorySource = 'configured' | 'viewer'
@@ -236,7 +261,17 @@ export interface GithubSnapshot {
 export const githubIngestionContract: GithubIngestionContract = {
   cacheFile: 'src/data/github/github-snapshot.json',
   command: 'npm run dev',
-  environment: ['GITHUB_TOKEN or GH_TOKEN', 'GITHUB_OWNER', 'GITHUB_REPOS'],
+  environment: [
+    'GITHUB_APP_CLIENT_ID',
+    'GITHUB_APP_CLIENT_SECRET',
+    'GITHUB_APP_SLUG',
+    'GITHUB_APP_CALLBACK_URL',
+    'ATLAS_SESSION_SECRET',
+    'ATLAS_LOCAL_REPO_ROOTS',
+    'GITHUB_TOKEN or GH_TOKEN fallback',
+    'GITHUB_OWNER',
+    'GITHUB_REPOS',
+  ],
   responsibilities: [
     'Serve read-only GitHub data through the local /api/github boundary.',
     'Keep GitHub tokens in the local server environment, not browser code.',

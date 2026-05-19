@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardCheck,
+  GitBranch,
   History,
   ListChecks,
   RefreshCw,
@@ -81,14 +82,17 @@ import { canStoreCalibrationValue } from '../services/calibration'
 import { evaluateRecoveryPlanReadiness } from '../services/dispatchRecovery'
 import { requestHostConnectionPreflight } from '../services/hostConnection'
 import {
-  backupLabel,
-  DEPLOY_SESSION_STEP_STATUSES,
   EvidenceComparisonSummary,
   EvidenceHistoryDisplayControl,
+} from './DispatchPanelParts'
+import { LocalGitStatusInline } from './LocalGitStatus'
+import {
+  backupLabel,
+  DEPLOY_SESSION_STEP_STATUSES,
   evidenceLinkDetail,
   linesToText,
   textToLines,
-} from './DispatchPanelParts'
+} from './DispatchPanelParts.helpers'
 
 interface DispatchPanelProps {
   record: ProjectRecord
@@ -305,6 +309,7 @@ export function DispatchPanel({
         const automationEvaluation = evaluateAutomationReadiness(target, automationReadiness)
         const dryRunPlan = dryRunPlans[target.id]
         const targetVerificationEvidence = verificationEvidence[target.id] ?? []
+        const advisoryRepository = record.project.repositories[0] ?? null
         const hostPreflightResult = hostPreflightResults[target.id]
         const hostEvidenceStatus = hostPreflightResult?.status ?? latestHostEvidence?.status
         const hostEvidenceCheckedAt =
@@ -520,10 +525,30 @@ export function DispatchPanel({
               </div>
             </div>
 
+            {advisoryRepository ? (
+              <div
+                className="dispatch-preflight"
+                aria-label={`${target.name} local git advisory`}
+              >
+                <div className="panel-heading">
+                  <GitBranch size={17} />
+                  <h3>Local Git Advisory</h3>
+                </div>
+                <LocalGitStatusInline
+                  owner={advisoryRepository.owner}
+                  repo={advisoryRepository.name}
+                />
+                <p className="dispatch-muted-note">
+                  This signal is read-only and advisory. It does not update readiness, start builds,
+                  pull, push, commit, stash, reset, or deploy.
+                </p>
+              </div>
+            ) : null}
+
             <div className="dispatch-runbook" aria-label={`${target.name} deploy runbook`}>
               <div className="panel-heading">
                 <ClipboardCheck size={17} />
-                <h3>cPanel Deploy Runbook</h3>
+                <h3>Deploy Runbook</h3>
               </div>
               {runbook ? (
                 <>

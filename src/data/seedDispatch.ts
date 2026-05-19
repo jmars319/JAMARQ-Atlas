@@ -8,6 +8,7 @@ import type {
   DeploymentTarget,
   DeploymentVerificationCheck,
   DispatchReadiness,
+  DispatchRecoveryPlan,
   DispatchState,
   HealthCheckResult,
 } from '../domain/dispatch'
@@ -53,6 +54,10 @@ function verificationCheck(seed: DeploymentVerificationCheck): DeploymentVerific
 }
 
 function runbook(seed: DeploymentRunbook): DeploymentRunbook {
+  return seed
+}
+
+function recoveryPlan(seed: DispatchRecoveryPlan): DispatchRecoveryPlan {
   return seed
 }
 
@@ -157,6 +162,65 @@ function placeholderArtifact(projectId: string, targetId: string, sourceRepo: st
     warnings: [],
     notes: ['Use this only if keeping the placeholder live. Do not upload full app artifacts unless ready.'],
   })
+}
+
+function vercelProjectLinkArtifact(projectId: string, targetId: string, sourceRepo: string) {
+  return artifact({
+    id: `${targetId}-vercel-project-link`,
+    projectId,
+    targetId,
+    filename: 'Vercel Git integration',
+    role: 'frontend',
+    sourceRepo,
+    targetPath: 'Vercel project linked to main',
+    required: false,
+    onlyWhenFullAppReady: true,
+    checksum: '',
+    inspectedAt: '',
+    warnings: ['No Vercel deployment execution is implemented in Atlas in this checkpoint.'],
+    notes: [
+      'Use Vercel Git integration or Vercel CLI outside Atlas until deploy execution is explicitly added.',
+      'Required Vercel CI secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.',
+    ],
+  })
+}
+
+function vercelChecks(projectId: string, targetId: string): DeploymentVerificationCheck[] {
+  return [
+    verificationCheck({
+      id: `${targetId}-verify-home`,
+      projectId,
+      targetId,
+      label: 'Production app responds',
+      method: 'HEAD',
+      urlPath: '/',
+      expectedStatuses: [200, 301, 302],
+      protectedResource: false,
+      notes: ['Vercel production URL should serve the Atlas shell.'],
+    }),
+    verificationCheck({
+      id: `${targetId}-verify-github-auth-status`,
+      projectId,
+      targetId,
+      label: 'GitHub auth status route responds',
+      method: 'GET',
+      urlPath: '/api/github/auth/status',
+      expectedStatuses: [200],
+      protectedResource: false,
+      notes: ['Response must not include GitHub tokens or refresh tokens.'],
+    }),
+    verificationCheck({
+      id: `${targetId}-verify-local-git-status-boundary`,
+      projectId,
+      targetId,
+      label: 'Local Git status route is bounded',
+      method: 'GET',
+      urlPath: '/api/git/repositories/status?owner=jmars319&repo=JAMARQ-Atlas',
+      expectedStatuses: [200, 400],
+      protectedResource: false,
+      notes: ['Production may report not-configured; the route must remain read-only.'],
+    }),
+  ]
 }
 
 function preserve(projectId: string, targetId: string, path: string, reason: string, temporary = false) {
@@ -363,6 +427,35 @@ export const seedDispatchState: DispatchState = {
       blockers: ['Public site promise needs confirmation before launch automation.'],
       notes: ['Production target placeholder for Tenra public site.'],
     }),
+    target({
+      id: 'jamarq-atlas-vercel-production',
+      projectId: 'jamarq-atlas',
+      name: 'JAMARQ Atlas Vercel production',
+      environment: 'production',
+      hostType: 'vercel',
+      credentialRef: 'vercel-atlas-production',
+      remoteHost: 'vercel.com',
+      remoteUser: 'vercel-git-integration',
+      remoteFrontendPath: 'Vercel project output',
+      remoteBackendPath: 'Vercel functions',
+      publicUrl: 'https://atlas.jamarq.digital',
+      healthCheckUrls: ['https://atlas.jamarq.digital', 'https://jamarq-atlas.vercel.app'],
+      hasDatabase: false,
+      databaseName: '',
+      backupRequired: false,
+      destructiveOperationsRequireConfirmation: true,
+      status: 'configured',
+      lastVerified: '2026-05-18',
+      deploymentNotes: [
+        'Production URL field: https://atlas.jamarq.digital.',
+        'Preview URL field: https://jamarq-atlas.vercel.app.',
+        'Required Vercel env checklist: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.',
+        'Required Atlas env checklist: GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET, GITHUB_APP_SLUG, GITHUB_APP_CALLBACK_URL, ATLAS_SESSION_SECRET, ATLAS_LOCAL_REPO_ROOTS.',
+        'No Vercel deploy, promote, or rollback execution is implemented in Atlas yet.',
+      ],
+      blockers: ['Confirm Vercel project linkage, production domain, and env values before execution.'],
+      notes: ['Self-deployment target for Atlas review checkpoint.'],
+    }),
   ],
   records: [
     productionRecord({
@@ -521,8 +614,52 @@ export const seedDispatchState: DispatchState = {
       warnings: ['Host/path values are placeholders.'],
       lastCheckedAt: '2026-05-01T14:00:00Z',
     }),
+    readiness({
+      projectId: 'jamarq-atlas',
+      targetId: 'jamarq-atlas-vercel-production',
+      repoCleanKnown: false,
+      buildStatusKnown: false,
+      artifactReady: false,
+      backupReady: true,
+      healthChecksDefined: true,
+      ready: false,
+      blocked: true,
+      blockers: ['Vercel env checklist and domain linkage are not confirmed in Atlas yet.'],
+      warnings: ['Local Git status is advisory only and must not mutate readiness automatically.'],
+      lastCheckedAt: '2026-05-18T14:00:00Z',
+    }),
   ],
   runbooks: [
+    runbook({
+      id: 'atlas-vercel-runbook',
+      projectId: 'jamarq-atlas',
+      targetId: 'jamarq-atlas-vercel-production',
+      siteName: 'Atlas Vercel',
+      summary:
+        'Review-ready Vercel deployment target for Atlas itself. This records URLs, env checklist, health checks, and rollback notes without executing deployments.',
+      deployOrder: 1,
+      enabled: true,
+      notes: [
+        'Production URL: https://atlas.jamarq.digital.',
+        'Preview URL: https://jamarq-atlas.vercel.app.',
+        'Required Vercel env: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.',
+        'Required Atlas env: GitHub App OAuth values, ATLAS_SESSION_SECRET, and ATLAS_LOCAL_REPO_ROOTS.',
+        'Use Vercel preview validation before production promotion.',
+      ],
+      artifacts: [
+        vercelProjectLinkArtifact(
+          'jamarq-atlas',
+          'jamarq-atlas-vercel-production',
+          'jmars319/JAMARQ-Atlas',
+        ),
+      ],
+      preservePaths: [],
+      verificationChecks: vercelChecks('jamarq-atlas', 'jamarq-atlas-vercel-production'),
+      manualDeployNotes: [
+        'Deployment execution remains outside Atlas for this checkpoint.',
+        'Rollback note: use Vercel rollback to restore the last stable production deployment, then record the result in Dispatch.',
+      ],
+    }),
     runbook({
       id: 'mms-cpanel-runbook',
       projectId: 'midway-mobile-storage-site',
@@ -652,6 +789,13 @@ export const seedDispatchState: DispatchState = {
       ],
       notes: ['Never replace /api wholesale without preserving server-only files first.'],
     },
+    {
+      id: 'atlas-vercel-self-deploy',
+      name: 'Atlas Vercel Self-Deploy',
+      description: 'Review checkpoint for deploying Atlas itself to Vercel after GitHub App auth is proven.',
+      runbookIds: ['atlas-vercel-runbook'],
+      notes: ['Deployment execution is intentionally absent until the review breakpoint passes.'],
+    },
   ],
   preflightRuns: [],
   automationReadiness: [],
@@ -663,5 +807,24 @@ export const seedDispatchState: DispatchState = {
     verificationRunLimit: 50,
     preserveFailedRuns: true,
   },
-  recoveryPlans: [],
+  recoveryPlans: [
+    recoveryPlan({
+      id: 'jamarq-atlas-vercel-recovery',
+      projectId: 'jamarq-atlas',
+      targetId: 'jamarq-atlas-vercel-production',
+      backupCadence: 'Before production promotion',
+      backupLocationRef: 'Vercel deployment history',
+      rollbackReference: 'Use the previous stable Vercel production deployment',
+      rollbackSteps: [
+        'Open Vercel project deployment history outside Atlas.',
+        'Select the last stable production deployment.',
+        'Run Vercel rollback or promote the known-good deployment outside Atlas.',
+        'Record the rollback URL and verification result in Dispatch.',
+      ],
+      maintenanceWindow: 'Manual operator window',
+      escalationContactRef: 'jamarq-operator',
+      lastReviewedAt: '2026-05-18T14:00:00Z',
+      notes: ['Atlas does not execute rollback in this checkpoint.'],
+    }),
+  ],
 }

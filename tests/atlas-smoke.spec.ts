@@ -64,7 +64,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await clickAtlasNav(page, 'GitHub')
   await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
-  await expect(page.locator('.github-error')).toContainText(/Set GITHUB_TOKEN|GH_TOKEN/)
+  await expect(page.locator('.github-error')).toContainText(/Sign in with the configured GitHub App|GITHUB_TOKEN/)
   await clickAtlasNav(page, 'Review')
   await expect(page.getByRole('heading', { name: 'Review Center' })).toBeVisible()
   await expect(page.getByLabel('Operator review queue')).toContainText('Midway Music Hall')
@@ -100,7 +100,11 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
   await clickAtlasNav(page, 'Settings')
   await expect(page.getByRole('heading', { name: 'Settings & Connections' })).toBeVisible()
-  await expectSettingsConnectionStatus(page, 'GitHub Local API', 'No GitHub token is configured')
+  await expectSettingsConnectionStatus(
+    page,
+    'GitHub App',
+    /GitHub App (sign-in is not configured|is configured; sign-in is pending|is connected)/,
+  )
   await expectSettingsConnectionStatus(page, 'Writing Provider', 'Missing')
   await expectSettingsConnectionStatus(page, 'Supabase Hosted Sync', 'Missing')
   await expectSettingsConnectionStatus(page, 'Read-Only Host Boundary', 'Missing')

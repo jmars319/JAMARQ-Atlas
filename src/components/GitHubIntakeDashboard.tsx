@@ -9,8 +9,12 @@ import {
   SquareArrowOutUpRight,
   Target,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import type { GithubRepositorySource, GithubRepositorySummary } from '../services/githubIntegration'
+import { useEffect, useMemo, useState } from 'react'
+import type {
+  GithubConnectionState,
+  GithubRepositorySource,
+  GithubRepositorySummary,
+} from '../services/githubIntegration'
 import type { ProjectRecord } from '../domain/atlas'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
@@ -18,6 +22,7 @@ import { findRepositoryBinding, repositorySummaryToLink } from '../services/repo
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
+import { LocalGitStatusInline } from './LocalGitStatus'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
 
@@ -65,12 +70,12 @@ function mergeRepositories(
   )
 }
 
-function sourceLabel(sources: GithubRepositorySource[]) {
+function sourceLabel(sources: GithubRepositorySource[], viewerLabel: string) {
   if (sources.length > 1) {
-    return 'Configured + Viewer'
+    return `Configured + ${viewerLabel}`
   }
 
-  return sources[0] === 'configured' ? 'Configured' : 'Viewer'
+  return sources[0] === 'configured' ? 'Configured' : viewerLabel
 }
 
 interface SourceNoticeProps {
@@ -141,11 +146,28 @@ export function GitHubIntakeDashboard({
 }: GitHubIntakeDashboardProps) {
   const configuredRepos = useGithubRepositories('configured')
   const viewerRepos = useGithubRepositories('viewer')
+  const [githubStatus, setGithubStatus] = useState<GithubConnectionState | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<IntakeFilter>('all')
   const [targetProjectId, setTargetProjectId] = useState(selectedProjectId)
   const [deepDiveRepo, setDeepDiveRepo] = useState('')
   const [suggestionTargets, setSuggestionTargets] = useState<Record<string, string>>({})
+  const viewerLabel = githubStatus?.authMode === 'github-app-user' ? 'Installed' : 'Viewer'
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    void fetch('/api/github/status', { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((status: GithubConnectionState | null) => {
+        if (status) {
+          setGithubStatus(status)
+        }
+      })
+      .catch(() => undefined)
+
+    return () => controller.abort()
+  }, [])
 
   const repositories = useMemo(
     () => mergeRepositories(configuredRepos.data, viewerRepos.data),
@@ -233,7 +255,7 @@ export function GitHubIntakeDashboard({
           onReload={configuredRepos.reload}
         />
         <SourceNotice
-          label="Viewer repos"
+          label={`${viewerLabel} repos`}
           loading={viewerRepos.loading}
           error={viewerRepos.error}
           count={viewerRepos.data.length}
@@ -243,6 +265,31 @@ export function GitHubIntakeDashboard({
           onReload={viewerRepos.reload}
         />
       </div>
+
+      <section className="github-suggestion-panel" aria-label="GitHub future controls locked">
+        <div className="resource-panel-header">
+          <div>
+            <AlertTriangle size={17} />
+            <div>
+              <h2>Future Controls Locked</h2>
+              <p>
+                Atlas can request operator-grade GitHub App permissions now, but this checkpoint
+                exposes read-only inventory, binding, import, and deep-dive views only.
+              </p>
+            </div>
+          </div>
+          <span className="resource-pill">
+            writeControlsEnabled: {String(githubStatus?.writeControlsEnabled ?? false)}
+          </span>
+        </div>
+        <div className="resource-meta">
+          {(githubStatus?.permissionPlan ?? []).map((permission) => (
+            <span key={permission.key}>
+              {permission.label}: {permission.access}
+            </span>
+          ))}
+        </div>
+      </section>
 
       <div className="github-intake-controls">
         <label className="search-control">
@@ -259,7 +306,7 @@ export function GitHubIntakeDashboard({
           {[
             ['all', 'All'],
             ['configured', 'Configured'],
-            ['viewer', 'Viewer'],
+            ['viewer', viewerLabel],
             ['unbound', 'Unbound'],
           ].map(([id, label]) => (
             <button
@@ -454,7 +501,7 @@ export function GitHubIntakeDashboard({
               className={`github-intake-card ${binding ? 'is-bound' : ''}`}
             >
               <div className="card-topline">
-                <span className="resource-pill">{sourceLabel(sources)}</span>
+                <span className="resource-pill">{sourceLabel(sources, viewerLabel)}</span>
                 <span className="resource-pill">{repository.visibility}</span>
               </div>
 
@@ -493,6 +540,12 @@ export function GitHubIntakeDashboard({
                   <span>Not bound to Atlas yet</span>
                 </div>
               )}
+
+              <LocalGitStatusInline
+                owner={repository.fullName.split('/')[0] ?? ''}
+                repo={repository.name}
+                compact
+              />
 
               <div className="github-card-actions">
                 {binding ? (
@@ -545,7 +598,7 @@ export function GitHubIntakeDashboard({
         {viewerRepos.hasNextPage ? (
           <button type="button" className="load-more" onClick={viewerRepos.loadMore}>
             <RefreshCcw size={15} />
-            Load more viewer repos
+            Load more {viewerLabel.toLowerCase()} repos
           </button>
         ) : null}
       </div>

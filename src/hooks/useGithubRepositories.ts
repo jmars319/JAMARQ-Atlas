@@ -17,11 +17,13 @@ interface RepositoryState {
   cacheMetadata: GithubFetchCacheMetadata | null
 }
 
+const REPOSITORY_PAGE_SIZE = 100
+
 function repositoriesPath(source: GithubRepositorySource, page: number) {
   const params = new URLSearchParams({
     source,
     page: String(page),
-    per_page: '20',
+    per_page: String(REPOSITORY_PAGE_SIZE),
   })
 
   return `/api/github/repos?${params.toString()}`
@@ -110,6 +112,12 @@ export function useGithubRepositories(source: GithubRepositorySource) {
   }, [loadPage, requestKey])
 
   const loadMore = useCallback(() => {
+    if (!state.loading && state.hasNextPage) {
+      void loadPage(state.page + 1, 'append')
+    }
+  }, [loadPage, state.hasNextPage, state.loading, state.page])
+
+  useEffect(() => {
     if (!state.loading && state.hasNextPage) {
       void loadPage(state.page + 1, 'append')
     }

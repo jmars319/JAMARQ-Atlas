@@ -53,6 +53,7 @@ import type { DeploySessionChecklistPresetId } from '../services/deploySessions'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
 import { GitHubHealthSummary } from './GitHubHealthSummary'
+import { LocalGitStatusInline } from './LocalGitStatus'
 import { PlanningPanel } from './PlanningPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
 import { ReviewPanel } from './ReviewPanel'
@@ -499,9 +500,12 @@ export function ProjectDetail({
           <ul className="repo-list">
             {project.repositories.map((repo) => (
               <li key={`${repo.owner}/${repo.name}`}>
-                <span>
-                  {repo.owner}/{repo.name}
-                </span>
+                <div>
+                  <span>
+                    {repo.owner}/{repo.name}
+                  </span>
+                  <LocalGitStatusInline owner={repo.owner} repo={repo.name} compact />
+                </div>
                 <div className="repo-list-actions">
                   {repo.url ? (
                     <a href={repo.url} target="_blank" rel="noreferrer" aria-label="Open repo">

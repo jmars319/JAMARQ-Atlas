@@ -949,6 +949,20 @@ h3 {
   color: var(--warning);
 }
 
+.local-git-status {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.local-git-status .local-git-detail {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+}
+
 .github-card-actions {
   gap: 8px;
   flex-wrap: wrap;

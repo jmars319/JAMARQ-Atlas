@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { createLocalStoreAdapter, type LocalStoreAdapterOptions } from '../services/localStore'
 
 export function useLocalStoreState<T>(options: LocalStoreAdapterOptions<T>) {
+  const { storeId, fallback, normalize } = options
   const adapter = useMemo(
-    () => createLocalStoreAdapter(options),
-    [options.storeId, options.fallback, options.normalize],
+    () => createLocalStoreAdapter({ storeId, fallback, normalize }),
+    [storeId, fallback, normalize],
   )
   const [state, setState] = useState<T>(() => adapter.read().value)
 

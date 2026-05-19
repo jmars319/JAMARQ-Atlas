@@ -1,4 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import {
+  createGithubAuthStatus,
+  getConfiguredRepos,
+  resolveConfiguredRepo,
+  resolveGithubAuthForRequest,
+  type GithubAuthResolution,
+} from './githubAuth'
 
 type GithubErrorType =
   | 'missing-token'
@@ -34,21 +41,7 @@ const API_VERSION = '2022-11-28'
 const API_BASE = 'https://api.github.com'
 const DEFAULT_PER_PAGE = 20
 const MAX_PER_PAGE = 100
-
-function getToken() {
-  return process.env.GITHUB_TOKEN || process.env.GH_TOKEN || ''
-}
-
-function getConfiguredRepos() {
-  return (process.env.GITHUB_REPOS || '')
-    .split(',')
-    .map((repo) => repo.trim())
-    .filter(Boolean)
-}
-
-function resolveConfiguredRepo(repo: string) {
-  return repo.includes('/') || !process.env.GITHUB_OWNER ? repo : `${process.env.GITHUB_OWNER}/${repo}`
-}
+const MAX_PAGINATED_GITHUB_PAGES = 50
 
 function json(response: ServerResponse, status: number, body: unknown) {
   response.statusCode = status
@@ -153,8 +146,13 @@ function withPagination(path: string, searchParams: URLSearchParams, defaults = 
   return `${path}?${params.toString()}`
 }
 
-async function githubRequest(path: string, resource: string, searchParams: URLSearchParams) {
-  const token = getToken()
+async function githubRequest(
+  path: string,
+  resource: string,
+  searchParams: URLSearchParams,
+  auth: GithubAuthResolution,
+) {
+  const token = auth.token
   const pageInfo = parsePageInfo(searchParams, null)
 
   if (!token) {
@@ -165,7 +163,9 @@ async function githubRequest(path: string, resource: string, searchParams: URLSe
         type: 'missing-token',
         status: 401,
         resource,
-        message: 'Set GITHUB_TOKEN or GH_TOKEN and restart the local server.',
+        message:
+          auth.error ??
+          'Sign in with the configured GitHub App, or set GITHUB_TOKEN/GH_TOKEN for legacy local fallback.',
       },
       permission: 'missing-token',
     } satisfies GithubRequestResult
@@ -490,7 +490,7 @@ export function normalizeGithubResource(resource: string, data: unknown) {
   return data
 }
 
-async function handleConfiguredRepos(searchParams: URLSearchParams) {
+async function handleConfiguredRepos(searchParams: URLSearchParams, auth: GithubAuthResolution) {
   const repos = getConfiguredRepos()
 
   if (repos.length === 0) {
@@ -498,14 +498,14 @@ async function handleConfiguredRepos(searchParams: URLSearchParams) {
       data: [],
       pageInfo: parsePageInfo(searchParams, null),
       error: null,
-      permission: getToken() ? 'available' : 'missing-token',
+      permission: auth.token ? 'available' : 'missing-token',
     } satisfies GithubRequestResult
   }
 
   const results = await Promise.all(
     repos.map((repo) => {
       const fullName = resolveConfiguredRepo(repo)
-      return githubRequest(`/repos/${fullName}`, 'repo', searchParams)
+      return githubRequest(`/repos/${fullName}`, 'repo', searchParams, auth)
     }),
   )
   const firstError = summarizeConfiguredRepoFailures(results, repos.length)
@@ -553,7 +553,122 @@ export function summarizeConfiguredRepoFailures(
   }
 }
 
-async function handleViewerRepos(searchParams: URLSearchParams) {
+function paginateItems(items: unknown[], searchParams: URLSearchParams): GithubRequestResult {
+  const requestedPage = Number(searchParams.get('page') || '1')
+  const requestedPerPage = Number(searchParams.get('per_page') || DEFAULT_PER_PAGE)
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const perPage =
+    Number.isFinite(requestedPerPage) && requestedPerPage > 0
+      ? Math.min(requestedPerPage, MAX_PER_PAGE)
+      : DEFAULT_PER_PAGE
+  const start = (currentPage - 1) * perPage
+  const pageItems = items.slice(start, start + perPage)
+  const hasNextPage = start + perPage < items.length
+
+  return {
+    data: pageItems,
+    pageInfo: {
+      currentPage,
+      hasNextPage,
+      nextPage: hasNextPage ? currentPage + 1 : null,
+      perPage,
+    },
+    error: null,
+    permission: 'available',
+  }
+}
+
+async function collectPaginatedGithubItems(
+  path: string,
+  resource: string,
+  auth: GithubAuthResolution,
+  readItems: (data: unknown) => unknown,
+) {
+  const items: unknown[] = []
+  const results: GithubRequestResult[] = []
+  let page = 1
+
+  for (let index = 0; index < MAX_PAGINATED_GITHUB_PAGES; index += 1) {
+    const params = new URLSearchParams({ page: String(page), per_page: String(MAX_PER_PAGE) })
+    const result = await githubRequest(withPagination(path, params), resource, params, auth)
+    results.push(result)
+
+    if (result.error) {
+      break
+    }
+
+    const resultItems = readItems(result.data)
+
+    if (Array.isArray(resultItems)) {
+      items.push(...resultItems)
+    }
+
+    if (!result.pageInfo.hasNextPage || result.pageInfo.nextPage === null) {
+      break
+    }
+
+    page = result.pageInfo.nextPage
+  }
+
+  return { items, results }
+}
+
+export async function handleInstalledRepos(
+  searchParams: URLSearchParams,
+  auth: GithubAuthResolution,
+) {
+  const installationPages = await collectPaginatedGithubItems(
+    '/user/installations',
+    'installations',
+    auth,
+    (data) => asRecord(data).installations,
+  )
+  const firstInstallationError = installationPages.results.find((result) => result.error)
+
+  if (firstInstallationError) {
+    return firstInstallationError
+  }
+
+  const installationIds = installationPages.items
+    .map((installation) => readNumber(asRecord(installation).id))
+    .filter((id): id is number => id !== null)
+
+  const repoPages = await Promise.all(
+    installationIds.map((installationId) => {
+      return collectPaginatedGithubItems(
+        `/user/installations/${installationId}/repositories`,
+        'installation-repositories',
+        auth,
+        (data) => asRecord(data).repositories,
+      )
+    }),
+  )
+  const repos = repoPages.flatMap((page) => page.items)
+  const repoResults = repoPages.flatMap((page) => page.results)
+  const normalizedRepos = normalizeGithubResource('repos', repos) as Array<{ pushedAt: string | null }>
+  const sortedRepos = [...normalizedRepos].sort((left, right) =>
+    String(right.pushedAt ?? '').localeCompare(String(left.pushedAt ?? '')),
+  )
+  const firstError = repoResults.find((result) => result.error)?.error ?? null
+  const paginated = paginateItems(sortedRepos, searchParams)
+
+  return {
+    ...paginated,
+    error: firstError,
+    permission:
+      firstError?.type === 'insufficient-permission'
+        ? 'insufficient'
+        : firstError
+          ? 'unknown'
+          : 'available',
+  } satisfies GithubRequestResult
+}
+
+async function handleViewerRepos(searchParams: URLSearchParams, auth: GithubAuthResolution) {
+  if (auth.mode === 'github-app-user') {
+    return handleInstalledRepos(searchParams, auth)
+  }
+
   const path = withPagination(
     '/user/repos',
     searchParams,
@@ -563,7 +678,7 @@ async function handleViewerRepos(searchParams: URLSearchParams) {
       direction: 'desc',
     }),
   )
-  const result = await githubRequest(path, 'repos', searchParams)
+  const result = await githubRequest(path, 'repos', searchParams, auth)
 
   return {
     ...result,
@@ -571,15 +686,15 @@ async function handleViewerRepos(searchParams: URLSearchParams) {
   } satisfies GithubRequestResult
 }
 
-async function handleRepos(searchParams: URLSearchParams) {
+async function handleRepos(searchParams: URLSearchParams, auth: GithubAuthResolution) {
   const source = searchParams.get('source') || 'configured'
 
   if (source === 'configured') {
-    return handleConfiguredRepos(searchParams)
+    return handleConfiguredRepos(searchParams, auth)
   }
 
   if (source === 'viewer') {
-    return handleViewerRepos(searchParams)
+    return handleViewerRepos(searchParams, auth)
   }
 
   return {
@@ -595,19 +710,16 @@ async function handleRepos(searchParams: URLSearchParams) {
   } satisfies GithubRequestResult
 }
 
-async function routeGithubRequest(url: URL) {
+async function routeGithubRequest(request: IncomingMessage, url: URL) {
   const searchParams = url.searchParams
+  const auth = await resolveGithubAuthForRequest(request)
 
   if (url.pathname === '/api/github/status') {
-    return {
-      configured: Boolean(getToken()),
-      configuredRepos: getConfiguredRepos(),
-      authMode: 'server-env',
-    }
+    return createGithubAuthStatus(request)
   }
 
   if (url.pathname === '/api/github/repos') {
-    return handleRepos(searchParams)
+    return handleRepos(searchParams, auth)
   }
 
   const repoMatch = url.pathname.match(/^\/api\/github\/repos\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/)
@@ -660,7 +772,7 @@ async function routeGithubRequest(url: URL) {
     } satisfies GithubRequestResult
   }
 
-  const result = await githubRequest(githubPath, resource, searchParams)
+  const result = await githubRequest(githubPath, resource, searchParams, auth)
 
   return {
     ...result,
@@ -673,14 +785,29 @@ export async function githubApiMiddleware(
   response: ServerResponse,
   next?: () => void,
 ) {
-  if (!request.url?.startsWith('/api/github')) {
+  if (!request.url?.startsWith('/api/github') || request.url.startsWith('/api/github/auth')) {
     next?.()
+    return
+  }
+
+  if (request.method !== 'GET') {
+    json(response, 405, {
+      data: null,
+      pageInfo: parsePageInfo(new URLSearchParams(), null),
+      error: {
+        type: 'unknown',
+        status: 405,
+        resource: 'github',
+        message: 'Atlas GitHub API exposes read-only GET routes only.',
+      },
+      permission: 'unknown',
+    })
     return
   }
 
   try {
     const url = new URL(request.url, 'http://localhost')
-    const body = await routeGithubRequest(url)
+    const body = await routeGithubRequest(request, url)
     json(response, 200, body)
   } catch (error) {
     json(response, 500, {

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { normalizeGithubResource, summarizeConfiguredRepoFailures } from '../server/githubApi'
+import {
+  handleInstalledRepos,
+  normalizeGithubResource,
+  summarizeConfiguredRepoFailures,
+} from '../server/githubApi'
 import {
   clearGithubRequestCache,
   fetchGithubJson,
@@ -140,5 +144,85 @@ describe('GitHub API normalization', () => {
     expect(error?.resource).toBe('configured-repos')
     expect(error?.message).toContain('1 of 2 configured GitHub repositories could not be read')
     expect(error?.message).toContain('1 readable')
+  })
+
+  it('loads all GitHub App installation repository pages before local pagination', async () => {
+    const githubRepo = (name: string, pushedAt: string) => ({
+      id: name.length,
+      name,
+      full_name: `jmars319/${name}`,
+      private: false,
+      description: `${name} repository.`,
+      html_url: `https://github.com/jmars319/${name}`,
+      default_branch: 'main',
+      visibility: 'public',
+      language: 'TypeScript',
+      updated_at: pushedAt,
+      pushed_at: pushedAt,
+      open_issues_count: 0,
+      stargazers_count: 0,
+      forks_count: 0,
+      archived: false,
+      disabled: false,
+    })
+    const fetchMock = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input)
+      const searchParams = new URL(url).searchParams
+
+      if (url.includes('/user/installations?')) {
+        return new Response(JSON.stringify({ installations: [{ id: 10 }] }), { status: 200 })
+      }
+
+      if (
+        url.includes('/user/installations/10/repositories?') &&
+        searchParams.get('page') === '1'
+      ) {
+        return new Response(
+          JSON.stringify({
+            repositories: [githubRepo('Assembly', '2026-05-08T12:00:00Z')],
+          }),
+          {
+            status: 200,
+            headers: {
+              link: '<https://api.github.com/user/installations/10/repositories?page=2&per_page=100>; rel="next"',
+            },
+          },
+        )
+      }
+
+      if (
+        url.includes('/user/installations/10/repositories?') &&
+        searchParams.get('page') === '2'
+      ) {
+        return new Response(
+          JSON.stringify({
+            repositories: [githubRepo('JAMARQ-Atlas', '2026-05-09T12:00:00Z')],
+          }),
+          { status: 200 },
+        )
+      }
+
+      return new Response(JSON.stringify({ message: `Unexpected URL ${url}` }), { status: 404 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await handleInstalledRepos(
+      new URLSearchParams({ page: '1', per_page: '100' }),
+      {
+        mode: 'github-app-user',
+        token: 'github-app-token',
+        session: null,
+        error: null,
+      },
+    )
+    const fullNames = (Array.isArray(result.data) ? result.data : []).map(
+      (repository) => (repository as { fullName: string }).fullName,
+    )
+
+    expect(fullNames).toEqual(expect.arrayContaining(['jmars319/Assembly', 'jmars319/JAMARQ-Atlas']))
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(
+      expect.arrayContaining([expect.stringContaining('page=2')]),
+    )
   })
 })

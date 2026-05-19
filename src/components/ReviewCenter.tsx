@@ -36,14 +36,16 @@ import {
   summarizeReviewState,
 } from '../services/review'
 import {
-  labelize,
   ReviewControlsPanel,
   SourceNotice,
+} from './ReviewCenterParts'
+import {
+  labelize,
   type ReviewDueFilter,
   type ReviewSeverityFilter,
   type ReviewSourceFilter,
   type SectionFilter,
-} from './ReviewCenterParts'
+} from './ReviewCenterFilters'
 
 interface IntakeRepository {
   repository: GithubRepositorySummary
