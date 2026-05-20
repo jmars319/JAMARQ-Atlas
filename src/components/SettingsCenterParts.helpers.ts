@@ -58,7 +58,9 @@ export function buildGithubCard(status: GithubStatusResponse | null, error: stri
       title: 'GitHub App',
       status: 'available',
       summary: `Signed in as ${status.user?.login ?? 'GitHub user'}.`,
-      detail: `${status.installCount} installation(s), ${status.repoCount} installed repos visible. Future write controls locked: ${String(
+      detail: `${status.installCount} installation(s), ${status.repoCount} installed repos visible. Issue/comment pilot: ${String(
+        status.issueCommentPilotEnabled,
+      )}. Future write controls locked: ${String(
         status.writeControlsEnabled,
       )}.`,
     } satisfies AtlasConnectionCard

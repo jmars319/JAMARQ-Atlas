@@ -10,7 +10,7 @@ import {
   SquareArrowOutUpRight,
   Tag,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubCommandDetail, type GithubCommandDetailKind } from '../hooks/useGithubCommandDetail'
 import { useGithubResource } from '../hooks/useGithubResource'
@@ -33,6 +33,10 @@ import type {
   GithubWorkflowRun,
 } from '../services/githubIntegration'
 import type { GithubRepoCommandSummary } from '../services/githubCommand'
+import {
+  createGithubCommentDraftFromDetail,
+  type GithubWritePilotDraft,
+} from '../services/githubWritePilot'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubCommandPanel } from './GitHubCommandPanel'
 import { LocalGitPreviewPanel } from './LocalGitPreviewPanel'
@@ -333,15 +337,27 @@ function IssueDetail({ detail }: { detail: GithubIssueCommandDetail }) {
 }
 
 function CommandDetailPanel({
+  owner,
+  repo,
   kind,
+  number,
   detail,
   loading,
   error,
+  projectId,
+  projectName,
+  onDraftComment,
 }: {
+  owner: string
+  repo: string
   kind: GithubCommandDetailKind
+  number: number | null
   detail: GithubPullRequestCommandDetail | GithubIssueCommandDetail | null
   loading: boolean
   error: GithubApiError | null
+  projectId: string | null
+  projectName: string | null
+  onDraftComment?: (draft: GithubWritePilotDraft) => void
 }) {
   if (!detail && !loading && !error) {
     return null
@@ -354,7 +370,30 @@ function CommandDetailPanel({
           <strong>{kind === 'pulls' ? 'Pull Request Detail' : 'Issue Detail'}</strong>
           <span>{loading ? 'Loading read-only detail...' : 'Read-only command detail'}</span>
         </div>
-        <span className="resource-pill">GET-only</span>
+        <div className="github-command-detail-actions">
+          {detail && number && onDraftComment ? (
+            <button
+              type="button"
+              onClick={() =>
+                onDraftComment(
+                  createGithubCommentDraftFromDetail({
+                    owner,
+                    repo,
+                    kind,
+                    number,
+                    detail,
+                    projectId,
+                    projectName,
+                  }),
+                )
+              }
+            >
+              <ClipboardList size={14} />
+              Draft comment
+            </button>
+          ) : null}
+          <span className="resource-pill">GET-only detail</span>
+        </div>
       </div>
       {error ? (
         <div className="github-error">
@@ -398,14 +437,20 @@ function GitHubRepoDeepDiveContent({
   commandError,
   commandCacheMetadata,
   onCommandRefresh,
+  boundProjectId,
+  onDraftComment,
+  writeRefreshToken,
 }: {
   repository: GithubRepositorySummary
+  boundProjectId: string | null
   boundProjectName: string | null
   commandSummary: GithubRepoCommandSummary | null
   commandLoading: boolean
   commandError: GithubApiError | null
   commandCacheMetadata: GithubFetchCacheMetadata | null
   onCommandRefresh: () => void
+  onDraftComment?: (draft: GithubWritePilotDraft) => void
+  writeRefreshToken?: number
 }) {
   const [activeTab, setActiveTab] = useState<GithubResourceName>('overview')
   const [selectedDetail, setSelectedDetail] = useState<{
@@ -426,6 +471,17 @@ function GitHubRepoDeepDiveContent({
     number: selectedDetail?.number ?? null,
   })
   const rows = useMemo(() => rowsForResource(activeTab, resource.data), [activeTab, resource.data])
+  const reloadResource = resource.reload
+  const reloadCommandDetail = commandDetail.reload
+
+  useEffect(() => {
+    if (!writeRefreshToken) {
+      return
+    }
+
+    reloadResource()
+    reloadCommandDetail()
+  }, [reloadCommandDetail, reloadResource, writeRefreshToken])
 
   return (
     <section className="github-deep-dive" aria-label="GitHub repo deep dive">
@@ -536,10 +592,16 @@ function GitHubRepoDeepDiveContent({
         )}
 
         <CommandDetailPanel
+          owner={owner}
+          repo={repository.name}
           kind={selectedDetail?.kind ?? 'issues'}
+          number={selectedDetail?.number ?? null}
           detail={commandDetail.data}
           loading={commandDetail.loading}
           error={commandDetail.error}
+          projectId={boundProjectId}
+          projectName={boundProjectName}
+          onDraftComment={onDraftComment}
         />
 
         {resource.hasNextPage && activeTab !== 'overview' ? (
@@ -566,19 +628,25 @@ function GitHubRepoDeepDiveContent({
 export function GitHubRepoDeepDive({
   repository,
   boundProjectName,
+  boundProjectId,
   commandSummary,
   commandLoading,
   commandError,
   commandCacheMetadata,
   onCommandRefresh,
+  onDraftComment,
+  writeRefreshToken,
 }: {
   repository: GithubRepositorySummary | null
+  boundProjectId: string | null
   boundProjectName: string | null
   commandSummary: GithubRepoCommandSummary | null
   commandLoading: boolean
   commandError: GithubApiError | null
   commandCacheMetadata: GithubFetchCacheMetadata | null
   onCommandRefresh: () => void
+  onDraftComment?: (draft: GithubWritePilotDraft) => void
+  writeRefreshToken?: number
 }) {
   if (!repository) {
     return (
@@ -591,12 +659,15 @@ export function GitHubRepoDeepDive({
   return (
     <GitHubRepoDeepDiveContent
       repository={repository}
+      boundProjectId={boundProjectId}
       boundProjectName={boundProjectName}
       commandSummary={commandSummary}
       commandLoading={commandLoading}
       commandError={commandError}
       commandCacheMetadata={commandCacheMetadata}
       onCommandRefresh={onCommandRefresh}
+      onDraftComment={onDraftComment}
+      writeRefreshToken={writeRefreshToken}
     />
   )
 }

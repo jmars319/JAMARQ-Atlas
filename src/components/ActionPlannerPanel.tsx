@@ -13,6 +13,7 @@ import {
   type AtlasActionIntent,
   type AtlasActionPlannerGroup,
 } from '../services/actionPlanner'
+import { atlasIntentSupportsGithubIssueDraft } from '../services/githubWritePilot'
 import type { GithubApiError } from '../services/githubIntegration'
 
 interface ActionPlannerPanelProps {
@@ -24,6 +25,7 @@ interface ActionPlannerPanelProps {
   compact?: boolean
   maxItems?: number
   onRefresh?: () => void
+  onDraftIssue?: (intent: AtlasActionIntent) => void
 }
 
 const groupLabels: Record<AtlasActionPlannerGroup, string> = {
@@ -65,6 +67,7 @@ export function ActionPlannerPanel({
   compact = false,
   maxItems,
   onRefresh,
+  onDraftIssue,
 }: ActionPlannerPanelProps) {
   const visibleIntents = typeof maxItems === 'number' ? intents.slice(0, maxItems) : intents
 
@@ -134,12 +137,20 @@ export function ActionPlannerPanel({
                     <strong>{intent.title}</strong>
                     <p>{intent.detail}</p>
                   </div>
-                  {intent.target.repositoryUrl ? (
-                    <a href={intent.target.repositoryUrl} target="_blank" rel="noreferrer">
-                      <SquareArrowOutUpRight size={14} />
-                      GitHub
-                    </a>
-                  ) : null}
+                  <div className="action-intent-actions">
+                    {onDraftIssue && atlasIntentSupportsGithubIssueDraft(intent) ? (
+                      <button type="button" onClick={() => onDraftIssue(intent)}>
+                        <ClipboardList size={14} />
+                        Draft GitHub issue
+                      </button>
+                    ) : null}
+                    {intent.target.repositoryUrl ? (
+                      <a href={intent.target.repositoryUrl} target="_blank" rel="noreferrer">
+                        <SquareArrowOutUpRight size={14} />
+                        GitHub
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
 
                 <p className="review-reason">{intent.reason}</p>

@@ -316,6 +316,7 @@ function githubStatus() {
     installCount: 1,
     repoCount: 3,
     writeControlsEnabled: false,
+    issueCommentPilotEnabled: true,
     permissionPlan: [
       { key: 'metadata', label: 'Metadata', access: 'read', activeControls: false },
       { key: 'contents', label: 'Contents', access: 'write', activeControls: false },
@@ -343,7 +344,12 @@ async function installGithubApiMocks(page: Page) {
   await page.route('**/api/github/auth/logout', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, authenticated: false, writeControlsEnabled: false }),
+      body: JSON.stringify({
+        ok: true,
+        authenticated: false,
+        writeControlsEnabled: false,
+        issueCommentPilotEnabled: false,
+      }),
     })
   })
 
@@ -427,6 +433,97 @@ async function installGithubApiMocks(page: Page) {
     })
   })
 
+  await page.route('**/api/github/write/capability?**', async (route) => {
+    const url = new URL(route.request().url())
+    const owner = url.searchParams.get('owner') ?? 'jmars319'
+    const name = url.searchParams.get('repo') ?? 'JAMARQ-Atlas'
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        owner,
+        repo: name,
+        repositoryKey: `${owner}/${name}`,
+        configured: true,
+        authenticated: true,
+        authMode: 'github-app-user',
+        issueCommentPilotEnabled: true,
+        writeControlsEnabled: false,
+        requiredPermissions: ['Issues: write'],
+        blockers: [],
+        confirmationPhrases: {
+          createIssue: `CREATE ISSUE ${owner}/${name}`,
+          createCommentPrefix: `COMMENT ${owner}/${name}#`,
+        },
+        message: 'GitHub issue/comment pilot is available.',
+      }),
+    })
+  })
+
+  await page.route('**/api/github/write/issues', async (route) => {
+    const body = route.request().postDataJSON() as { owner: string; repo: string; title: string }
+
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        kind: 'create-issue',
+        owner: body.owner,
+        repo: body.repo,
+        repositoryKey: `${body.owner}/${body.repo}`,
+        number: 44,
+        id: 4400,
+        title: body.title,
+        htmlUrl: `https://github.com/${body.owner}/${body.repo}/issues/44`,
+        apiUrl: `https://api.github.com/repos/${body.owner}/${body.repo}/issues/44`,
+        bodyExcerpt: 'Atlas write pilot issue.',
+        createdAt: '2026-05-20T12:00:00Z',
+        actor: 'jmars319',
+        sourceIntentId: null,
+        sourceDetailId: null,
+        projectId: null,
+        writeControlsEnabled: false,
+        issueCommentPilotEnabled: true,
+        message: `Created GitHub issue in ${body.owner}/${body.repo}.`,
+      }),
+    })
+  })
+
+  await page.route('**/api/github/write/comments', async (route) => {
+    const body = route.request().postDataJSON() as {
+      owner: string
+      repo: string
+      issueNumber: number
+    }
+
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        kind: 'create-comment',
+        owner: body.owner,
+        repo: body.repo,
+        repositoryKey: `${body.owner}/${body.repo}`,
+        number: body.issueNumber,
+        id: 5500,
+        title: null,
+        htmlUrl: `https://github.com/${body.owner}/${body.repo}/issues/${body.issueNumber}#issuecomment-5500`,
+        apiUrl: `https://api.github.com/repos/${body.owner}/${body.repo}/issues/comments/5500`,
+        bodyExcerpt: 'Atlas write pilot comment.',
+        createdAt: '2026-05-20T12:05:00Z',
+        actor: 'jmars319',
+        sourceIntentId: null,
+        sourceDetailId: `github-issues-${body.owner}/${body.repo}-${body.issueNumber}`,
+        projectId: null,
+        writeControlsEnabled: false,
+        issueCommentPilotEnabled: true,
+        message: `Posted GitHub comment to ${body.owner}/${body.repo}#${body.issueNumber}.`,
+      }),
+    })
+  })
+
   await page.route('**/api/github/repos?**', async (route) => {
     const url = new URL(route.request().url())
     const source = url.searchParams.get('source')
@@ -458,7 +555,104 @@ async function installGithubApiMocks(page: Page) {
     })
   })
 
-  await page.route(/\/api\/github\/repos\/jmars319\/[^/?]+(?:\/([^?]+))?/, async (route) => {
+  await page.route(
+    /\/api\/github\/repos\/jmars319\/[^/]+\/(pulls|issues)\/\d+\/command-detail(?:\?.*)?$/,
+    async (route) => {
+      const url = new URL(route.request().url())
+      const match = url.pathname.match(
+        /\/api\/github\/repos\/jmars319\/([^/]+)\/(pulls|issues)\/(\d+)\/command-detail/,
+      )
+      const name = match?.[1] ?? 'JAMARQ-Atlas'
+      const kind = match?.[2] ?? 'issues'
+      const number = Number(match?.[3] ?? '12')
+
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data:
+            kind === 'pulls'
+              ? {
+                  pullRequest: {
+                    id: number,
+                    number,
+                    state: 'open',
+                    title: 'Pilot PR detail',
+                    draft: false,
+                    mergedAt: null,
+                    user: 'jmars319',
+                    base: 'main',
+                    head: 'pilot',
+                    createdAt: '2026-05-20T11:00:00Z',
+                    updatedAt: '2026-05-20T11:30:00Z',
+                    htmlUrl: `https://github.com/jmars319/${name}/pull/${number}`,
+                  },
+                  bodyExcerpt: 'PR detail for write pilot.',
+                  labels: [],
+                  assignees: [],
+                  requestedReviewers: [],
+                  milestone: null,
+                  comments: 1,
+                  reviewComments: 0,
+                  changedFiles: 2,
+                  additions: 10,
+                  deletions: 1,
+                  mergeable: true,
+                  headRef: 'pilot',
+                  headSha: 'abcdef1234567890',
+                  baseRef: 'main',
+                  baseSha: '123456abcdef',
+                  latestReviewState: null,
+                  reviewStates: [],
+                  checkRuns: [],
+                  checkConclusionCounts: {},
+                  htmlUrl: `https://github.com/jmars319/${name}/pull/${number}`,
+                  updatedAt: '2026-05-20T11:30:00Z',
+                  fetchedAt: '2026-05-20T11:31:00Z',
+                  permissionGaps: [],
+                  writeControlsEnabled: false,
+                }
+              : {
+                  issue: {
+                    id: number,
+                    number,
+                    state: 'open',
+                    title: 'Pilot issue detail',
+                    user: 'jmars319',
+                    labels: [],
+                    comments: 1,
+                    createdAt: '2026-05-20T11:00:00Z',
+                    updatedAt: '2026-05-20T11:30:00Z',
+                    closedAt: null,
+                    htmlUrl: `https://github.com/jmars319/${name}/issues/${number}`,
+                  },
+                  bodyExcerpt: 'Issue detail for write pilot.',
+                  labels: [],
+                  assignees: [],
+                  milestone: null,
+                  locked: false,
+                  comments: 1,
+                  latestCommentAt: '2026-05-20T11:20:00Z',
+                  commentPreviews: [],
+                  htmlUrl: `https://github.com/jmars319/${name}/issues/${number}`,
+                  updatedAt: '2026-05-20T11:30:00Z',
+                  fetchedAt: '2026-05-20T11:31:00Z',
+                  permissionGaps: [],
+                  writeControlsEnabled: false,
+                },
+          pageInfo: {
+            currentPage: 1,
+            hasNextPage: false,
+            nextPage: null,
+            perPage: 20,
+          },
+          error: null,
+          permission: 'available',
+        }),
+      })
+    },
+  )
+
+  await page.route(/\/api\/github\/repos\/jmars319\/[^/?]+(?:\/([^/?]+))?(?:\?.*)?$/, async (route) => {
     const url = new URL(route.request().url())
     const match = url.pathname.match(/\/api\/github\/repos\/jmars319\/([^/]+)(?:\/([^/]+))?/)
     const name = match?.[1] ?? 'JAMARQ-Atlas'
@@ -484,8 +678,37 @@ async function installGithubApiMocks(page: Page) {
           verificationReason: 'valid',
         },
       ],
-      pulls: [],
-      issues: [],
+      pulls: [
+        {
+          id: 7,
+          number: 7,
+          state: 'open',
+          title: 'Pilot PR detail',
+          draft: false,
+          mergedAt: null,
+          user: 'jmars319',
+          base: 'main',
+          head: 'pilot',
+          createdAt: '2026-05-20T11:00:00Z',
+          updatedAt: '2026-05-20T11:30:00Z',
+          htmlUrl: `https://github.com/jmars319/${name}/pull/7`,
+        },
+      ],
+      issues: [
+        {
+          id: 12,
+          number: 12,
+          state: 'open',
+          title: 'Pilot issue detail',
+          user: 'jmars319',
+          labels: [],
+          comments: 1,
+          createdAt: '2026-05-20T11:00:00Z',
+          updatedAt: '2026-05-20T11:30:00Z',
+          closedAt: null,
+          htmlUrl: `https://github.com/jmars319/${name}/issues/12`,
+        },
+      ],
       workflows: [],
       'workflow-runs': [],
       releases: [],
@@ -797,6 +1020,51 @@ test('GitHub command center shows advisory failure and stale evidence', async ({
   await page.getByLabel('Deep dive repository').selectOption('jmars319/tenra.dev')
   await expect(deepDive).toContainText('Historical workflow failure')
   await expect(deepDive).toContainText('Historical failure')
+})
+
+test('GitHub write pilot creates issues and comments with typed confirmation', async ({ page }) => {
+  await installGithubApiMocks(page)
+
+  await page.goto('/')
+  await clickAtlasNav(page, 'GitHub')
+
+  const actionPlanner = page.getByRole('region', { name: 'Action Planner' })
+  await actionPlanner.getByRole('button', { name: 'Draft GitHub issue' }).first().click()
+  const writeDialog = page.getByRole('dialog', { name: 'Draft GitHub Issue' })
+  await expect(writeDialog).toBeVisible()
+  await expect(writeDialog.getByRole('button', { name: 'Create issue' })).toBeDisabled()
+  await writeDialog.getByPlaceholder('CREATE ISSUE jmars319/JAMARQ-Atlas').fill(
+    'CREATE ISSUE jmars319/JAMARQ-Atlas',
+  )
+  await writeDialog.getByRole('button', { name: 'Create issue' }).click()
+  await expect(writeDialog).toContainText('Created GitHub issue in jmars319/JAMARQ-Atlas')
+  await writeDialog.getByRole('button', { name: 'Close' }).click()
+
+  const deepDive = page.getByLabel('GitHub repo deep dive')
+  await deepDive.getByRole('tab', { name: 'Issues' }).click()
+  await deepDive.getByRole('button', { name: 'Detail' }).click()
+  await expect(page.getByLabel('GitHub PR or issue detail')).toContainText(
+    'Issue detail for write pilot',
+  )
+  await page.getByLabel('GitHub PR or issue detail').getByRole('button', { name: 'Draft comment' }).click()
+
+  const commentDialog = page.getByRole('dialog', { name: 'Draft GitHub Comment' })
+  await expect(commentDialog.getByRole('button', { name: 'Post comment' })).toBeDisabled()
+  await commentDialog.getByPlaceholder('COMMENT jmars319/JAMARQ-Atlas#12').fill(
+    'COMMENT jmars319/JAMARQ-Atlas#12',
+  )
+  await commentDialog.getByRole('button', { name: 'Post comment' }).click()
+  await expect(commentDialog).toContainText('Posted GitHub comment to jmars319/JAMARQ-Atlas#12')
+  await commentDialog.getByRole('button', { name: 'Close' }).click()
+
+  await clickAtlasNav(page, 'Review')
+  const reviewNotes = page.getByLabel('Review notes', { exact: true })
+  await expect(reviewNotes).toContainText(
+    'GitHub issue created by Atlas write pilot',
+  )
+  await expect(reviewNotes).toContainText(
+    'GitHub comment posted by Atlas write pilot',
+  )
 })
 
 test('settings shows GitHub App sign-in state without active write controls', async ({ page }) => {

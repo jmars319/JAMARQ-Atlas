@@ -56,6 +56,7 @@ export interface GithubAuthStatus {
   installCount: number
   repoCount: number
   writeControlsEnabled: false
+  issueCommentPilotEnabled: boolean
   permissionPlan: GithubAppPermissionPlan[]
   message: string
 }
@@ -597,6 +598,7 @@ export async function createGithubAuthStatus(
     installCount: session?.installations.length ?? 0,
     repoCount: session?.repoCount ?? 0,
     writeControlsEnabled: false,
+    issueCommentPilotEnabled: Boolean(session?.token?.accessToken || envTokenConfigured),
     permissionPlan: GITHUB_APP_OPERATOR_PERMISSION_PLAN,
     message: '',
   }
@@ -749,6 +751,7 @@ async function handleLogout(request: IncomingMessage, response: ServerResponse) 
     ok: true,
     authenticated: false,
     writeControlsEnabled: false,
+    issueCommentPilotEnabled: false,
   })
 }
 

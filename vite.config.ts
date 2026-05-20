@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { dispatchApiMiddleware } from './server/dispatchApi'
 import { githubAuthApiMiddleware } from './server/githubAuth'
 import { githubApiMiddleware } from './server/githubApi'
+import { githubWriteApiMiddleware } from './server/githubWriteApi'
 import { localGitApiMiddleware } from './server/localGitApi'
 import { syncApiMiddleware } from './server/syncApi'
 import { writingApiMiddleware } from './server/writingApi'
@@ -28,10 +29,12 @@ export default defineConfig(({ mode }) => {
           server.middlewares.use((request, response, next) => {
             void dispatchApiMiddleware(request, response, () => {
               void githubAuthApiMiddleware(request, response, () => {
-                void githubApiMiddleware(request, response, () => {
-                  void localGitApiMiddleware(request, response, () => {
-                    void syncApiMiddleware(request, response, () => {
-                      void writingApiMiddleware(request, response, next)
+                void githubWriteApiMiddleware(request, response, () => {
+                  void githubApiMiddleware(request, response, () => {
+                    void localGitApiMiddleware(request, response, () => {
+                      void syncApiMiddleware(request, response, () => {
+                        void writingApiMiddleware(request, response, next)
+                      })
                     })
                   })
                 })
@@ -43,10 +46,12 @@ export default defineConfig(({ mode }) => {
           server.middlewares.use((request, response, next) => {
             void dispatchApiMiddleware(request, response, () => {
               void githubAuthApiMiddleware(request, response, () => {
-                void githubApiMiddleware(request, response, () => {
-                  void localGitApiMiddleware(request, response, () => {
-                    void syncApiMiddleware(request, response, () => {
-                      void writingApiMiddleware(request, response, next)
+                void githubWriteApiMiddleware(request, response, () => {
+                  void githubApiMiddleware(request, response, () => {
+                    void localGitApiMiddleware(request, response, () => {
+                      void syncApiMiddleware(request, response, () => {
+                        void writingApiMiddleware(request, response, next)
+                      })
                     })
                   })
                 })

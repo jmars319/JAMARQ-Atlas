@@ -19,16 +19,25 @@ import type {
   GithubRepositorySummary,
 } from '../services/githubIntegration'
 import type { ProjectRecord } from '../domain/atlas'
+import type { ReviewNote } from '../domain/review'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import type { GithubRepoCommandSummary } from '../services/githubCommand'
 import { deriveAtlasActionIntents } from '../services/actionPlanner'
+import {
+  createGithubIssueDraftFromIntent,
+  githubWritePilotReviewNoteInput,
+  type GithubWritePilotDraft,
+  type GithubWritePilotResult,
+} from '../services/githubWritePilot'
 import { findRepositoryBinding, repositorySummaryToLink } from '../services/repoBinding'
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
+import { createReviewNote } from '../services/review'
 import { ActionPlannerPanel } from './ActionPlannerPanel'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
+import { GitHubWritePilotDialog } from './GitHubWritePilotDialog'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
 
@@ -43,6 +52,7 @@ interface GitHubIntakeDashboardProps {
   onSelectProject: (projectId: string) => void
   onBindRepository: (projectId: string, repository: GithubRepositorySummary) => void
   onCreateInboxProject: (repository: GithubRepositorySummary) => void
+  onAddReviewNote: (note: ReviewNote) => void
 }
 
 function mergeRepositories(
@@ -190,6 +200,7 @@ export function GitHubIntakeDashboard({
   onSelectProject,
   onBindRepository,
   onCreateInboxProject,
+  onAddReviewNote,
 }: GitHubIntakeDashboardProps) {
   const configuredRepos = useGithubRepositories('configured')
   const viewerRepos = useGithubRepositories('viewer')
@@ -199,6 +210,8 @@ export function GitHubIntakeDashboard({
   const [targetProjectId, setTargetProjectId] = useState(selectedProjectId)
   const [deepDiveRepo, setDeepDiveRepo] = useState('')
   const [suggestionTargets, setSuggestionTargets] = useState<Record<string, string>>({})
+  const [writeDraft, setWriteDraft] = useState<GithubWritePilotDraft | null>(null)
+  const [writeRefreshToken, setWriteRefreshToken] = useState(0)
   const viewerLabel = githubStatus?.authMode === 'github-app-user' ? 'Installed' : 'Viewer'
 
   useEffect(() => {
@@ -309,6 +322,12 @@ export function GitHubIntakeDashboard({
     (summary) => summary.localGit.status === 'not-found',
   )
 
+  function handleWriteSuccess(result: GithubWritePilotResult, draft: GithubWritePilotDraft) {
+    onAddReviewNote(createReviewNote(githubWritePilotReviewNoteInput(result, draft)))
+    setWriteRefreshToken((current) => current + 1)
+    commandSummaries.reload()
+  }
+
   return (
     <section className="github-intake" aria-labelledby="github-intake-title">
       <div className="dashboard-header">
@@ -408,7 +427,7 @@ export function GitHubIntakeDashboard({
               <h2>Future Controls Locked</h2>
               <p>
                 Atlas can request operator-grade GitHub App permissions now, but this checkpoint
-                exposes read-only inventory, binding, import, and deep-dive views only.
+                exposes only the issue/comment write pilot; all broader repo controls stay locked.
               </p>
             </div>
           </div>
@@ -422,6 +441,7 @@ export function GitHubIntakeDashboard({
               {permission.label}: {permission.access}
             </span>
           ))}
+          <span>Issue/comment pilot: {String(githubStatus?.issueCommentPilotEnabled ?? false)}</span>
         </div>
       </section>
 
@@ -430,6 +450,7 @@ export function GitHubIntakeDashboard({
         loading={commandSummaries.loading}
         error={commandSummaries.error}
         onRefresh={commandSummaries.reload}
+        onDraftIssue={(intent) => setWriteDraft(createGithubIssueDraftFromIntent(intent))}
       />
 
       <div className="github-intake-controls">
@@ -500,12 +521,15 @@ export function GitHubIntakeDashboard({
 
       <GitHubRepoDeepDive
         repository={selectedDeepDive?.repository ?? null}
+        boundProjectId={selectedDeepDiveBinding?.project.id ?? null}
         boundProjectName={selectedDeepDiveBinding?.project.name ?? null}
         commandSummary={selectedCommandSummary ?? null}
         commandLoading={commandSummaries.loading}
         commandError={commandSummaries.error}
         commandCacheMetadata={commandSummaries.cacheMetadata}
         onCommandRefresh={commandSummaries.reload}
+        onDraftComment={setWriteDraft}
+        writeRefreshToken={writeRefreshToken}
       />
 
       <section
@@ -752,6 +776,12 @@ export function GitHubIntakeDashboard({
           </button>
         ) : null}
       </div>
+
+      <GitHubWritePilotDialog
+        draft={writeDraft}
+        onClose={() => setWriteDraft(null)}
+        onSuccess={handleWriteSuccess}
+      />
     </section>
   )
 }

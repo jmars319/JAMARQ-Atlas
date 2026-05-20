@@ -168,9 +168,13 @@ export function useGithubResource<K extends GithubResourceName>(
     }
   }, [loadPage, state.hasNextPage, state.loading, state.page])
 
+  const reload = useCallback(() => {
+    void loadPage(1, 'replace', undefined, 'reload')
+  }, [loadPage])
+
   return {
     ...state,
-    reload: () => loadPage(1, 'replace', undefined, 'reload'),
+    reload,
     loadMore,
   }
 }

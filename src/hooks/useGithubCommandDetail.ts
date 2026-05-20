@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   GithubApiResponse,
   GithubFetchCacheMetadata,
@@ -60,18 +60,21 @@ export function useGithubCommandDetail<K extends GithubCommandDetailKind>({
     [kind, number, owner, repo],
   )
 
-  useEffect(() => {
-    if (disabled) {
-      return
-    }
+  const load = useCallback(
+    async (signal?: AbortSignal, cache: 'default' | 'reload' = 'default') => {
+      if (disabled || !number) {
+        return
+      }
 
-    const controller = new AbortController()
+      setState((current) => ({ ...current, loading: true }))
 
-    void fetchGithubJsonWithMetadata<GithubApiResponse<GithubCommandDetailData[K]>>(
-      commandDetailPath({ owner, repo, kind, number }),
-      controller.signal,
-    )
-      .then((result) => {
+      try {
+        const result = await fetchGithubJsonWithMetadata<GithubApiResponse<GithubCommandDetailData[K]>>(
+          commandDetailPath({ owner, repo, kind, number }),
+          signal,
+          { cache },
+        )
+
         setState({
           data: result.value.data,
           loading: false,
@@ -82,9 +85,8 @@ export function useGithubCommandDetail<K extends GithubCommandDetailKind>({
             pageInfo: result.value.pageInfo,
           },
         })
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) {
+      } catch (error) {
+        if (signal?.aborted) {
           return
         }
 
@@ -100,10 +102,26 @@ export function useGithubCommandDetail<K extends GithubCommandDetailKind>({
           permission: 'unknown',
           cacheMetadata: current.cacheMetadata,
         }))
-      })
+      }
+    },
+    [disabled, kind, number, owner, repo],
+  )
+
+  useEffect(() => {
+    if (disabled) {
+      return
+    }
+
+    const controller = new AbortController()
+
+    void load(controller.signal)
 
     return () => controller.abort()
-  }, [disabled, kind, number, owner, repo, requestKey])
+  }, [disabled, load, requestKey])
+
+  const reload = useCallback(() => {
+    void load(undefined, 'reload')
+  }, [load])
 
   return disabled
     ? {
@@ -112,6 +130,11 @@ export function useGithubCommandDetail<K extends GithubCommandDetailKind>({
         error: null,
         permission: 'unknown' as const,
         cacheMetadata: null,
+        reload,
       }
-    : { ...state, loading: state.loading || (!state.data && !state.error) }
+    : {
+        ...state,
+        loading: state.loading || (!state.data && !state.error),
+        reload,
+      }
 }

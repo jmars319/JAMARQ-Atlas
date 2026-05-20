@@ -1039,6 +1039,9 @@ export function SettingsCenter({
                 Future repository, workflow, deployment, commit, push, pull, and destructive
                 controls are locked: {String(githubStatus?.writeControlsEnabled ?? false)}.
               </span>
+              <span>
+                Issue/comment pilot enabled: {String(githubStatus?.issueCommentPilotEnabled ?? false)}.
+              </span>
             </div>
             <div className="resource-meta">
               {(githubStatus?.permissionPlan ?? []).map((permission) => (

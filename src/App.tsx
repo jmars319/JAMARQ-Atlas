@@ -483,6 +483,7 @@ function App() {
             onSelectProject={atlasActions.selectProject}
             onBindRepository={atlasActions.bindRepository}
             onCreateInboxProject={atlasActions.createInboxProject}
+            onAddReviewNote={addReviewNote}
           />
         ) : appView === 'planning' ? (
           <PlanningCenter

@@ -65,6 +65,7 @@ export interface GithubConnectionState {
   installCount: number
   repoCount: number
   writeControlsEnabled: false
+  issueCommentPilotEnabled: boolean
   permissionPlan: {
     key: string
     label: string

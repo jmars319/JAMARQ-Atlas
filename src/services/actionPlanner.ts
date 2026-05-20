@@ -566,12 +566,12 @@ function dryRunSteps(intent: AtlasActionIntent): AtlasActionDryRunStep[] {
       },
       {
         id: `${intent.id}-pr-write-locked`,
-        label: 'Future PR comment/review',
+        label: 'Future PR review execution',
         commandPreview: null,
         apiPreview: `POST /repos/${intent.target.repositoryKey}/pulls/<number>/reviews`,
         mutating: true,
         locked: true,
-        message: 'PR write actions are locked in this cycle.',
+        message: 'PR reviews are locked. PR conversation comments require selected PR detail and typed confirmation.',
       },
     ]
   }
@@ -590,12 +590,12 @@ function dryRunSteps(intent: AtlasActionIntent): AtlasActionDryRunStep[] {
       },
       {
         id: `${intent.id}-issue-write-locked`,
-        label: 'Future issue comment/update',
+        label: 'Future issue update execution',
         commandPreview: null,
-        apiPreview: `POST /repos/${intent.target.repositoryKey}/issues/<number>/comments`,
+        apiPreview: `future locked: edit issue ${intent.target.repositoryKey}#<number>`,
         mutating: true,
         locked: true,
-        message: 'Issue write actions are locked in this cycle.',
+        message: 'Issue edits, labels, assignees, close, and reopen are locked. Comments require selected issue detail and typed confirmation.',
       },
     ]
   }
