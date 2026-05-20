@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Boxes,
   ChevronDown,
+  ClipboardList,
   GitBranch,
   GitCommitHorizontal,
   GitPullRequest,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatDateTimeLabel } from '../domain/atlas'
+import { useGithubCommandDetail, type GithubCommandDetailKind } from '../hooks/useGithubCommandDetail'
 import { useGithubResource } from '../hooks/useGithubResource'
 import type {
   GithubApiError,
@@ -20,7 +22,9 @@ import type {
   GithubDeployment,
   GithubFetchCacheMetadata,
   GithubIssue,
+  GithubIssueCommandDetail,
   GithubPullRequest,
+  GithubPullRequestCommandDetail,
   GithubRelease,
   GithubRepositorySummary,
   GithubResourceName,
@@ -31,6 +35,7 @@ import type {
 import type { GithubRepoCommandSummary } from '../services/githubCommand'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubCommandPanel } from './GitHubCommandPanel'
+import { LocalGitPreviewPanel } from './LocalGitPreviewPanel'
 
 const deepDiveTabs: Array<{ id: GithubResourceName; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -52,6 +57,10 @@ interface ResourceRow {
   detail: string
   meta: string[]
   url?: string
+  commandDetail?: {
+    kind: GithubCommandDetailKind
+    number: number
+  }
 }
 
 function splitCommitMessage(message: string) {
@@ -93,6 +102,7 @@ function rowsForResource(resource: GithubResourceName, data: unknown): ResourceR
       detail: `${pull.head ?? 'head'} into ${pull.base ?? 'base'}`,
       meta: [pull.mergedAt ? 'merged' : pull.state, pull.draft ? 'draft' : '', formatDateTimeLabel(pull.updatedAt)].filter(Boolean),
       url: pull.htmlUrl,
+      commandDetail: { kind: 'pulls', number: pull.number },
     }))
   }
 
@@ -103,6 +113,7 @@ function rowsForResource(resource: GithubResourceName, data: unknown): ResourceR
       detail: issue.labels.length > 0 ? issue.labels.join(', ') : 'No labels',
       meta: [issue.state, `${issue.comments} comments`, formatDateTimeLabel(issue.updatedAt)],
       url: issue.htmlUrl,
+      commandDetail: { kind: 'issues', number: issue.number },
     }))
   }
 
@@ -211,7 +222,13 @@ function RepoOverview({ repo }: { repo: GithubRepositorySummary | null }) {
   )
 }
 
-function ResourceRows({ rows }: { rows: ResourceRow[] }) {
+function ResourceRows({
+  rows,
+  onInspectDetail,
+}: {
+  rows: ResourceRow[]
+  onInspectDetail?: (detail: NonNullable<ResourceRow['commandDetail']>) => void
+}) {
   if (rows.length === 0) {
     return <p className="empty-state">No GitHub records returned for this resource.</p>
   }
@@ -231,6 +248,12 @@ function ResourceRows({ rows }: { rows: ResourceRow[] }) {
                   <SquareArrowOutUpRight size={14} />
                 </a>
               ) : null}
+              {row.commandDetail && onInspectDetail ? (
+                <button type="button" onClick={() => onInspectDetail(row.commandDetail!)}>
+                  <ClipboardList size={14} />
+                  Detail
+                </button>
+              ) : null}
             </div>
             <p>{row.detail}</p>
             <div className="resource-meta">
@@ -242,6 +265,128 @@ function ResourceRows({ rows }: { rows: ResourceRow[] }) {
         </li>
       ))}
     </ol>
+  )
+}
+
+function PullRequestDetail({ detail }: { detail: GithubPullRequestCommandDetail }) {
+  return (
+    <div className="github-command-detail-grid">
+      <div>
+        <span>Review state</span>
+        <strong>{detail.latestReviewState ?? 'Unavailable'}</strong>
+      </div>
+      <div>
+        <span>Head</span>
+        <strong>{detail.headRef ?? 'unknown'} / {detail.headSha?.slice(0, 7) ?? 'unknown'}</strong>
+      </div>
+      <div>
+        <span>Base</span>
+        <strong>{detail.baseRef ?? 'unknown'} / {detail.baseSha?.slice(0, 7) ?? 'unknown'}</strong>
+      </div>
+      <div>
+        <span>Diff</span>
+        <strong>
+          {detail.changedFiles} files / +{detail.additions} / -{detail.deletions}
+        </strong>
+      </div>
+      <div>
+        <span>Checks</span>
+        <strong>{Object.entries(detail.checkConclusionCounts).map(([key, value]) => `${key}: ${value}`).join(', ') || 'Unavailable'}</strong>
+      </div>
+      <div>
+        <span>Comments</span>
+        <strong>{detail.comments} issue / {detail.reviewComments} review</strong>
+      </div>
+    </div>
+  )
+}
+
+function IssueDetail({ detail }: { detail: GithubIssueCommandDetail }) {
+  return (
+    <div className="github-command-detail-grid">
+      <div>
+        <span>Assignees</span>
+        <strong>{detail.assignees.join(', ') || 'Unassigned'}</strong>
+      </div>
+      <div>
+        <span>Milestone</span>
+        <strong>{detail.milestone ?? 'None'}</strong>
+      </div>
+      <div>
+        <span>Comments</span>
+        <strong>{detail.comments}</strong>
+      </div>
+      <div>
+        <span>Latest comment</span>
+        <strong>{formatDateTimeLabel(detail.latestCommentAt)}</strong>
+      </div>
+      <div>
+        <span>Locked</span>
+        <strong>{String(detail.locked)}</strong>
+      </div>
+      <div>
+        <span>Labels</span>
+        <strong>{detail.labels.join(', ') || 'None'}</strong>
+      </div>
+    </div>
+  )
+}
+
+function CommandDetailPanel({
+  kind,
+  detail,
+  loading,
+  error,
+}: {
+  kind: GithubCommandDetailKind
+  detail: GithubPullRequestCommandDetail | GithubIssueCommandDetail | null
+  loading: boolean
+  error: GithubApiError | null
+}) {
+  if (!detail && !loading && !error) {
+    return null
+  }
+
+  return (
+    <section className="github-command-detail-panel" aria-label="GitHub PR or issue detail">
+      <div className="resource-panel-header">
+        <div>
+          <strong>{kind === 'pulls' ? 'Pull Request Detail' : 'Issue Detail'}</strong>
+          <span>{loading ? 'Loading read-only detail...' : 'Read-only command detail'}</span>
+        </div>
+        <span className="resource-pill">GET-only</span>
+      </div>
+      {error ? (
+        <div className="github-error">
+          <AlertTriangle size={16} />
+          <div>
+            <strong>{error.type}</strong>
+            <span>{error.message}</span>
+          </div>
+        </div>
+      ) : null}
+      {detail ? (
+        <>
+          <p className="empty-state">{detail.bodyExcerpt || 'No body text returned.'}</p>
+          {kind === 'pulls' ? (
+            <PullRequestDetail detail={detail as GithubPullRequestCommandDetail} />
+          ) : (
+            <IssueDetail detail={detail as GithubIssueCommandDetail} />
+          )}
+          {detail.permissionGaps.length > 0 ? (
+            <ol className="github-command-signals">
+              {detail.permissionGaps.map((gap) => (
+                <li key={`${gap.resource}-${gap.type}`}>
+                  <span className="review-chip review-chip-warning">{gap.resource}</span>
+                  <strong>{gap.type}</strong>
+                  <p>{gap.message}</p>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </>
+      ) : null}
+    </section>
   )
 }
 
@@ -263,12 +408,22 @@ function GitHubRepoDeepDiveContent({
   onCommandRefresh: () => void
 }) {
   const [activeTab, setActiveTab] = useState<GithubResourceName>('overview')
+  const [selectedDetail, setSelectedDetail] = useState<{
+    kind: GithubCommandDetailKind
+    number: number
+  } | null>(null)
   const [owner] = repository.fullName.split('/')
   const resource = useGithubResource({
     owner,
     repo: repository.name,
     resource: activeTab,
     ref: repository.defaultBranch,
+  })
+  const commandDetail = useGithubCommandDetail({
+    owner,
+    repo: repository.name,
+    kind: selectedDetail?.kind ?? 'issues',
+    number: selectedDetail?.number ?? null,
   })
   const rows = useMemo(() => rowsForResource(activeTab, resource.data), [activeTab, resource.data])
 
@@ -319,6 +474,8 @@ function GitHubRepoDeepDiveContent({
         onRefresh={onCommandRefresh}
       />
 
+      <LocalGitPreviewPanel owner={owner} repo={repository.name} />
+
       <div className="repo-tabs" role="tablist" aria-label="GitHub deep dive resources">
         {deepDiveTabs.map((tab) => (
           <button
@@ -327,7 +484,12 @@ function GitHubRepoDeepDiveContent({
             role="tab"
             aria-selected={activeTab === tab.id}
             className={activeTab === tab.id ? 'is-selected' : ''}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id)
+              if (!['pulls', 'issues'].includes(tab.id)) {
+                setSelectedDetail(null)
+              }
+            }}
           >
             {tab.label}
           </button>
@@ -367,8 +529,18 @@ function GitHubRepoDeepDiveContent({
         ) : activeTab === 'overview' ? (
           <RepoOverview repo={resource.data as GithubRepositorySummary | null} />
         ) : (
-          <ResourceRows rows={rows} />
+          <ResourceRows
+            rows={rows}
+            onInspectDetail={(detail) => setSelectedDetail(detail)}
+          />
         )}
+
+        <CommandDetailPanel
+          kind={selectedDetail?.kind ?? 'issues'}
+          detail={commandDetail.data}
+          loading={commandDetail.loading}
+          error={commandDetail.error}
+        />
 
         {resource.hasNextPage && activeTab !== 'overview' ? (
           <button

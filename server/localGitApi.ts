@@ -13,6 +13,17 @@ export type LocalGitRepositoryStatusKind =
   | 'invalid-request'
   | 'error'
 
+export type LocalGitChangeKind =
+  | 'added'
+  | 'copied'
+  | 'deleted'
+  | 'modified'
+  | 'renamed'
+  | 'type-change'
+  | 'unmerged'
+  | 'unknown'
+  | 'untracked'
+
 export interface LocalGitLatestCommit {
   sha: string
   shortSha: string
@@ -49,6 +60,55 @@ export interface LocalGitRepositoryStatusResponse {
   } | null
 }
 
+export interface LocalGitFileChange {
+  path: string
+  previousPath: string | null
+  indexStatus: string
+  worktreeStatus: string
+  change: LocalGitChangeKind
+  staged: boolean
+  unstaged: boolean
+  untracked: boolean
+  additions: number | null
+  deletions: number | null
+}
+
+export interface LocalGitDryRunCommitPreview {
+  available: boolean
+  blocked: boolean
+  subjectSuggestion: string
+  bodyLines: string[]
+  commandPreview: string[]
+  blockers: string[]
+}
+
+export interface LocalGitRepositoryPreview {
+  status: LocalGitRepositoryStatus
+  stagedCount: number
+  unstagedCount: number
+  untrackedCount: number
+  additions: number | null
+  deletions: number | null
+  changedFiles: LocalGitFileChange[]
+  diffStat: {
+    unstaged: string
+    staged: string
+  }
+  dryRunCommit: LocalGitDryRunCommitPreview
+}
+
+export interface LocalGitRepositoryPreviewResponse {
+  ok: boolean
+  configured: boolean
+  status: LocalGitRepositoryStatusKind
+  roots: string[]
+  data: LocalGitRepositoryPreview | null
+  error: {
+    type: LocalGitRepositoryStatusKind
+    message: string
+  } | null
+}
+
 interface GitBranchStatus {
   branch: string
   upstream: string | null
@@ -59,6 +119,8 @@ interface GitBranchStatus {
 const execFileAsync = promisify(execFile)
 const GIT_TIMEOUT_MS = 5000
 const MAX_SCAN_DEPTH = 5
+const MAX_PREVIEW_FILES = 80
+const MAX_DIFF_STAT_LENGTH = 6000
 const SKIPPED_DIRECTORIES = new Set([
   '.git',
   '.next',
@@ -160,6 +222,184 @@ export function parseGitStatusPorcelain(output: string): GitBranchStatus & {
     changedFiles,
     ahead,
     behind,
+  }
+}
+
+function changeKind(indexStatus: string, worktreeStatus: string): LocalGitChangeKind {
+  if (indexStatus === '?' && worktreeStatus === '?') {
+    return 'untracked'
+  }
+
+  const status = indexStatus !== ' ' ? indexStatus : worktreeStatus
+
+  if (status === 'A') {
+    return 'added'
+  }
+
+  if (status === 'C') {
+    return 'copied'
+  }
+
+  if (status === 'D') {
+    return 'deleted'
+  }
+
+  if (status === 'M') {
+    return 'modified'
+  }
+
+  if (status === 'R') {
+    return 'renamed'
+  }
+
+  if (status === 'T') {
+    return 'type-change'
+  }
+
+  if (status === 'U') {
+    return 'unmerged'
+  }
+
+  return 'unknown'
+}
+
+function normalizeStatusPath(rawPath: string) {
+  const renameParts = rawPath.split(' -> ')
+
+  if (renameParts.length >= 2) {
+    return {
+      path: renameParts[renameParts.length - 1],
+      previousPath: renameParts.slice(0, -1).join(' -> '),
+    }
+  }
+
+  return {
+    path: rawPath,
+    previousPath: null,
+  }
+}
+
+export function parseGitStatusFileChanges(output: string): LocalGitFileChange[] {
+  return output
+    .split(/\r?\n/)
+    .filter((line) => line && !line.startsWith('## '))
+    .map((line) => {
+      const indexStatus = line[0] ?? ' '
+      const worktreeStatus = line[1] ?? ' '
+      const { path: filePath, previousPath } = normalizeStatusPath(line.slice(3))
+      const untracked = indexStatus === '?' && worktreeStatus === '?'
+
+      return {
+        path: filePath,
+        previousPath,
+        indexStatus,
+        worktreeStatus,
+        change: changeKind(indexStatus, worktreeStatus),
+        staged: indexStatus !== ' ' && indexStatus !== '?',
+        unstaged: worktreeStatus !== ' ' && worktreeStatus !== '?',
+        untracked,
+        additions: null,
+        deletions: null,
+      }
+    })
+}
+
+function normalizeNumstatPath(rawPath: string) {
+  if (rawPath.includes(' => ')) {
+    return rawPath.split(' => ').pop() ?? rawPath
+  }
+
+  return rawPath
+}
+
+export function parseGitNumstat(output: string) {
+  const stats = new Map<string, { additions: number | null; deletions: number | null }>()
+
+  output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .forEach((line) => {
+      const [additionsRaw, deletionsRaw, ...pathParts] = line.split('\t')
+      const filePath = normalizeNumstatPath(pathParts.join('\t'))
+
+      if (!filePath) {
+        return
+      }
+
+      stats.set(filePath, {
+        additions: additionsRaw === '-' ? null : Number(additionsRaw),
+        deletions: deletionsRaw === '-' ? null : Number(deletionsRaw),
+      })
+    })
+
+  return stats
+}
+
+function attachNumstat(
+  changes: LocalGitFileChange[],
+  stats: Map<string, { additions: number | null; deletions: number | null }>,
+) {
+  return changes.map((change) => {
+    const fileStats = stats.get(change.path)
+
+    if (!fileStats) {
+      return change
+    }
+
+    return {
+      ...change,
+      additions: fileStats.additions,
+      deletions: fileStats.deletions,
+    }
+  })
+}
+
+function totalNullable(values: Array<number | null>) {
+  if (values.some((value) => value === null)) {
+    return null
+  }
+
+  return values.reduce<number>((total, value) => total + (value ?? 0), 0)
+}
+
+function clipDiffStat(value: string) {
+  return value.length > MAX_DIFF_STAT_LENGTH
+    ? `${value.slice(0, MAX_DIFF_STAT_LENGTH)}\n...diff stat truncated by Atlas preview boundary...`
+    : value
+}
+
+function createDryRunCommitPreview(
+  status: LocalGitRepositoryStatus,
+  changes: LocalGitFileChange[],
+): LocalGitDryRunCommitPreview {
+  const hasChanges = changes.length > 0
+  const subjectSuggestion = hasChanges
+    ? `Review ${changes.length} local change${changes.length === 1 ? '' : 's'} on ${status.branch}`
+    : `No local changes on ${status.branch}`
+
+  return {
+    available: hasChanges,
+    blocked: true,
+    subjectSuggestion,
+    bodyLines: hasChanges
+      ? [
+          `${status.owner}/${status.repo}`,
+          `${changes.filter((change) => change.staged).length} staged file(s).`,
+          `${changes.filter((change) => change.unstaged).length} unstaged file(s).`,
+          `${changes.filter((change) => change.untracked).length} untracked file(s).`,
+        ]
+      : ['Working tree is clean.'],
+    commandPreview: [
+      'git status --short --branch',
+      'git diff --stat',
+      'git diff --cached --stat',
+      'future locked: git add <reviewed-files>',
+      `future locked: git commit -m "${subjectSuggestion.replace(/"/g, "'")}"`,
+    ],
+    blockers: [
+      'Local Git write execution is locked in this Atlas cycle.',
+      'Atlas did not stage, commit, branch, pull, push, reset, stash, or checkout anything.',
+    ],
   }
 }
 
@@ -378,6 +618,90 @@ export async function getLocalGitRepositoryStatus(
   }
 }
 
+export async function getLocalGitRepositoryPreview(
+  owner: string,
+  repo: string,
+  env: EnvRecord = process.env,
+): Promise<LocalGitRepositoryPreviewResponse> {
+  const statusResponse = await getLocalGitRepositoryStatus(owner, repo, env)
+
+  if (!statusResponse.ok || statusResponse.status !== 'available' || !statusResponse.data) {
+    return {
+      ok: statusResponse.ok,
+      configured: statusResponse.configured,
+      status: statusResponse.status,
+      roots: statusResponse.roots,
+      data: null,
+      error: statusResponse.error,
+    }
+  }
+
+  try {
+    const repositoryStatus = statusResponse.data
+    const [
+      statusOutput,
+      unstagedNameStatus,
+      stagedNameStatus,
+      unstagedNumstat,
+      stagedNumstat,
+      unstagedDiffStat,
+      stagedDiffStat,
+      untrackedFiles,
+    ] = await Promise.all([
+      git(repositoryStatus.path, ['status', '--porcelain=v1', '--branch']),
+      tryGit(repositoryStatus.path, ['diff', '--name-status']),
+      tryGit(repositoryStatus.path, ['diff', '--cached', '--name-status']),
+      tryGit(repositoryStatus.path, ['diff', '--numstat']),
+      tryGit(repositoryStatus.path, ['diff', '--cached', '--numstat']),
+      tryGit(repositoryStatus.path, ['diff', '--stat']),
+      tryGit(repositoryStatus.path, ['diff', '--cached', '--stat']),
+      tryGit(repositoryStatus.path, ['ls-files', '--others', '--exclude-standard']),
+    ])
+    const porcelainChanges = parseGitStatusFileChanges(statusOutput)
+    const numstat = new Map([
+      ...parseGitNumstat(unstagedNumstat),
+      ...parseGitNumstat(stagedNumstat),
+    ])
+    const changedFiles = attachNumstat(porcelainChanges, numstat).slice(0, MAX_PREVIEW_FILES)
+    const numericAdditions = changedFiles.map((change) => change.additions)
+    const numericDeletions = changedFiles.map((change) => change.deletions)
+
+    return {
+      ok: true,
+      configured: true,
+      status: 'available',
+      roots: statusResponse.roots,
+      data: {
+        status: repositoryStatus,
+        stagedCount: changedFiles.filter((change) => change.staged).length,
+        unstagedCount: changedFiles.filter((change) => change.unstaged).length,
+        untrackedCount: untrackedFiles ? untrackedFiles.split(/\r?\n/).filter(Boolean).length : 0,
+        additions: totalNullable(numericAdditions),
+        deletions: totalNullable(numericDeletions),
+        changedFiles,
+        diffStat: {
+          unstaged: clipDiffStat([unstagedNameStatus, unstagedDiffStat].filter(Boolean).join('\n')),
+          staged: clipDiffStat([stagedNameStatus, stagedDiffStat].filter(Boolean).join('\n')),
+        },
+        dryRunCommit: createDryRunCommitPreview(repositoryStatus, changedFiles),
+      },
+      error: null,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      configured: true,
+      status: 'error',
+      roots: statusResponse.roots,
+      data: null,
+      error: {
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Local Git preview failed.',
+      },
+    }
+  }
+}
+
 export async function localGitApiMiddleware(
   request: IncomingMessage,
   response: ServerResponse,
@@ -405,7 +729,9 @@ export async function localGitApiMiddleware(
 
   const url = new URL(request.url, 'http://localhost')
 
-  if (url.pathname !== '/api/git/repositories/status') {
+  const route = url.pathname
+
+  if (route !== '/api/git/repositories/status' && route !== '/api/git/repositories/preview') {
     json(response, 404, {
       ok: false,
       configured: getLocalGitRoots().length > 0,
@@ -422,7 +748,10 @@ export async function localGitApiMiddleware(
 
   const owner = readString(url.searchParams.get('owner'))
   const repo = readString(url.searchParams.get('repo'))
-  const body = await getLocalGitRepositoryStatus(owner, repo)
+  const body =
+    route === '/api/git/repositories/preview'
+      ? await getLocalGitRepositoryPreview(owner, repo)
+      : await getLocalGitRepositoryStatus(owner, repo)
 
   json(response, body.status === 'invalid-request' ? 400 : 200, body)
 }

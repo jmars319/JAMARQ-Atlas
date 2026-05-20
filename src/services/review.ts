@@ -25,6 +25,7 @@ import type { TimelineEvent } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
 import type { GithubRepoCommandSummary } from './githubCommand'
 import type { RepoPlacementSuggestion } from './repoSuggestions'
+import { deriveAtlasActionIntents } from './actionPlanner'
 import { deriveDispatchQueueItems } from './dispatchQueue'
 import { evaluateVerification } from './verification'
 
@@ -778,42 +779,27 @@ function githubCommandItems(
   projectRecords: ProjectRecord[],
   summaries: GithubRepoCommandSummary[],
 ): ReviewQueueItem[] {
-  const recordsByRepo = new Map(
-    projectRecords.flatMap((record) =>
-      record.project.repositories.map((repository) => [
-        `${repository.owner}/${repository.name}`.toLowerCase(),
-        record,
-      ]),
-    ),
-  )
+  return deriveAtlasActionIntents({ projectRecords, summaries })
+    .slice(0, 20)
+    .map((intent): ReviewQueueItem => {
+      const record = projectRecords.find((candidate) => candidate.project.id === intent.target.projectId)
+      const severity: ReviewSeverity =
+        intent.risk === 'high' ? 'high' : intent.risk === 'medium' ? 'medium' : 'low'
 
-  return summaries.flatMap((summary) => {
-    const record = recordsByRepo.get(summary.fullName.toLowerCase())
-
-    return summary.signals
-      .filter((signal) => signal.severity !== 'muted')
-      .slice(0, 3)
-      .map((signal): ReviewQueueItem => {
-        const severity: ReviewSeverity = signal.severity === 'danger' ? 'high' : 'medium'
-
-        return {
-          id: `github-command-${summary.fullName.toLowerCase()}-${signal.id}`,
-          source: 'github',
-          severity,
-          dueState: signal.severity === 'danger' ? 'blocked' : 'attention',
-          title: `${summary.fullName}: ${signal.title}`,
-          detail: signal.detail,
-          reason:
-            signal.evidence.length > 0
-              ? `GitHub command summary evidence: ${signal.evidence.slice(0, 3).join(' / ')}.`
-              : 'GitHub command summary marked this repository for attention.',
-          ...projectFields(record, record?.project.id ?? null),
-          repositoryKey: summary.fullName,
-          occurredAt: signal.occurredAt ?? undefined,
-          meta: [signal.category, summary.state, summary.severity],
-        }
-      })
-  })
+      return {
+        id: `github-action-${intent.id}`,
+        source: 'github',
+        severity,
+        dueState: intent.status === 'blocked' || intent.risk === 'high' ? 'blocked' : 'attention',
+        title: intent.title,
+        detail: intent.detail,
+        reason: `${intent.reason} Action execution remains locked; Review can only create explicit sessions or notes.`,
+        ...projectFields(record, intent.target.projectId),
+        repositoryKey: intent.target.repositoryKey,
+        occurredAt: intent.occurredAt ?? undefined,
+        meta: [intent.kind, intent.group, intent.source, 'planner-only'],
+      }
+    })
 }
 
 function timelineItems(timelineEvents: TimelineEvent[], now: Date): ReviewQueueItem[] {

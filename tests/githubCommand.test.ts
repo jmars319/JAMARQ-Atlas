@@ -136,6 +136,7 @@ function commandSummaryInput(update: Partial<Parameters<typeof deriveGithubRepoC
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 describe('GitHub command summaries', () => {
@@ -434,5 +435,173 @@ describe('GitHub command summaries', () => {
     expect(response.statusCode).toBe(405)
     expect(chunks.join('')).toContain('read-only GET routes only')
   })
-})
 
+  it('normalizes read-only pull request command detail routes', async () => {
+    vi.stubEnv('GITHUB_TOKEN', 'ghp_test')
+    const fetchMock = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input)
+
+      if (url.endsWith('/repos/jmars319/JAMARQ-Atlas/pulls/7')) {
+        return new Response(
+          JSON.stringify({
+            id: 7,
+            number: 7,
+            state: 'open',
+            title: 'Planner preview',
+            draft: false,
+            merged_at: null,
+            user: { login: 'jmars319' },
+            base: { ref: 'main', sha: 'base1234567890' },
+            head: { ref: 'planner', sha: 'head1234567890' },
+            labels: [{ name: 'review' }],
+            assignees: [{ login: 'jmars319' }],
+            requested_reviewers: [{ login: 'reviewer' }],
+            comments: 2,
+            review_comments: 1,
+            changed_files: 3,
+            additions: 20,
+            deletions: 4,
+            mergeable: true,
+            body: 'Adds command detail evidence.',
+            created_at: '2026-05-19T12:00:00Z',
+            updated_at: '2026-05-19T12:10:00Z',
+            html_url: 'https://github.com/jmars319/JAMARQ-Atlas/pull/7',
+          }),
+          { status: 200 },
+        )
+      }
+
+      if (url.includes('/pulls/7/reviews')) {
+        return new Response(
+          JSON.stringify([{ id: 1, state: 'APPROVED', submitted_at: '2026-05-19T12:08:00Z' }]),
+          { status: 200 },
+        )
+      }
+
+      if (url.includes('/pulls/7/files')) {
+        return new Response(JSON.stringify([{ filename: 'src/App.tsx' }]), { status: 200 })
+      }
+
+      if (url.includes('/commits/head1234567890/check-runs')) {
+        return new Response(
+          JSON.stringify({
+            check_runs: [
+              {
+                id: 5,
+                name: 'Atlas CI',
+                status: 'completed',
+                conclusion: 'success',
+                started_at: '2026-05-19T12:01:00Z',
+                completed_at: '2026-05-19T12:06:00Z',
+                html_url: 'https://github.com/jmars319/JAMARQ-Atlas/checks/5',
+                app: { name: 'GitHub Actions' },
+              },
+            ],
+          }),
+          { status: 200 },
+        )
+      }
+
+      return new Response(JSON.stringify({ message: `Unexpected URL ${url}` }), { status: 404 })
+    })
+    const chunks: string[] = []
+    const response = {
+      statusCode: 0,
+      setHeader: vi.fn(),
+      end: vi.fn((chunk: string) => {
+        chunks.push(chunk)
+      }),
+    }
+    vi.stubGlobal('fetch', fetchMock)
+
+    await githubApiMiddleware(
+      {
+        method: 'GET',
+        url: '/api/github/repos/jmars319/JAMARQ-Atlas/pulls/7/command-detail',
+        headers: {},
+      } as Parameters<typeof githubApiMiddleware>[0],
+      response as unknown as Parameters<typeof githubApiMiddleware>[1],
+    )
+    const body = JSON.parse(chunks.join(''))
+
+    expect(response.statusCode).toBe(200)
+    expect(body.data).toMatchObject({
+      changedFiles: 3,
+      additions: 20,
+      deletions: 4,
+      latestReviewState: 'APPROVED',
+      checkConclusionCounts: { success: 1 },
+      writeControlsEnabled: false,
+    })
+    expect(body.data.permissionGaps).toEqual([])
+  })
+
+  it('normalizes read-only issue command detail permission gaps', async () => {
+    vi.stubEnv('GITHUB_TOKEN', 'ghp_test')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+        const url = String(input)
+
+        if (url.endsWith('/repos/jmars319/JAMARQ-Atlas/issues/9')) {
+          return new Response(
+            JSON.stringify({
+              id: 9,
+              number: 9,
+              state: 'open',
+              title: 'Planner issue',
+              user: { login: 'jmars319' },
+              labels: [{ name: 'bug' }],
+              assignees: [],
+              comments: 1,
+              locked: false,
+              body: 'Issue body.',
+              created_at: '2026-05-19T12:00:00Z',
+              updated_at: '2026-05-19T12:10:00Z',
+              closed_at: null,
+              html_url: 'https://github.com/jmars319/JAMARQ-Atlas/issues/9',
+            }),
+            { status: 200 },
+          )
+        }
+
+        if (url.includes('/issues/9/comments')) {
+          return new Response(JSON.stringify({ message: 'Forbidden' }), { status: 403 })
+        }
+
+        return new Response(JSON.stringify({ message: `Unexpected URL ${url}` }), { status: 404 })
+      }),
+    )
+    const chunks: string[] = []
+    const response = {
+      statusCode: 0,
+      setHeader: vi.fn(),
+      end: vi.fn((chunk: string) => {
+        chunks.push(chunk)
+      }),
+    }
+
+    await githubApiMiddleware(
+      {
+        method: 'GET',
+        url: '/api/github/repos/jmars319/JAMARQ-Atlas/issues/9/command-detail',
+        headers: {},
+      } as Parameters<typeof githubApiMiddleware>[0],
+      response as unknown as Parameters<typeof githubApiMiddleware>[1],
+    )
+    const body = JSON.parse(chunks.join(''))
+
+    expect(body.data).toMatchObject({
+      comments: 1,
+      labels: ['bug'],
+      writeControlsEnabled: false,
+    })
+    expect(body.data.permissionGaps).toEqual([
+      expect.objectContaining({
+        resource: 'issue-comments',
+        type: 'insufficient-permission',
+        permission: 'insufficient',
+      }),
+    ])
+  })
+})

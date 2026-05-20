@@ -135,6 +135,68 @@ export interface GithubIssue {
   htmlUrl: string
 }
 
+export interface GithubCommandDetailGap {
+  resource: string
+  type: GithubErrorType
+  message: string
+  status: number
+  permission: GithubPermissionState
+}
+
+export interface GithubCommentPreview {
+  id: number
+  user: string | null
+  bodyExcerpt: string
+  createdAt: string
+  updatedAt: string
+  htmlUrl: string
+}
+
+export interface GithubPullRequestCommandDetail {
+  pullRequest: GithubPullRequest | null
+  bodyExcerpt: string
+  labels: string[]
+  assignees: string[]
+  requestedReviewers: string[]
+  milestone: string | null
+  comments: number
+  reviewComments: number
+  changedFiles: number
+  additions: number
+  deletions: number
+  mergeable: boolean | null
+  headRef: string | null
+  headSha: string | null
+  baseRef: string | null
+  baseSha: string | null
+  latestReviewState: string | null
+  reviewStates: string[]
+  checkRuns: GithubCheckRun[]
+  checkConclusionCounts: Record<string, number>
+  htmlUrl: string
+  updatedAt: string | null
+  fetchedAt: string
+  permissionGaps: GithubCommandDetailGap[]
+  writeControlsEnabled: false
+}
+
+export interface GithubIssueCommandDetail {
+  issue: GithubIssue | null
+  bodyExcerpt: string
+  labels: string[]
+  assignees: string[]
+  milestone: string | null
+  locked: boolean
+  comments: number
+  latestCommentAt: string | null
+  commentPreviews: GithubCommentPreview[]
+  htmlUrl: string
+  updatedAt: string | null
+  fetchedAt: string
+  permissionGaps: GithubCommandDetailGap[]
+  writeControlsEnabled: false
+}
+
 export interface GithubRelease {
   id: number
   name: string | null

@@ -23,8 +23,10 @@ import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import type { GithubRepoCommandSummary } from '../services/githubCommand'
+import { deriveAtlasActionIntents } from '../services/actionPlanner'
 import { findRepositoryBinding, repositorySummaryToLink } from '../services/repoBinding'
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
+import { ActionPlannerPanel } from './ActionPlannerPanel'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
 
@@ -275,6 +277,14 @@ export function GitHubIntakeDashboard({
     [boundRepoKeys, selectedDeepDive?.repository.fullName, visibleRepositories],
   )
   const commandSummaries = useGithubCommandSummaries(commandRepoKeys)
+  const actionIntents = useMemo(
+    () =>
+      deriveAtlasActionIntents({
+        projectRecords,
+        summaries: commandSummaries.data,
+      }),
+    [commandSummaries.data, projectRecords],
+  )
   const selectedCommandSummary = selectedDeepDive
     ? summaryFor(commandSummaries.data, selectedDeepDive.repository.fullName)
     : null
@@ -414,6 +424,13 @@ export function GitHubIntakeDashboard({
           ))}
         </div>
       </section>
+
+      <ActionPlannerPanel
+        intents={actionIntents}
+        loading={commandSummaries.loading}
+        error={commandSummaries.error}
+        onRefresh={commandSummaries.reload}
+      />
 
       <div className="github-intake-controls">
         <label className="search-control">

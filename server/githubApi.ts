@@ -8,10 +8,13 @@ import {
 import type {
   GithubBranch,
   GithubCheckRun,
+  GithubCommandDetailGap,
   GithubCommit,
   GithubDeployment,
   GithubIssue,
+  GithubIssueCommandDetail,
   GithubPullRequest,
+  GithubPullRequestCommandDetail,
   GithubRelease,
   GithubRepositorySummary,
   GithubTag,
@@ -450,6 +453,152 @@ function compactTag(tag: unknown) {
     commitSha: readString(commit.sha) ?? '',
     zipballUrl: readString(record.zipball_url) ?? '',
     tarballUrl: readString(record.tarball_url) ?? '',
+  }
+}
+
+function compactStringList(value: unknown, key = 'login') {
+  return Array.isArray(value)
+    ? value.map((item) => readString(asRecord(item)[key]) ?? '').filter(Boolean)
+    : []
+}
+
+function compactLabelList(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => readString(asRecord(item).name) ?? '').filter(Boolean)
+    : []
+}
+
+function excerpt(value: unknown, limit = 600) {
+  const text = readString(value) ?? ''
+  const normalized = text.replace(/\s+/g, ' ').trim()
+
+  return normalized.length > limit ? `${normalized.slice(0, limit)}...` : normalized
+}
+
+function permissionGapFromError(error: GithubApiError): GithubCommandDetailGap {
+  return {
+    resource: error.resource,
+    type: error.type,
+    message: error.message,
+    status: error.status,
+    permission:
+      error.type === 'missing-token'
+        ? 'missing-token'
+        : error.type === 'insufficient-permission'
+          ? 'insufficient'
+          : 'unknown',
+  }
+}
+
+function checkConclusionCounts(checkRuns: GithubCheckRun[]) {
+  return checkRuns.reduce<Record<string, number>>((counts, check) => {
+    const key = check.conclusion ?? check.status
+
+    counts[key] = (counts[key] ?? 0) + 1
+    return counts
+  }, {})
+}
+
+function compactCommentPreview(comment: unknown) {
+  const record = asRecord(comment)
+
+  return {
+    id: readNumber(record.id) ?? 0,
+    user: readString(readRecord(comment, 'user').login),
+    bodyExcerpt: excerpt(record.body, 280),
+    createdAt: readString(record.created_at) ?? '',
+    updatedAt: readString(record.updated_at) ?? '',
+    htmlUrl: readString(record.html_url) ?? '',
+  }
+}
+
+function compactPullRequestCommandDetail({
+  pullRequest,
+  reviews,
+  files,
+  checkRuns,
+  permissionGaps,
+}: {
+  pullRequest: unknown
+  reviews: unknown[]
+  files: unknown[]
+  checkRuns: GithubCheckRun[]
+  permissionGaps: GithubCommandDetailGap[]
+}): GithubPullRequestCommandDetail {
+  const record = asRecord(pullRequest)
+  const compact = record.id ? compactPullRequest(pullRequest) : null
+  const reviewStates = reviews
+    .map((review) => readString(asRecord(review).state) ?? '')
+    .filter(Boolean)
+  const latestReview = reviews
+    .slice()
+    .sort((left, right) =>
+      String(asRecord(right).submitted_at ?? '').localeCompare(String(asRecord(left).submitted_at ?? '')),
+    )[0]
+  const head = readRecord(pullRequest, 'head')
+  const base = readRecord(pullRequest, 'base')
+
+  return {
+    pullRequest: compact,
+    bodyExcerpt: excerpt(record.body),
+    labels: compactLabelList(record.labels),
+    assignees: compactStringList(record.assignees),
+    requestedReviewers: compactStringList(record.requested_reviewers),
+    milestone: readString(readRecord(pullRequest, 'milestone').title),
+    comments: readNumber(record.comments) ?? 0,
+    reviewComments: readNumber(record.review_comments) ?? 0,
+    changedFiles: readNumber(record.changed_files) ?? files.length,
+    additions: readNumber(record.additions) ?? 0,
+    deletions: readNumber(record.deletions) ?? 0,
+    mergeable: readBoolean(record.mergeable),
+    headRef: readString(head.ref),
+    headSha: readString(head.sha),
+    baseRef: readString(base.ref),
+    baseSha: readString(base.sha),
+    latestReviewState: latestReview ? readString(asRecord(latestReview).state) : null,
+    reviewStates,
+    checkRuns,
+    checkConclusionCounts: checkConclusionCounts(checkRuns),
+    htmlUrl: readString(record.html_url) ?? compact?.htmlUrl ?? '',
+    updatedAt: readString(record.updated_at),
+    fetchedAt: new Date().toISOString(),
+    permissionGaps,
+    writeControlsEnabled: false,
+  }
+}
+
+function compactIssueCommandDetail({
+  issue,
+  comments,
+  permissionGaps,
+}: {
+  issue: unknown
+  comments: unknown[]
+  permissionGaps: GithubCommandDetailGap[]
+}): GithubIssueCommandDetail {
+  const record = asRecord(issue)
+  const compact = record.id ? compactIssue(issue) : null
+  const commentPreviews = comments.map(compactCommentPreview)
+  const latestCommentAt =
+    commentPreviews
+      .slice()
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]?.updatedAt ?? null
+
+  return {
+    issue: compact,
+    bodyExcerpt: excerpt(record.body),
+    labels: compactLabelList(record.labels),
+    assignees: compactStringList(record.assignees),
+    milestone: readString(readRecord(issue, 'milestone').title),
+    locked: readBoolean(record.locked) ?? false,
+    comments: readNumber(record.comments) ?? commentPreviews.length,
+    latestCommentAt,
+    commentPreviews,
+    htmlUrl: readString(record.html_url) ?? compact?.htmlUrl ?? '',
+    updatedAt: readString(record.updated_at),
+    fetchedAt: new Date().toISOString(),
+    permissionGaps,
+    writeControlsEnabled: false,
   }
 }
 
@@ -1172,6 +1321,155 @@ async function handleCommandSummary({
   } satisfies GithubRequestResult
 }
 
+function detailPermission(results: GithubRequestResult[]): GithubRequestResult['permission'] {
+  if (results.some((result) => result.permission === 'missing-token')) {
+    return 'missing-token'
+  }
+
+  if (results.some((result) => result.permission === 'insufficient')) {
+    return 'insufficient'
+  }
+
+  if (results.some((result) => result.error)) {
+    return 'unknown'
+  }
+
+  return 'available'
+}
+
+async function handlePullRequestCommandDetail({
+  owner,
+  repo,
+  number,
+  searchParams,
+  auth,
+}: {
+  owner: string
+  repo: string
+  number: number
+  searchParams: URLSearchParams
+  auth: GithubAuthResolution
+}) {
+  const repoPath = `/repos/${owner}/${repo}`
+  const pullResult = await githubRequest(`${repoPath}/pulls/${number}`, 'pull-request-detail', searchParams, auth)
+  const pullRecord = asRecord(pullResult.data)
+  const headSha = readString(readRecord(pullRecord, 'head').sha)
+  const detailParams = pageParams(MAX_PER_PAGE)
+  const [reviewsResult, filesResult, checksResult] = pullResult.error
+    ? [
+        {
+          data: [],
+          pageInfo: parsePageInfo(detailParams, null),
+          error: null,
+          permission: 'available',
+        } satisfies GithubRequestResult,
+        {
+          data: [],
+          pageInfo: parsePageInfo(detailParams, null),
+          error: null,
+          permission: 'available',
+        } satisfies GithubRequestResult,
+        {
+          data: { check_runs: [] },
+          pageInfo: parsePageInfo(detailParams, null),
+          error: null,
+          permission: 'available',
+        } satisfies GithubRequestResult,
+      ]
+    : await Promise.all([
+        githubRequest(
+          withPagination(`${repoPath}/pulls/${number}/reviews`, detailParams),
+          'pull-request-reviews',
+          detailParams,
+          auth,
+        ),
+        githubRequest(
+          withPagination(`${repoPath}/pulls/${number}/files`, detailParams),
+          'pull-request-files',
+          detailParams,
+          auth,
+        ),
+        headSha
+          ? githubRequest(
+              withPagination(`${repoPath}/commits/${encodeURIComponent(headSha)}/check-runs`, detailParams),
+              'checks',
+              detailParams,
+              auth,
+            )
+          : Promise.resolve({
+              data: { check_runs: [] },
+              pageInfo: parsePageInfo(detailParams, null),
+              error: null,
+              permission: 'available',
+            } satisfies GithubRequestResult),
+      ])
+  const results = [pullResult, reviewsResult, filesResult, checksResult]
+  const permissionGaps = results
+    .map((result) => result.error)
+    .filter((error): error is GithubApiError => error !== null)
+    .map(permissionGapFromError)
+
+  return {
+    data: compactPullRequestCommandDetail({
+      pullRequest: pullResult.data,
+      reviews: Array.isArray(reviewsResult.data) ? reviewsResult.data : [],
+      files: Array.isArray(filesResult.data) ? filesResult.data : [],
+      checkRuns: arrayItems<GithubCheckRun>(checksResult, 'checks'),
+      permissionGaps,
+    }),
+    pageInfo: commandSummaryPageInfo(searchParams),
+    error: pullResult.error,
+    permission: detailPermission(results),
+  } satisfies GithubRequestResult
+}
+
+async function handleIssueCommandDetail({
+  owner,
+  repo,
+  number,
+  searchParams,
+  auth,
+}: {
+  owner: string
+  repo: string
+  number: number
+  searchParams: URLSearchParams
+  auth: GithubAuthResolution
+}) {
+  const repoPath = `/repos/${owner}/${repo}`
+  const issueResult = await githubRequest(`${repoPath}/issues/${number}`, 'issue-detail', searchParams, auth)
+  const detailParams = pageParams(5)
+  const commentsResult = issueResult.error
+    ? ({
+        data: [],
+        pageInfo: parsePageInfo(detailParams, null),
+        error: null,
+        permission: 'available',
+      } satisfies GithubRequestResult)
+    : await githubRequest(
+        withPagination(`${repoPath}/issues/${number}/comments`, detailParams),
+        'issue-comments',
+        detailParams,
+        auth,
+      )
+  const results = [issueResult, commentsResult]
+  const permissionGaps = results
+    .map((result) => result.error)
+    .filter((error): error is GithubApiError => error !== null)
+    .map(permissionGapFromError)
+
+  return {
+    data: compactIssueCommandDetail({
+      issue: issueResult.data,
+      comments: Array.isArray(commentsResult.data) ? commentsResult.data : [],
+      permissionGaps,
+    }),
+    pageInfo: commandSummaryPageInfo(searchParams),
+    error: issueResult.error,
+    permission: detailPermission(results),
+  } satisfies GithubRequestResult
+}
+
 async function routeGithubRequest(request: IncomingMessage, url: URL) {
   const searchParams = url.searchParams
   const auth = await resolveGithubAuthForRequest(request)
@@ -1186,6 +1484,19 @@ async function routeGithubRequest(request: IncomingMessage, url: URL) {
 
   if (url.pathname === '/api/github/command-summaries') {
     return handleCommandSummaries(searchParams, auth)
+  }
+
+  const detailMatch = url.pathname.match(
+    /^\/api\/github\/repos\/([^/]+)\/([^/]+)\/(pulls|issues)\/(\d+)\/command-detail$/,
+  )
+
+  if (detailMatch) {
+    const [, owner, repo, resource, numberValue] = detailMatch
+    const number = Number(numberValue)
+
+    return resource === 'pulls'
+      ? handlePullRequestCommandDetail({ owner, repo, number, searchParams, auth })
+      : handleIssueCommandDetail({ owner, repo, number, searchParams, auth })
   }
 
   const repoMatch = url.pathname.match(/^\/api\/github\/repos\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/)

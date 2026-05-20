@@ -49,8 +49,13 @@ import {
   type WritingTemplateId,
 } from '../domain/writing'
 import type { DeploySessionChecklistPresetId } from '../services/deploySessions'
+import {
+  deriveAtlasActionIntents,
+  deriveAtlasProjectActionRollup,
+} from '../services/actionPlanner'
 import { deriveGithubProjectCommandRollup } from '../services/githubCommand'
 import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
+import { ActionPlannerPanel } from './ActionPlannerPanel'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
 import { GitHubProjectCommandRollupPanel } from './GitHubProjectCommandRollup'
@@ -250,6 +255,18 @@ export function ProjectDetail({
       }),
     [commandSummaries.data, project.id, project.name, project.repositories],
   )
+  const actionIntents = useMemo(
+    () =>
+      deriveAtlasActionIntents({
+        projectRecords: [record],
+        summaries: commandSummaries.data,
+      }),
+    [commandSummaries.data, record],
+  )
+  const actionRollup = useMemo(
+    () => deriveAtlasProjectActionRollup({ projectRecord: record, intents: actionIntents }),
+    [actionIntents, record],
+  )
 
   return (
     <aside className="project-detail" aria-labelledby="project-detail-title">
@@ -402,13 +419,49 @@ export function ProjectDetail({
           <h3>GitHub Activity</h3>
         </div>
         {project.repositories.length > 0 ? (
-          <GitHubProjectCommandRollupPanel
-            rollup={githubRollup}
-            loading={commandSummaries.loading}
-            error={commandSummaries.error}
-            cacheMetadata={commandSummaries.cacheMetadata}
-            onRefresh={commandSummaries.reload}
-          />
+          <>
+            <GitHubProjectCommandRollupPanel
+              rollup={githubRollup}
+              loading={commandSummaries.loading}
+              error={commandSummaries.error}
+              cacheMetadata={commandSummaries.cacheMetadata}
+              onRefresh={commandSummaries.reload}
+            />
+            <div className="github-action-rollup" aria-label="Project GitHub action planner rollup">
+              <div className="github-health-grid is-compact">
+                <div>
+                  <ShieldAlert size={16} />
+                  <strong>{actionRollup.totalIntents}</strong>
+                  <span>Planner intents</span>
+                </div>
+                <div>
+                  <ShieldAlert size={16} />
+                  <strong>{actionRollup.highestRisk}</strong>
+                  <span>Highest risk</span>
+                </div>
+                <div>
+                  <GitBranch size={16} />
+                  <strong>{actionRollup.dirtyLocalRepoCount}</strong>
+                  <span>Dirty local repos</span>
+                </div>
+                <div>
+                  <GitBranch size={16} />
+                  <strong>{actionRollup.failedOrStaleCiCount}</strong>
+                  <span>Failed/stale CI</span>
+                </div>
+              </div>
+            </div>
+            <ActionPlannerPanel
+              intents={actionRollup.topRecommendedActions}
+              loading={commandSummaries.loading}
+              error={commandSummaries.error}
+              title="Project Action Planner"
+              detail="Top advisory Git/GitHub actions for bound repositories"
+              compact
+              maxItems={5}
+              onRefresh={commandSummaries.reload}
+            />
+          </>
         ) : (
           <p className="empty-state">
             No repository is bound, so deploy delta summaries are unavailable.

@@ -195,6 +195,104 @@ function commandSummary(
   }
 }
 
+function localGitPreviewResponse(name: string, dirty = false) {
+  const available = name === 'JAMARQ-Atlas'
+  const statusData = available
+    ? {
+        owner: 'jmars319',
+        repo: 'JAMARQ-Atlas',
+        path: '/Users/jason_marshall/JAMARQ/Side Projects/Atlas',
+        remoteUrl: 'git@github.com:jmars319/JAMARQ-Atlas.git',
+        branch: 'main',
+        upstream: 'origin/main',
+        dirty,
+        changedFiles: dirty ? 2 : 0,
+        ahead: 0,
+        behind: 0,
+        latestCommit: {
+          sha: 'abcdef1234567890',
+          shortSha: 'abcdef1',
+          subject: 'GitHub checkpoint',
+          author: 'Jason',
+          date: '2026-05-18T14:00:00Z',
+        },
+        checkedAt: '2026-05-18T14:05:00Z',
+        diagnostic: dirty ? '2 changed file(s) detected.' : 'Working tree is clean.',
+      }
+    : null
+
+  return {
+    ok: available,
+    configured: true,
+    status: available ? 'available' : 'not-found',
+    roots: ['/Users/jason_marshall/JAMARQ'],
+    data: statusData
+      ? {
+          status: statusData,
+          stagedCount: dirty ? 1 : 0,
+          unstagedCount: dirty ? 1 : 0,
+          untrackedCount: 0,
+          additions: dirty ? 12 : 0,
+          deletions: dirty ? 2 : 0,
+          changedFiles: dirty
+            ? [
+                {
+                  path: 'src/App.tsx',
+                  previousPath: null,
+                  indexStatus: ' ',
+                  worktreeStatus: 'M',
+                  change: 'modified',
+                  staged: false,
+                  unstaged: true,
+                  untracked: false,
+                  additions: 10,
+                  deletions: 2,
+                },
+                {
+                  path: 'src/services/actionPlanner.ts',
+                  previousPath: null,
+                  indexStatus: 'A',
+                  worktreeStatus: ' ',
+                  change: 'added',
+                  staged: true,
+                  unstaged: false,
+                  untracked: false,
+                  additions: 2,
+                  deletions: 0,
+                },
+              ]
+            : [],
+          diffStat: {
+            unstaged: dirty ? 'M\tsrc/App.tsx\n src/App.tsx | 12 ++++++++++--' : '',
+            staged: dirty ? 'A\tsrc/services/actionPlanner.ts' : '',
+          },
+          dryRunCommit: {
+            available: dirty,
+            blocked: true,
+            subjectSuggestion: dirty ? 'Review 2 local changes on main' : 'No local changes on main',
+            bodyLines: dirty ? ['jmars319/JAMARQ-Atlas', '1 staged file(s).'] : ['Working tree is clean.'],
+            commandPreview: [
+              'git status --short --branch',
+              'git diff --stat',
+              'git diff --cached --stat',
+              'future locked: git add <reviewed-files>',
+            ],
+            blockers: [
+              'Local Git write execution is locked in this Atlas cycle.',
+              'Atlas did not stage, commit, branch, pull, push, reset, stash, or checkout anything.',
+            ],
+          },
+        }
+      : null,
+    error: available
+      ? null
+      : {
+          type: 'not-found',
+          message: `${name} was not found under configured local repo roots.`,
+        },
+  }
+}
+
 function githubStatus() {
   return {
     configured: true,
@@ -291,6 +389,16 @@ async function installGithubApiMocks(page: Page) {
               message: `${name} was not found under configured local repo roots.`,
             },
       }),
+    })
+  })
+
+  await page.route('**/api/git/repositories/preview?**', async (route) => {
+    const url = new URL(route.request().url())
+    const name = url.searchParams.get('repo') ?? 'unknown'
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(localGitPreviewResponse(name)),
     })
   })
 
@@ -439,6 +547,9 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await expect(page.getByLabel('GitHub future controls locked')).toContainText(
     'writeControlsEnabled: false',
   )
+  const actionPlanner = page.getByRole('region', { name: 'Action Planner' })
+  await expect(actionPlanner).toContainText('writeControlsEnabled: false')
+  await expect(actionPlanner).toContainText('investigate checks data gap')
   await expect(page.getByText('Installed repos: 3 repos')).toBeVisible()
   const placementSuggestions = page.getByLabel('Suggested repository placement')
   await expect(placementSuggestions).toContainText('jmars319/midway-mobile-storage-website')
@@ -458,6 +569,8 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   const deepDive = page.getByLabel('GitHub repo deep dive')
   await expect(deepDive).toContainText('jmars319/JAMARQ-Atlas')
   await expect(deepDive).toContainText('main / clean / 0 ahead / 0 behind')
+  await expect(page.getByLabel('Local Git preview')).toContainText('Commit execution')
+  await expect(page.getByLabel('Local Git preview')).toContainText('locked')
   await deepDive.getByRole('tab', { name: 'Branches' }).click()
   await expect(deepDive).toContainText('Protected branch')
   await deepDive.getByRole('tab', { name: 'Tags' }).click()
@@ -543,6 +656,16 @@ test('GitHub intake auto-loads later installed repo pages for search', async ({ 
               message: `${name} was not found under configured local repo roots.`,
             },
       }),
+    })
+  })
+
+  await page.route('**/api/git/repositories/preview?**', async (route) => {
+    const url = new URL(route.request().url())
+    const name = url.searchParams.get('repo') ?? 'unknown'
+
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(localGitPreviewResponse(name, name === 'JAMARQ-Atlas')),
     })
   })
 
