@@ -1,18 +1,10 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import {
-  ArchiveRestore,
-  CalendarCheck,
-  ClipboardList,
   DatabaseZap,
-  Eye,
-  FileText,
   GitBranch,
-  Newspaper,
   ListTree,
+  PanelRightClose,
   PanelRightOpen,
-  Rocket,
-  Settings2,
-  UploadCloud,
 } from 'lucide-react'
 import './App.css'
 import { AppViewBoundary } from './components/AppViewBoundary'
@@ -94,6 +86,18 @@ const SettingsCenter = lazy(() =>
 type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
 type AppView = AtlasActionView
+
+const PRIMARY_VIEWS: AppView[] = ['board', 'github', 'planning', 'review', 'dispatch']
+const SUPPORT_VIEWS: AppView[] = [
+  'timeline',
+  'ops',
+  'verification',
+  'writing',
+  'reports',
+  'data',
+  'settings',
+]
+const PROJECT_INSPECTOR_STORAGE_KEY = 'atlas-project-inspector-open'
 
 function appViewLabel(view: AppView) {
   const labels: Record<AppView, string> = {
@@ -237,6 +241,13 @@ function App() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>('All')
   const [appView, setAppView] = useState<AppView>('board')
+  const [projectInspectorOpen, setProjectInspectorOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(PROJECT_INSPECTOR_STORAGE_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
   const [selectedWritingTemplate, setSelectedWritingTemplate] =
     useState<WritingTemplateId>('client-update')
   const [selectedWritingDraftId, setSelectedWritingDraftId] = useState('')
@@ -248,6 +259,19 @@ function App() {
   const [queueEvidenceSweepRunning, setQueueEvidenceSweepRunning] = useState(false)
   const selectedRecord =
     findProjectRecord(workspace, selectedProjectId) ?? projectRecords[0]
+  function updateProjectInspectorOpen(open: boolean) {
+    setProjectInspectorOpen(open)
+    try {
+      window.localStorage.setItem(PROJECT_INSPECTOR_STORAGE_KEY, String(open))
+    } catch {
+      // Ignore storage failures; the toggle should still work for the current session.
+    }
+  }
+
+  const selectProjectAndOpenInspector = (value: Parameters<typeof setSelectedProjectId>[0]) => {
+    updateProjectInspectorOpen(true)
+    setSelectedProjectId(value)
+  }
   const atlasActions = createAtlasActions({
     workspace,
     setWorkspace,
@@ -282,7 +306,7 @@ function App() {
     review,
     setReview,
     calibrationIssues,
-    setSelectedProjectId,
+    setSelectedProjectId: selectProjectAndOpenInspector,
     setSelectedWritingTemplate,
     setSelectedWritingDraftId,
     setAppView,
@@ -309,143 +333,70 @@ function App() {
           </span>
           <span>
             <ListTree size={15} />
-            Timeline-ready
+            {projectRecords.length} projects
           </span>
           <span>
             <GitBranch size={15} />
-            GitHub-ready
+            Writes gated
           </span>
-          <span>
-            <ClipboardList size={15} />
-            Planning-ready
-          </span>
-          <span>
-            <Newspaper size={15} />
-            Reports-ready
-          </span>
-          <span>
-            <Eye size={15} />
-            Review-ready
-          </span>
-          <span>
-            <Rocket size={15} />
-            Dispatch-ready
-          </span>
-          <span>
-            <CalendarCheck size={15} />
-            Verification-aware
-          </span>
-          <span>
-            <FileText size={15} />
-            Writing-ready
-          </span>
-          <span>
-            <ArchiveRestore size={15} />
-            Backup-ready
-          </span>
-          <span>
-            <Settings2 size={15} />
-            Settings-ready
-          </span>
-          <span>
-            <UploadCloud size={15} />
-            Sync-local
-          </span>
-          <span>
-            <PanelRightOpen size={15} />
-            Human source of truth
-          </span>
+        </div>
+        <div className="topbar-actions">
+          <div className="current-project-chip" aria-label="Current project">
+            <span>Current project</span>
+            <strong>{selectedRecord?.project.name ?? 'No project selected'}</strong>
+          </div>
+          {selectedRecord ? (
+            <button
+              type="button"
+              className="inspector-toggle"
+              aria-pressed={projectInspectorOpen}
+              onClick={() => updateProjectInspectorOpen(!projectInspectorOpen)}
+            >
+              {projectInspectorOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+              {projectInspectorOpen ? 'Hide project inspector' : 'Show project inspector'}
+            </button>
+          ) : null}
         </div>
       </header>
 
       <nav className="app-tabs" aria-label="Atlas views">
-        <button
-          type="button"
-          className={appView === 'board' ? 'is-selected' : ''}
-          onClick={() => setAppView('board')}
-        >
-          Board
-        </button>
-        <button
-          type="button"
-          className={appView === 'timeline' ? 'is-selected' : ''}
-          onClick={() => setAppView('timeline')}
-        >
-          Timeline
-        </button>
-        <button
-          type="button"
-          className={appView === 'github' ? 'is-selected' : ''}
-          onClick={() => setAppView('github')}
-        >
-          GitHub
-        </button>
-        <button
-          type="button"
-          className={appView === 'planning' ? 'is-selected' : ''}
-          onClick={() => setAppView('planning')}
-        >
-          Planning
-        </button>
-        <button
-          type="button"
-          className={appView === 'reports' ? 'is-selected' : ''}
-          onClick={() => setAppView('reports')}
-        >
-          Reports
-        </button>
-        <button
-          type="button"
-          className={appView === 'review' ? 'is-selected' : ''}
-          onClick={() => setAppView('review')}
-        >
-          Review
-        </button>
-        <button
-          type="button"
-          className={appView === 'dispatch' ? 'is-selected' : ''}
-          onClick={() => setAppView('dispatch')}
-        >
-          Dispatch
-        </button>
-        <button
-          type="button"
-          className={appView === 'ops' ? 'is-selected' : ''}
-          onClick={() => setAppView('ops')}
-        >
-          Ops
-        </button>
-        <button
-          type="button"
-          className={appView === 'verification' ? 'is-selected' : ''}
-          onClick={() => setAppView('verification')}
-        >
-          Verification
-        </button>
-        <button
-          type="button"
-          className={appView === 'writing' ? 'is-selected' : ''}
-          onClick={() => setAppView('writing')}
-        >
-          Writing
-        </button>
-        <button
-          type="button"
-          className={appView === 'data' ? 'is-selected' : ''}
-          onClick={() => setAppView('data')}
-        >
-          Data
-        </button>
-        <button
-          type="button"
-          className={appView === 'settings' ? 'is-selected' : ''}
-          onClick={() => setAppView('settings')}
-        >
-          Settings
-        </button>
+        <div className="app-tab-group">
+          <span>Daily work</span>
+          <div>
+            {PRIMARY_VIEWS.map((view) => (
+              <button
+                key={view}
+                type="button"
+                className={appView === view ? 'is-selected' : ''}
+                onClick={() => setAppView(view)}
+              >
+                {appViewLabel(view)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="app-tab-group app-tab-group-secondary">
+          <span>Support tools</span>
+          <div>
+            {SUPPORT_VIEWS.map((view) => (
+              <button
+                key={view}
+                type="button"
+                className={appView === view ? 'is-selected' : ''}
+                onClick={() => setAppView(view)}
+              >
+                {appViewLabel(view)}
+              </button>
+            ))}
+          </div>
+        </div>
       </nav>
 
-      <div className="app-layout">
+      <div
+        className={`app-layout ${
+          projectInspectorOpen ? 'is-inspector-open' : 'is-inspector-closed'
+        }`}
+      >
         <AppViewBoundary viewKey={appView} title={`${appViewLabel(appView)} view`}>
           <Suspense
             fallback={
@@ -679,7 +630,7 @@ function App() {
           </Suspense>
         </AppViewBoundary>
 
-        {selectedRecord ? (
+        {selectedRecord && projectInspectorOpen ? (
           <AppViewBoundary viewKey={`project-${selectedRecord.project.id}`} title="Project detail">
             <ProjectDetail
               record={selectedRecord}

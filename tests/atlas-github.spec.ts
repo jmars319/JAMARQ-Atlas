@@ -293,6 +293,19 @@ function localGitPreviewResponse(name: string, dirty = false) {
   }
 }
 
+async function openGithubDisclosure(page: Page, label: string) {
+  const summary = page.locator('details.github-disclosure > summary').filter({ hasText: label })
+  const open = await summary.evaluate((element) => {
+    const details = element.parentElement as HTMLDetailsElement | null
+
+    return Boolean(details?.open)
+  })
+
+  if (!open) {
+    await summary.click()
+  }
+}
+
 function githubStatus() {
   return {
     configured: true,
@@ -773,21 +786,25 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   const actionPlanner = page.getByRole('region', { name: 'Action Planner' })
   await expect(actionPlanner).toContainText('writeControlsEnabled: false')
   await expect(actionPlanner).toContainText('investigate checks data gap')
-  await expect(page.getByText('Installed repos: 3 repos')).toBeVisible()
+  await expect(page.getByText(/Installed repos: 3 repos \/ issue comments/)).toBeVisible()
+  await openGithubDisclosure(page, 'Suggested placement')
+  await openGithubDisclosure(page, 'Repository inventory')
   const placementSuggestions = page.getByLabel('Suggested repository placement')
   await expect(placementSuggestions).toContainText('jmars319/midway-mobile-storage-website')
   await expect(placementSuggestions).toContainText('Midway Mobile Storage website')
   const mmsSuggestion = placementSuggestions
     .locator('.github-suggestion-card')
     .filter({ hasText: 'jmars319/midway-mobile-storage-website' })
-  await mmsSuggestion.getByRole('button', { name: 'Bind to Midway Mobile Storage website' }).click()
+  await mmsSuggestion.getByRole('button', { name: 'Connect to Midway Mobile Storage website' }).click()
   await expect(
     page.locator('.github-intake-card').filter({ hasText: 'jmars319/midway-mobile-storage-website' }),
-  ).toContainText('Bound to Midway Mobile Storage website')
+  ).toContainText('Connected to Midway Mobile Storage website')
   await page.reload()
   await page.locator('button.project-row').filter({ hasText: 'Midway Mobile Storage' }).click()
   await expect(page.locator('.repo-list')).toContainText('jmars319/midway-mobile-storage-website')
   await clickAtlasNav(page, 'GitHub')
+  await openGithubDisclosure(page, 'Suggested placement')
+  await openGithubDisclosure(page, 'Repository inventory')
   await expect(page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })).toBeVisible()
   const deepDive = page.getByLabel('GitHub repo deep dive')
   await expect(deepDive).toContainText('jmars319/JAMARQ-Atlas')
@@ -806,22 +823,24 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await deepDive.getByRole('button', { name: 'Load more' }).click()
   await expect(deepDive).toContainText('Commit page 2')
 
-  await page.getByLabel('Target project').selectOption('vaexcore-studio')
+  await page.getByLabel('Project to show or connect').selectOption('vaexcore-studio')
   const tenraCard = page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })
-  await tenraCard.getByRole('button', { name: 'Bind to selected' }).click()
-  await expect(tenraCard).toContainText('Bound to VaexCore Studio')
+  await tenraCard.getByRole('button', { name: 'Connect to selected project' }).click()
+  await expect(tenraCard).toContainText('Connected to VaexCore Studio')
 
   await page.reload()
   await page.locator('button.project-row').filter({ hasText: 'VaexCore Studio' }).click()
   await expect(page.locator('.repo-list')).toContainText('jmars319/tenra.dev')
 
   await clickAtlasNav(page, 'GitHub')
+  await openGithubDisclosure(page, 'Suggested placement')
+  await openGithubDisclosure(page, 'Repository inventory')
   const utilitySuggestion = placementSuggestions
     .locator('.github-suggestion-card')
     .filter({ hasText: 'jmars319/new-utility' })
   await utilitySuggestion.getByRole('button', { name: 'Create Inbox project' }).click()
   const utilityCard = page.locator('.github-intake-card').filter({ hasText: 'jmars319/new-utility' })
-  await expect(utilityCard).toContainText('Bound to new-utility')
+  await expect(utilityCard).toContainText('Connected to new-utility')
 
   await clickAtlasNav(page, 'Board')
   await page.locator('button.project-row').filter({ hasText: 'new-utility' }).click()
@@ -968,7 +987,7 @@ test('GitHub intake auto-loads later installed repo pages for search', async ({ 
   await page.goto('/')
   await clickAtlasNav(page, 'GitHub')
 
-  await expect(page.getByText('Installed repos: 2 repos')).toBeVisible()
+  await expect(page.getByText(/Installed repos: 2 repos \/ issue comments/)).toBeVisible()
   await page.getByPlaceholder('Search repositories').fill('JAMARQ-Atlas')
   await expect(
     page.locator('.github-intake-card').filter({ hasText: 'jmars319/JAMARQ-Atlas' }),

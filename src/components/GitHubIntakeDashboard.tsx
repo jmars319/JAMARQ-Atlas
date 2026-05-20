@@ -322,6 +322,33 @@ export function GitHubIntakeDashboard({
     (summary) => summary.localGit.status === 'not-found',
   )
 
+  function selectProjectBoundRepository(projectId: string) {
+    const record = projectRecords.find((candidate) => candidate.project.id === projectId)
+    const firstRepository = record?.project.repositories[0]
+
+    if (!firstRepository) {
+      return
+    }
+
+    const fullName = `${firstRepository.owner}/${firstRepository.name}`
+    const loadedRepository = repositories.find(
+      ({ repository }) => repository.fullName.toLowerCase() === fullName.toLowerCase(),
+    )
+
+    if (!loadedRepository) {
+      return
+    }
+
+    setFilter('all')
+    setQuery(loadedRepository.repository.fullName)
+    setDeepDiveRepo(loadedRepository.repository.fullName)
+  }
+
+  function handleTargetProjectChange(projectId: string) {
+    setTargetProjectId(projectId)
+    selectProjectBoundRepository(projectId)
+  }
+
   function handleWriteSuccess(result: GithubWritePilotResult, draft: GithubWritePilotDraft) {
     onAddReviewNote(createReviewNote(githubWritePilotReviewNoteInput(result, draft)))
     setWriteRefreshToken((current) => current + 1)
@@ -396,54 +423,65 @@ export function GitHubIntakeDashboard({
         </div>
       </div>
 
-      <div className="github-source-grid">
-        <SourceNotice
-          label="Configured repos"
-          loading={configuredRepos.loading}
-          error={configuredRepos.error}
-          count={configuredRepos.data.length}
-          cacheMetadata={configuredRepos.cacheMetadata}
-          page={configuredRepos.page}
-          hasNextPage={configuredRepos.hasNextPage}
-          onReload={configuredRepos.reload}
-        />
-        <SourceNotice
-          label={`${viewerLabel} repos`}
-          loading={viewerRepos.loading}
-          error={viewerRepos.error}
-          count={viewerRepos.data.length}
-          cacheMetadata={viewerRepos.cacheMetadata}
-          page={viewerRepos.page}
-          hasNextPage={viewerRepos.hasNextPage}
-          onReload={viewerRepos.reload}
-        />
-      </div>
+      <details className="github-disclosure">
+        <summary>
+          <span>Connection and permission details</span>
+          <strong>
+            {viewerLabel} repos: {viewerRepos.data.length} repos / issue comments{' '}
+            {githubStatus?.issueCommentPilotEnabled ? 'enabled' : 'locked'}
+          </strong>
+        </summary>
+        <div className="github-source-grid">
+          <SourceNotice
+            label="Configured repos"
+            loading={configuredRepos.loading}
+            error={configuredRepos.error}
+            count={configuredRepos.data.length}
+            cacheMetadata={configuredRepos.cacheMetadata}
+            page={configuredRepos.page}
+            hasNextPage={configuredRepos.hasNextPage}
+            onReload={configuredRepos.reload}
+          />
+          <SourceNotice
+            label={`${viewerLabel} repos`}
+            loading={viewerRepos.loading}
+            error={viewerRepos.error}
+            count={viewerRepos.data.length}
+            cacheMetadata={viewerRepos.cacheMetadata}
+            page={viewerRepos.page}
+            hasNextPage={viewerRepos.hasNextPage}
+            onReload={viewerRepos.reload}
+          />
+        </div>
 
-      <section className="github-suggestion-panel" aria-label="GitHub future controls locked">
-        <div className="resource-panel-header">
-          <div>
-            <AlertTriangle size={17} />
+        <section className="github-suggestion-panel" aria-label="GitHub future controls locked">
+          <div className="resource-panel-header">
             <div>
-              <h2>Future Controls Locked</h2>
-              <p>
-                Atlas can request operator-grade GitHub App permissions now, but this checkpoint
-                exposes only the issue/comment write pilot; all broader repo controls stay locked.
-              </p>
+              <AlertTriangle size={17} />
+              <div>
+                <h2>Future Controls Locked</h2>
+                <p>
+                  Atlas can request operator-grade GitHub App permissions now, but this checkpoint
+                  exposes only the issue/comment write pilot; all broader repo controls stay locked.
+                </p>
+              </div>
             </div>
-          </div>
-          <span className="resource-pill">
-            writeControlsEnabled: {String(githubStatus?.writeControlsEnabled ?? false)}
-          </span>
-        </div>
-        <div className="resource-meta">
-          {(githubStatus?.permissionPlan ?? []).map((permission) => (
-            <span key={permission.key}>
-              {permission.label}: {permission.access}
+            <span className="resource-pill">
+              writeControlsEnabled: {String(githubStatus?.writeControlsEnabled ?? false)}
             </span>
-          ))}
-          <span>Issue/comment pilot: {String(githubStatus?.issueCommentPilotEnabled ?? false)}</span>
-        </div>
-      </section>
+          </div>
+          <div className="resource-meta">
+            {(githubStatus?.permissionPlan ?? []).map((permission) => (
+              <span key={permission.key}>
+                {permission.label}: {permission.access}
+              </span>
+            ))}
+            <span>
+              Issue/comment pilot: {String(githubStatus?.issueCommentPilotEnabled ?? false)}
+            </span>
+          </div>
+        </section>
+      </details>
 
       <ActionPlannerPanel
         intents={actionIntents}
@@ -486,11 +524,11 @@ export function GitHubIntakeDashboard({
 
         <label className="repo-selector">
           <Link2 size={16} />
-          <span className="sr-only">Target project</span>
+          <span>Project</span>
           <select
             value={bindTarget}
-            onChange={(event) => setTargetProjectId(event.target.value)}
-            aria-label="Target project"
+            onChange={(event) => handleTargetProjectChange(event.target.value)}
+            aria-label="Project to show or connect"
           >
             {projectRecords.map((record) => (
               <option key={record.project.id} value={record.project.id}>
@@ -519,6 +557,54 @@ export function GitHubIntakeDashboard({
         </label>
       </div>
 
+      {selectedDeepDive ? (
+        <section className="github-connection-panel" aria-label="Selected repository connection">
+          <div>
+            <Link2 size={17} />
+            <div>
+              <strong>{selectedDeepDive.repository.fullName}</strong>
+              <span>
+                {selectedDeepDiveBinding
+                  ? `Connected to ${selectedDeepDiveBinding.project.name}`
+                  : 'Not connected to an Atlas project yet'}
+              </span>
+            </div>
+          </div>
+          {selectedDeepDiveBinding ? (
+            <button type="button" onClick={() => onSelectProject(selectedDeepDiveBinding.project.id)}>
+              <Link2 size={15} />
+              Open connected project
+            </button>
+          ) : (
+            <div className="github-connection-actions">
+              <label className="repo-selector">
+                <Link2 size={16} />
+                <span>Project</span>
+                <select
+                  value={bindTarget}
+                  onChange={(event) => handleTargetProjectChange(event.target.value)}
+                  aria-label="Project to connect selected repository to"
+                >
+                  {projectRecords.map((record) => (
+                    <option key={record.project.id} value={record.project.id}>
+                      {record.project.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                disabled={!bindTarget}
+                onClick={() => onBindRepository(bindTarget, selectedDeepDive.repository)}
+              >
+                <Link2 size={15} />
+                Connect repo to project
+              </button>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       <GitHubRepoDeepDive
         repository={selectedDeepDive?.repository ?? null}
         boundProjectId={selectedDeepDiveBinding?.project.id ?? null}
@@ -532,26 +618,31 @@ export function GitHubIntakeDashboard({
         writeRefreshToken={writeRefreshToken}
       />
 
-      <section
-        className="github-suggestion-panel"
-        aria-label="Suggested repository placement"
-      >
-        <div className="resource-panel-header">
-          <div>
-            <Lightbulb size={17} />
+      <details className="github-disclosure">
+        <summary>
+          <span>Suggested placement</span>
+          <strong>{placementSuggestions.length} unbound repos</strong>
+        </summary>
+        <section
+          className="github-suggestion-panel"
+          aria-label="Suggested repository placement"
+        >
+          <div className="resource-panel-header">
             <div>
-              <h2>Suggested Placement</h2>
-              <p>
-                Deterministic local matches for unbound repos. Atlas will not bind or import until
-                you choose an action.
-              </p>
+              <Lightbulb size={17} />
+              <div>
+                <h2>Suggested Placement</h2>
+                <p>
+                  Deterministic local matches for unbound repos. Atlas will not bind or import until
+                  you choose an action.
+                </p>
+              </div>
             </div>
+            <span className="resource-pill">{placementSuggestions.length} unbound</span>
           </div>
-          <span className="resource-pill">{placementSuggestions.length} unbound</span>
-        </div>
 
-        {placementSuggestions.length > 0 ? (
-          <div className="github-suggestion-list">
+          {placementSuggestions.length > 0 ? (
+            <div className="github-suggestion-list">
             {placementSuggestions.map((suggestion) => {
               const selectedSuggestionTarget =
                 suggestionTargets[suggestion.repositoryKey] ??
@@ -630,8 +721,8 @@ export function GitHubIntakeDashboard({
                       >
                         <Link2 size={15} />
                         {suggestion.suggestedProjectId
-                          ? `Bind to ${suggestion.suggestedProjectName}`
-                          : 'Bind selected project'}
+                          ? `Connect to ${suggestion.suggestedProjectName}`
+                          : 'Connect selected project'}
                       </button>
                       <button
                         type="button"
@@ -651,26 +742,32 @@ export function GitHubIntakeDashboard({
                 </article>
               )
             })}
-          </div>
-        ) : (
-          <p className="empty-state">
-            No unbound repositories are available for placement suggestions in the current GitHub
-            inventory.
-          </p>
-        )}
-      </section>
+            </div>
+          ) : (
+            <p className="empty-state">
+              No unbound repositories are available for placement suggestions in the current GitHub
+              inventory.
+            </p>
+          )}
+        </section>
+      </details>
 
-      <div className="github-intake-grid">
-        {visibleRepositories.map(({ repository, sources }) => {
-          const link = repositorySummaryToLink(repository)
-          const binding = findRepositoryBinding(projectRecords, link)
-          const commandSummary = summaryFor(commandSummaries.data, repository.fullName)
+      <details className="github-disclosure" open={query.trim().length > 0}>
+        <summary>
+          <span>Repository inventory</span>
+          <strong>{visibleRepositories.length} matching repos</strong>
+        </summary>
+        <div className="github-intake-grid">
+          {visibleRepositories.map(({ repository, sources }) => {
+            const link = repositorySummaryToLink(repository)
+            const binding = findRepositoryBinding(projectRecords, link)
+            const commandSummary = summaryFor(commandSummaries.data, repository.fullName)
 
-          return (
-            <article
-              key={repository.fullName}
-              className={`github-intake-card ${binding ? 'is-bound' : ''}`}
-            >
+            return (
+              <article
+                key={repository.fullName}
+                className={`github-intake-card ${binding ? 'is-bound' : ''}`}
+              >
               <div className="card-topline">
                 <span className="resource-pill">{sourceLabel(sources, viewerLabel)}</span>
                 <span className="resource-pill">{repository.visibility}</span>
@@ -703,7 +800,7 @@ export function GitHubIntakeDashboard({
               {binding ? (
                 <div className="github-binding-state">
                   <Link2 size={15} />
-                  <span>Bound to {binding.project.name}</span>
+                  <span>Connected to {binding.project.name}</span>
                 </div>
               ) : (
                 <div className="github-binding-state is-unbound">
@@ -735,7 +832,7 @@ export function GitHubIntakeDashboard({
                       onClick={() => onBindRepository(bindTarget, repository)}
                     >
                       <Link2 size={15} />
-                      Bind to selected
+                      Connect to selected project
                     </button>
                     <button type="button" onClick={() => onCreateInboxProject(repository)}>
                       <Inbox size={15} />
@@ -750,32 +847,33 @@ export function GitHubIntakeDashboard({
                   </a>
                 ) : null}
               </div>
-            </article>
-          )
-        })}
-      </div>
+              </article>
+            )
+          })}
+        </div>
 
-      {visibleRepositories.length === 0 ? (
-        <p className="empty-state">
-          No repositories match this view. Missing credentials or permission gaps only affect this
-          intake surface.
-        </p>
-      ) : null}
+        {visibleRepositories.length === 0 ? (
+          <p className="empty-state">
+            No repositories match this view. Missing credentials or permission gaps only affect this
+            intake surface.
+          </p>
+        ) : null}
 
-      <div className="github-load-actions">
-        {configuredRepos.hasNextPage ? (
-          <button type="button" className="load-more" onClick={configuredRepos.loadMore}>
-            <RefreshCcw size={15} />
-            Load more configured repos
-          </button>
-        ) : null}
-        {viewerRepos.hasNextPage ? (
-          <button type="button" className="load-more" onClick={viewerRepos.loadMore}>
-            <RefreshCcw size={15} />
-            Load more {viewerLabel.toLowerCase()} repos
-          </button>
-        ) : null}
-      </div>
+        <div className="github-load-actions">
+          {configuredRepos.hasNextPage ? (
+            <button type="button" className="load-more" onClick={configuredRepos.loadMore}>
+              <RefreshCcw size={15} />
+              Load more configured repos
+            </button>
+          ) : null}
+          {viewerRepos.hasNextPage ? (
+            <button type="button" className="load-more" onClick={viewerRepos.loadMore}>
+              <RefreshCcw size={15} />
+              Load more {viewerLabel.toLowerCase()} repos
+            </button>
+          ) : null}
+        </div>
+      </details>
 
       <GitHubWritePilotDialog
         draft={writeDraft}

@@ -16,6 +16,11 @@ export type AtlasNavLabel =
 
 export async function clickAtlasNav(page: Page, label: AtlasNavLabel) {
   await page.getByRole('button', { name: label, exact: true }).click()
+  const inspectorToggle = page.getByRole('button', { name: 'Show project inspector', exact: true })
+
+  if (await inspectorToggle.isVisible().catch(() => false)) {
+    await inspectorToggle.click()
+  }
 }
 
 export async function installAtlasClipboardMock(page: Page) {
