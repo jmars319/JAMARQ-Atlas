@@ -164,6 +164,7 @@ export interface GithubWorkflowRun {
   displayTitle: string
   status: string
   conclusion: string | null
+  headSha: string | null
   branch: string | null
   event: string
   actor: string | null

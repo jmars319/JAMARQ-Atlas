@@ -13,10 +13,12 @@ import { useMemo, useState } from 'react'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubResource } from '../hooks/useGithubResource'
 import type {
+  GithubApiError,
   GithubBranch,
   GithubCheckRun,
   GithubCommit,
   GithubDeployment,
+  GithubFetchCacheMetadata,
   GithubIssue,
   GithubPullRequest,
   GithubRelease,
@@ -26,9 +28,9 @@ import type {
   GithubWorkflow,
   GithubWorkflowRun,
 } from '../services/githubIntegration'
+import type { GithubRepoCommandSummary } from '../services/githubCommand'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
-import { GitHubHealthSummary } from './GitHubHealthSummary'
-import { LocalGitStatusInline } from './LocalGitStatus'
+import { GitHubCommandPanel } from './GitHubCommandPanel'
 
 const deepDiveTabs: Array<{ id: GithubResourceName; label: string }> = [
   { id: 'overview', label: 'Overview' },
@@ -246,9 +248,19 @@ function ResourceRows({ rows }: { rows: ResourceRow[] }) {
 function GitHubRepoDeepDiveContent({
   repository,
   boundProjectName,
+  commandSummary,
+  commandLoading,
+  commandError,
+  commandCacheMetadata,
+  onCommandRefresh,
 }: {
   repository: GithubRepositorySummary
   boundProjectName: string | null
+  commandSummary: GithubRepoCommandSummary | null
+  commandLoading: boolean
+  commandError: GithubApiError | null
+  commandCacheMetadata: GithubFetchCacheMetadata | null
+  onCommandRefresh: () => void
 }) {
   const [activeTab, setActiveTab] = useState<GithubResourceName>('overview')
   const [owner] = repository.fullName.split('/')
@@ -299,14 +311,13 @@ function GitHubRepoDeepDiveContent({
         </div>
       </div>
 
-      <GitHubHealthSummary
-        repository={{
-          owner,
-          name: repository.name,
-          defaultBranch: repository.defaultBranch,
-        }}
+      <GitHubCommandPanel
+        summary={commandSummary}
+        loading={commandLoading}
+        error={commandError}
+        cacheMetadata={commandCacheMetadata}
+        onRefresh={onCommandRefresh}
       />
-      <LocalGitStatusInline owner={owner} repo={repository.name} />
 
       <div className="repo-tabs" role="tablist" aria-label="GitHub deep dive resources">
         {deepDiveTabs.map((tab) => (
@@ -383,9 +394,19 @@ function GitHubRepoDeepDiveContent({
 export function GitHubRepoDeepDive({
   repository,
   boundProjectName,
+  commandSummary,
+  commandLoading,
+  commandError,
+  commandCacheMetadata,
+  onCommandRefresh,
 }: {
   repository: GithubRepositorySummary | null
   boundProjectName: string | null
+  commandSummary: GithubRepoCommandSummary | null
+  commandLoading: boolean
+  commandError: GithubApiError | null
+  commandCacheMetadata: GithubFetchCacheMetadata | null
+  onCommandRefresh: () => void
 }) {
   if (!repository) {
     return (
@@ -395,5 +416,15 @@ export function GitHubRepoDeepDive({
     )
   }
 
-  return <GitHubRepoDeepDiveContent repository={repository} boundProjectName={boundProjectName} />
+  return (
+    <GitHubRepoDeepDiveContent
+      repository={repository}
+      boundProjectName={boundProjectName}
+      commandSummary={commandSummary}
+      commandLoading={commandLoading}
+      commandError={commandError}
+      commandCacheMetadata={commandCacheMetadata}
+      onCommandRefresh={onCommandRefresh}
+    />
+  )
 }

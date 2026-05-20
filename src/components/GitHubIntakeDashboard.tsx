@@ -1,11 +1,14 @@
 import {
   AlertTriangle,
+  CheckCircle2,
   GitBranch,
+  GitCommitHorizontal,
   Inbox,
   Lightbulb,
   Link2,
   RefreshCcw,
   Search,
+  ShieldAlert,
   SquareArrowOutUpRight,
   Target,
 } from 'lucide-react'
@@ -17,12 +20,13 @@ import type {
 } from '../services/githubIntegration'
 import type { ProjectRecord } from '../domain/atlas'
 import { formatDateTimeLabel } from '../domain/atlas'
+import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
+import type { GithubRepoCommandSummary } from '../services/githubCommand'
 import { findRepositoryBinding, repositorySummaryToLink } from '../services/repoBinding'
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
-import { LocalGitStatusInline } from './LocalGitStatus'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
 
@@ -76,6 +80,47 @@ function sourceLabel(sources: GithubRepositorySource[], viewerLabel: string) {
   }
 
   return sources[0] === 'configured' ? 'Configured' : viewerLabel
+}
+
+function uniqueRepoKeys(repoKeys: string[]) {
+  return repoKeys
+    .filter(Boolean)
+    .filter(
+      (repoKey, index, keys) =>
+        keys.findIndex((candidate) => candidate.toLowerCase() === repoKey.toLowerCase()) === index,
+    )
+}
+
+function summaryFor(
+  summaries: GithubRepoCommandSummary[],
+  fullName: string,
+) {
+  return summaries.find((summary) => summary.fullName.toLowerCase() === fullName.toLowerCase())
+}
+
+function localGitSummaryLabel(summary: GithubRepoCommandSummary) {
+  if (summary.localGit.status !== 'available' || !summary.localGit.data) {
+    return summary.localGit.status
+  }
+
+  const { data } = summary.localGit
+  const dirty = data.dirty ? `${data.changedFiles} changed` : 'clean'
+  const sync =
+    data.ahead !== null && data.behind !== null
+      ? `${data.ahead} ahead / ${data.behind} behind`
+      : 'upstream unknown'
+
+  return `${data.branch} / ${dirty} / ${sync}`
+}
+
+function isRecentlyPushed(repository: GithubRepositorySummary) {
+  if (!repository.pushedAt) {
+    return false
+  }
+
+  const pushedAt = new Date(repository.pushedAt).getTime()
+
+  return Number.isFinite(pushedAt) && Date.now() - pushedAt <= 14 * 86_400_000
 }
 
 interface SourceNoticeProps {
@@ -204,7 +249,6 @@ export function GitHubIntakeDashboard({
   const boundCount = repositories.filter(({ repository }) =>
     findRepositoryBinding(projectRecords, repositorySummaryToLink(repository)),
   ).length
-  const unboundCount = repositories.length - boundCount
   const targetProjectExists = projectRecords.some((record) => record.project.id === targetProjectId)
   const bindTarget = targetProjectExists ? targetProjectId : projectRecords[0]?.project.id ?? ''
   const selectedDeepDive =
@@ -212,16 +256,58 @@ export function GitHubIntakeDashboard({
   const selectedDeepDiveBinding = selectedDeepDive
     ? findRepositoryBinding(projectRecords, repositorySummaryToLink(selectedDeepDive.repository))
     : null
+  const boundRepoKeys = useMemo(
+    () =>
+      uniqueRepoKeys(
+        projectRecords.flatMap((record) =>
+          record.project.repositories.map((repository) => `${repository.owner}/${repository.name}`),
+        ),
+      ),
+    [projectRecords],
+  )
+  const commandRepoKeys = useMemo(
+    () =>
+      uniqueRepoKeys([
+        ...boundRepoKeys,
+        selectedDeepDive?.repository.fullName ?? '',
+        visibleRepositories[0]?.repository.fullName ?? '',
+      ]),
+    [boundRepoKeys, selectedDeepDive?.repository.fullName, visibleRepositories],
+  )
+  const commandSummaries = useGithubCommandSummaries(commandRepoKeys)
+  const selectedCommandSummary = selectedDeepDive
+    ? summaryFor(commandSummaries.data, selectedDeepDive.repository.fullName)
+    : null
+  const attentionSummaries = commandSummaries.data.filter((summary) =>
+    ['attention', 'stale', 'unknown'].includes(summary.state),
+  )
+  const dirtyLocalClones = commandSummaries.data.filter((summary) => summary.localGit.data?.dirty)
+  const failedSummaries = commandSummaries.data.filter((summary) =>
+    summary.signals.some((signal) => signal.category === 'workflow' || signal.category === 'checks')
+      ? summary.signals.some(
+          (signal) =>
+            ['workflow', 'checks'].includes(signal.category) && signal.severity === 'danger',
+        )
+      : false,
+  )
+  const openGithubItems = commandSummaries.data.reduce(
+    (total, summary) => total + summary.counts.openPullRequests + summary.counts.openIssues,
+    0,
+  )
+  const recentlyPushed = repositories.filter(({ repository }) => isRecentlyPushed(repository)).length
+  const missingLocalClones = commandSummaries.data.filter(
+    (summary) => summary.localGit.status === 'not-found',
+  )
 
   return (
     <section className="github-intake" aria-labelledby="github-intake-title">
       <div className="dashboard-header">
         <div>
-          <p className="section-label">GitHub Intake</p>
-          <h1 id="github-intake-title">Repository Intake</h1>
+          <p className="section-label">GitHub Command</p>
+          <h1 id="github-intake-title">Command Center</h1>
           <p>
-            Discover available repositories, bind them to Atlas projects, or create explicit Inbox
-            records for manual triage.
+            See which bound or selected repositories need attention, why, and what evidence backs
+            the signal. Binding and Inbox import remain explicit manual actions.
           </p>
         </div>
         <div className="dashboard-stats" aria-label="GitHub intake counts">
@@ -236,10 +322,48 @@ export function GitHubIntakeDashboard({
             <span>Bound</span>
           </div>
           <div>
-            <Inbox size={17} />
-            <strong>{unboundCount}</strong>
-            <span>Unbound</span>
+            <ShieldAlert size={17} />
+            <strong>{attentionSummaries.length}</strong>
+            <span>Attention</span>
           </div>
+        </div>
+      </div>
+
+      <div className="github-command-bands" aria-label="GitHub command bands">
+        <div>
+          <ShieldAlert size={16} />
+          <strong>{attentionSummaries.length}</strong>
+          <span>Attention needed</span>
+        </div>
+        <div>
+          <Link2 size={16} />
+          <strong>{boundCount}</strong>
+          <span>Bound repos</span>
+        </div>
+        <div>
+          <GitBranch size={16} />
+          <strong>{dirtyLocalClones.length}</strong>
+          <span>Local dirty clones</span>
+        </div>
+        <div>
+          <CheckCircle2 size={16} />
+          <strong>{failedSummaries.length}</strong>
+          <span>CI/check failures</span>
+        </div>
+        <div>
+          <AlertTriangle size={16} />
+          <strong>{openGithubItems}</strong>
+          <span>Open PRs/issues</span>
+        </div>
+        <div>
+          <GitCommitHorizontal size={16} />
+          <strong>{recentlyPushed}</strong>
+          <span>Recently pushed</span>
+        </div>
+        <div>
+          <Inbox size={16} />
+          <strong>{missingLocalClones.length}</strong>
+          <span>Missing local clone</span>
         </div>
       </div>
 
@@ -360,6 +484,11 @@ export function GitHubIntakeDashboard({
       <GitHubRepoDeepDive
         repository={selectedDeepDive?.repository ?? null}
         boundProjectName={selectedDeepDiveBinding?.project.name ?? null}
+        commandSummary={selectedCommandSummary ?? null}
+        commandLoading={commandSummaries.loading}
+        commandError={commandSummaries.error}
+        commandCacheMetadata={commandSummaries.cacheMetadata}
+        onCommandRefresh={commandSummaries.reload}
       />
 
       <section
@@ -494,6 +623,7 @@ export function GitHubIntakeDashboard({
         {visibleRepositories.map(({ repository, sources }) => {
           const link = repositorySummaryToLink(repository)
           const binding = findRepositoryBinding(projectRecords, link)
+          const commandSummary = summaryFor(commandSummaries.data, repository.fullName)
 
           return (
             <article
@@ -541,11 +671,14 @@ export function GitHubIntakeDashboard({
                 </div>
               )}
 
-              <LocalGitStatusInline
-                owner={repository.fullName.split('/')[0] ?? ''}
-                repo={repository.name}
-                compact
-              />
+              {commandSummary ? (
+                <div className={`github-command-card-state command-${commandSummary.severity}`}>
+                  <ShieldAlert size={15} />
+                  <span>
+                    {commandSummary.state} / {localGitSummaryLabel(commandSummary)}
+                  </span>
+                </div>
+              ) : null}
 
               <div className="github-card-actions">
                 {binding ? (

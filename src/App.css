@@ -671,6 +671,42 @@ h3 {
   margin: 12px 0;
 }
 
+.github-command-bands {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.github-command-bands div,
+.github-command-card-state {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.025);
+  padding: 9px;
+}
+
+.github-command-bands svg,
+.github-command-card-state svg {
+  color: var(--accent-cyan);
+}
+
+.github-command-bands strong,
+.github-command-bands span {
+  display: block;
+}
+
+.github-command-bands strong {
+  margin-top: 6px;
+  color: var(--paper-white);
+  font-size: 0.92rem;
+}
+
+.github-command-bands span,
+.github-command-card-state span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
 .github-deep-dive {
   display: grid;
   gap: 10px;
@@ -912,6 +948,28 @@ h3 {
   color: var(--text-soft);
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+.github-command-card-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.github-command-card-state.command-danger {
+  border-color: rgba(241, 113, 113, 0.36);
+  background: rgba(241, 113, 113, 0.08);
+}
+
+.github-command-card-state.command-warning {
+  border-color: rgba(244, 199, 107, 0.32);
+  background: rgba(244, 199, 107, 0.08);
+}
+
+.github-command-card-state.command-ok,
+.github-command-card-state.command-muted {
+  border-color: rgba(128, 213, 138, 0.24);
+  background: rgba(128, 213, 138, 0.06);
 }
 
 .github-repo-facts {
@@ -1345,6 +1403,88 @@ h3 {
   border: 1px solid var(--line);
   background: var(--surface);
   padding: 10px;
+}
+
+.github-command-panel,
+.github-project-rollup {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 10px;
+}
+
+.github-command-explanation {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  border: 1px solid rgba(241, 113, 113, 0.34);
+  background: rgba(241, 113, 113, 0.08);
+  color: var(--danger);
+  padding: 10px;
+}
+
+.github-command-explanation strong,
+.github-command-explanation span,
+.github-command-explanation small {
+  display: block;
+}
+
+.github-command-explanation span,
+.github-command-explanation small {
+  color: var(--text-soft);
+}
+
+.github-command-explanation a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: var(--accent-cyan);
+}
+
+.github-command-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.github-command-signal-grid h3 {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+
+.github-command-signals {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.github-command-signals li {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.github-command-signals strong,
+.github-command-signals p,
+.github-command-signals small {
+  display: block;
+}
+
+.github-command-signals strong {
+  margin-top: 6px;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
+.github-command-signals p,
+.github-command-signals small {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
 }
 
 .github-health-grid {
@@ -2282,19 +2422,26 @@ h3 {
 }
 
 .review-chip-critical,
-.review-chip-high {
+.review-chip-high,
+.review-chip-danger {
   border-color: rgba(241, 113, 113, 0.38);
   color: var(--danger);
 }
 
-.review-chip-medium {
+.review-chip-medium,
+.review-chip-warning {
   border-color: rgba(244, 199, 107, 0.36);
   color: var(--warning);
 }
 
-.review-chip-low {
+.review-chip-low,
+.review-chip-ok {
   border-color: rgba(9, 166, 214, 0.3);
   color: var(--accent-cyan);
+}
+
+.review-chip-muted {
+  color: var(--text-muted);
 }
 
 .review-note-grid {
@@ -3626,6 +3773,8 @@ code {
   .repo-overview-grid,
   .ai-action-grid,
   .github-source-grid,
+  .github-command-bands,
+  .github-command-signal-grid,
   .github-intake-controls,
   .github-repo-facts,
   .github-deep-summary,

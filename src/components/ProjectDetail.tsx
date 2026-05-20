@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   CalendarCheck,
   ClipboardList,
@@ -42,7 +42,6 @@ import type { PlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
 import type { ReviewNote, ReviewState } from '../domain/review'
 import type { TimelineEvent } from '../domain/timeline'
-import { getLatestDeploymentRecord } from '../domain/dispatch'
 import {
   getWritingTemplate,
   WRITING_TEMPLATES,
@@ -50,9 +49,11 @@ import {
   type WritingTemplateId,
 } from '../domain/writing'
 import type { DeploySessionChecklistPresetId } from '../services/deploySessions'
+import { deriveGithubProjectCommandRollup } from '../services/githubCommand'
+import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
-import { GitHubHealthSummary } from './GitHubHealthSummary'
+import { GitHubProjectCommandRollupPanel } from './GitHubProjectCommandRollup'
 import { LocalGitStatusInline } from './LocalGitStatus'
 import { PlanningPanel } from './PlanningPanel'
 import { RepoActivityPanel } from './RepoActivityPanel'
@@ -234,12 +235,21 @@ export function ProjectDetail({
     .slice(0, 3)
   const visibleWritingDrafts =
     approvedWritingDrafts.length > 0 ? approvedWritingDrafts : recentWritingDrafts
-  const firstRepository = project.repositories[0] ?? null
-  const latestDeployment = dispatch.targets
-    .filter((target) => target.projectId === project.id)
-    .map((target) => getLatestDeploymentRecord(dispatch, target.id))
-    .filter(Boolean)
-    .sort((left, right) => right.completedAt.localeCompare(left.completedAt))[0]
+  const projectRepoKeys = useMemo(
+    () => project.repositories.map((repository) => `${repository.owner}/${repository.name}`),
+    [project.repositories],
+  )
+  const commandSummaries = useGithubCommandSummaries(projectRepoKeys)
+  const githubRollup = useMemo(
+    () =>
+      deriveGithubProjectCommandRollup({
+        projectId: project.id,
+        projectName: project.name,
+        repositories: project.repositories,
+        summaries: commandSummaries.data,
+      }),
+    [commandSummaries.data, project.id, project.name, project.repositories],
+  )
 
   return (
     <aside className="project-detail" aria-labelledby="project-detail-title">
@@ -391,16 +401,13 @@ export function ProjectDetail({
           <GitBranch size={17} />
           <h3>GitHub Activity</h3>
         </div>
-        {firstRepository ? (
-          <GitHubHealthSummary
-            repository={{
-              owner: firstRepository.owner,
-              name: firstRepository.name,
-              defaultBranch: firstRepository.defaultBranch,
-            }}
-            lastVerified={manual.lastVerified}
-            lastDeployed={latestDeployment?.completedAt ?? ''}
-            compact
+        {project.repositories.length > 0 ? (
+          <GitHubProjectCommandRollupPanel
+            rollup={githubRollup}
+            loading={commandSummaries.loading}
+            error={commandSummaries.error}
+            cacheMetadata={commandSummaries.cacheMetadata}
+            onRefresh={commandSummaries.reload}
           />
         ) : (
           <p className="empty-state">

@@ -64,7 +64,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.locator('.project-detail')).toContainText('Evidence Timeline')
 
   await clickAtlasNav(page, 'GitHub')
-  await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Command Center' })).toBeVisible()
   await expect(page.locator('.github-error')).toContainText(/Sign in with the configured GitHub App|GITHUB_TOKEN/)
   await clickAtlasNav(page, 'Review')
   await expect(page.getByRole('heading', { name: 'Review Center' })).toBeVisible()
@@ -1082,7 +1082,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await clickAtlasNav(page, 'Verification')
   await expect(page.getByRole('heading', { name: 'Verification Queue' })).toBeVisible()
   await clickAtlasNav(page, 'GitHub')
-  await expect(page.getByRole('heading', { name: 'Repository Intake' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Command Center' })).toBeVisible()
   await clickAtlasNav(page, 'Review')
   await expect(page.getByRole('heading', { name: 'Review Center' })).toBeVisible()
   await expect(page.locator('.review-history-list[aria-label="Review notes"]')).toContainText(

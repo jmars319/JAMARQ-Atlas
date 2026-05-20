@@ -70,6 +70,7 @@ const workflowRuns: GithubWorkflowRun[] = [
     displayTitle: 'CI',
     status: 'completed',
     conclusion: 'success',
+    headSha: 'abcdef123456',
     branch: 'main',
     event: 'push',
     actor: 'Jason',

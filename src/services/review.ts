@@ -23,6 +23,7 @@ import type { ReportsState } from '../domain/reports'
 import type { AtlasSyncState } from '../domain/sync'
 import type { TimelineEvent } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
+import type { GithubRepoCommandSummary } from './githubCommand'
 import type { RepoPlacementSuggestion } from './repoSuggestions'
 import { deriveDispatchQueueItems } from './dispatchQueue'
 import { evaluateVerification } from './verification'
@@ -773,6 +774,48 @@ function githubItems(suggestions: RepoPlacementSuggestion[]) {
   }))
 }
 
+function githubCommandItems(
+  projectRecords: ProjectRecord[],
+  summaries: GithubRepoCommandSummary[],
+): ReviewQueueItem[] {
+  const recordsByRepo = new Map(
+    projectRecords.flatMap((record) =>
+      record.project.repositories.map((repository) => [
+        `${repository.owner}/${repository.name}`.toLowerCase(),
+        record,
+      ]),
+    ),
+  )
+
+  return summaries.flatMap((summary) => {
+    const record = recordsByRepo.get(summary.fullName.toLowerCase())
+
+    return summary.signals
+      .filter((signal) => signal.severity !== 'muted')
+      .slice(0, 3)
+      .map((signal): ReviewQueueItem => {
+        const severity: ReviewSeverity = signal.severity === 'danger' ? 'high' : 'medium'
+
+        return {
+          id: `github-command-${summary.fullName.toLowerCase()}-${signal.id}`,
+          source: 'github',
+          severity,
+          dueState: signal.severity === 'danger' ? 'blocked' : 'attention',
+          title: `${summary.fullName}: ${signal.title}`,
+          detail: signal.detail,
+          reason:
+            signal.evidence.length > 0
+              ? `GitHub command summary evidence: ${signal.evidence.slice(0, 3).join(' / ')}.`
+              : 'GitHub command summary marked this repository for attention.',
+          ...projectFields(record, record?.project.id ?? null),
+          repositoryKey: summary.fullName,
+          occurredAt: signal.occurredAt ?? undefined,
+          meta: [signal.category, summary.state, summary.severity],
+        }
+      })
+  })
+}
+
 function timelineItems(timelineEvents: TimelineEvent[], now: Date): ReviewQueueItem[] {
   const cutoff = new Date(now)
   cutoff.setUTCDate(cutoff.getUTCDate() - 7)
@@ -851,6 +894,7 @@ export function deriveReviewQueue({
   sync,
   timelineEvents,
   repoSuggestions = [],
+  githubCommandSummaries = [],
   now = new Date(),
 }: {
   projectRecords: ProjectRecord[]
@@ -861,6 +905,7 @@ export function deriveReviewQueue({
   sync: AtlasSyncState
   timelineEvents: TimelineEvent[]
   repoSuggestions?: RepoPlacementSuggestion[]
+  githubCommandSummaries?: GithubRepoCommandSummary[]
   now?: Date
 }): ReviewQueueItem[] {
   return [
@@ -871,6 +916,7 @@ export function deriveReviewQueue({
     ...writingItems(projectRecords, writing),
     ...reportItems(projectRecords, reports),
     ...githubItems(repoSuggestions),
+    ...githubCommandItems(projectRecords, githubCommandSummaries),
     ...timelineItems(timelineEvents, now),
     ...syncItems(sync, now),
   ].sort((left, right) => {

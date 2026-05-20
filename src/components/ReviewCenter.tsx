@@ -23,6 +23,7 @@ import type { ReportsState } from '../domain/reports'
 import type { AtlasSyncState } from '../domain/sync'
 import type { TimelineEvent } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
+import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import type { GithubRepositorySource, GithubRepositorySummary } from '../services/githubIntegration'
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
@@ -168,6 +169,21 @@ export function ReviewCenter({
       ),
     [projectRecords, repositories],
   )
+  const boundRepoKeys = useMemo(
+    () =>
+      projectRecords
+        .flatMap((record) =>
+          record.project.repositories.map((repository) => `${repository.owner}/${repository.name}`),
+        )
+        .filter(
+          (repoKey, index, repoKeys) =>
+            repoKeys.findIndex(
+              (candidate) => candidate.toLowerCase() === repoKey.toLowerCase(),
+            ) === index,
+        ),
+    [projectRecords],
+  )
+  const githubCommandSummaries = useGithubCommandSummaries(boundRepoKeys)
   const queue = useMemo(
     () =>
       deriveReviewQueue({
@@ -179,8 +195,19 @@ export function ReviewCenter({
         sync,
         timelineEvents,
         repoSuggestions,
+        githubCommandSummaries: githubCommandSummaries.data,
       }),
-    [dispatch, planning, projectRecords, repoSuggestions, reports, sync, timelineEvents, writing],
+    [
+      dispatch,
+      githubCommandSummaries.data,
+      planning,
+      projectRecords,
+      repoSuggestions,
+      reports,
+      sync,
+      timelineEvents,
+      writing,
+    ],
   )
   const filteredQueue = queue
     .filter((item) => sectionFilter === 'all' || item.sectionId === sectionFilter)
@@ -354,6 +381,11 @@ export function ReviewCenter({
           error={configuredRepos.error}
         />
         <SourceNotice label="Viewer GitHub repos" loading={viewerRepos.loading} error={viewerRepos.error} />
+        <SourceNotice
+          label="Bound GitHub command summaries"
+          loading={githubCommandSummaries.loading}
+          error={githubCommandSummaries.error}
+        />
       </div>
 
       <div className="review-layout">
