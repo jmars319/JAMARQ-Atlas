@@ -484,13 +484,15 @@ function GitHubRepoDeepDiveContent({
   }, [reloadCommandDetail, reloadResource, writeRefreshToken])
 
   return (
-    <section className="github-deep-dive" aria-label="GitHub repo deep dive">
+    <section className="github-deep-dive" aria-label="GitHub selected repo details">
       <div className="resource-panel-header">
         <div>
           <strong>{repository.fullName}</strong>
           <span>
-            {boundProjectName ? `Bound to ${boundProjectName}` : 'Unbound repository'} / read-only
-            deep dive
+            {boundProjectName
+              ? `Connected to ${boundProjectName}`
+              : 'Not connected to an Atlas project'}{' '}
+            / read-only repo evidence
           </span>
         </div>
         <a href={repository.htmlUrl} target="_blank" rel="noreferrer" className="load-more">
@@ -532,7 +534,7 @@ function GitHubRepoDeepDiveContent({
 
       <LocalGitPreviewPanel owner={owner} repo={repository.name} />
 
-      <div className="repo-tabs" role="tablist" aria-label="GitHub deep dive resources">
+      <div className="repo-tabs" role="tablist" aria-label="GitHub repo resources">
         {deepDiveTabs.map((tab) => (
           <button
             key={tab.id}
@@ -618,8 +620,8 @@ function GitHubRepoDeepDiveContent({
       </div>
 
       <p className="empty-state">
-        GitHub deep dive is read-only. Permission gaps are scoped to the selected resource and do
-        not change Atlas status, Dispatch readiness, or project planning.
+        GitHub repo details are read-only. Permission gaps are scoped to the selected resource and
+        do not change Atlas status, Dispatch readiness, or project planning.
       </p>
     </section>
   )
@@ -650,8 +652,8 @@ export function GitHubRepoDeepDive({
 }) {
   if (!repository) {
     return (
-      <section className="github-deep-dive" aria-label="GitHub repo deep dive">
-        <p className="empty-state">No repository is available for deep dive.</p>
+      <section className="github-deep-dive" aria-label="GitHub selected repo details">
+        <p className="empty-state">No repository is selected.</p>
       </section>
     )
   }

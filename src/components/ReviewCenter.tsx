@@ -1,10 +1,13 @@
 import {
   CalendarCheck,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
   FileText,
   GitBranch,
   NotebookPen,
   ShieldAlert,
+  SquareArrowOutUpRight,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatDateTimeLabel, type ProjectRecord } from '../domain/atlas'
@@ -33,6 +36,7 @@ import {
   createReviewSession,
   createReviewSessionFromPreset,
   deriveReviewQueue,
+  parseGithubWritePilotReviewNote,
   summarizeReviewQueue,
   summarizeReviewState,
 } from '../services/review'
@@ -129,6 +133,77 @@ function itemMatchesQuery(item: ReviewQueueItem, query: string) {
     .includes(normalizedQuery)
 }
 
+function ReviewHistoryNoteCard({
+  note,
+  projectRecords,
+}: {
+  note: ReviewNote
+  projectRecords: ProjectRecord[]
+}) {
+  const project = note.projectId
+    ? projectRecords.find((record) => record.project.id === note.projectId)
+    : undefined
+  const writePilot = parseGithubWritePilotReviewNote(note.body)
+
+  if (!writePilot) {
+    return (
+      <article>
+        <span>{formatDateTimeLabel(note.createdAt)}</span>
+        <strong>{project?.project.name ?? labelize(note.source)}</strong>
+        <p>{note.body}</p>
+        <small>{labelize(note.outcome)}</small>
+      </article>
+    )
+  }
+
+  const resultLabel =
+    writePilot.resultNumber !== null
+      ? `${writePilot.action === 'issue' ? 'Issue' : 'Comment'} #${writePilot.resultNumber}`
+      : writePilot.result || 'GitHub result'
+
+  return (
+    <article className="review-history-github-note">
+      <div className="review-history-note-heading">
+        <div>
+          <span>{formatDateTimeLabel(note.createdAt)}</span>
+          <strong>{writePilot.title}</strong>
+        </div>
+        <small>{labelize(note.outcome)}</small>
+      </div>
+      <p>{project?.project.name ?? 'Repository review'}</p>
+      <div className="review-chip-row">
+        <span className="review-chip review-chip-low">{writePilot.repositoryKey}</span>
+        <span className="review-chip">{resultLabel}</span>
+        <span className="review-chip">Actor: {writePilot.actor}</span>
+      </div>
+      {writePilot.htmlUrl ? (
+        <a href={writePilot.htmlUrl} target="_blank" rel="noreferrer" className="review-history-link">
+          <SquareArrowOutUpRight size={14} />
+          Open on GitHub
+        </a>
+      ) : null}
+      <details>
+        <summary>Audit details</summary>
+        <dl>
+          <div>
+            <dt>Source</dt>
+            <dd>{writePilot.source}</dd>
+          </div>
+          <div>
+            <dt>Broad write gate</dt>
+            <dd>{writePilot.broadWriteControlsEnabled}</dd>
+          </div>
+          <div>
+            <dt>Body excerpt</dt>
+            <dd>{writePilot.bodyExcerpt || 'No excerpt captured.'}</dd>
+          </div>
+        </dl>
+        <pre>{writePilot.rawBody}</pre>
+      </details>
+    </article>
+  )
+}
+
 export function ReviewCenter({
   review,
   projectRecords,
@@ -156,6 +231,7 @@ export function ReviewCenter({
   const [dueFilter, setDueFilter] = useState<ReviewDueFilter>('all')
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
   const [outcomeDrafts, setOutcomeDrafts] = useState<Record<string, ReviewOutcome>>({})
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const repositories = useMemo(
     () => mergeRepositories(configuredRepos.data, viewerRepos.data),
@@ -209,12 +285,16 @@ export function ReviewCenter({
       writing,
     ],
   )
-  const filteredQueue = queue
-    .filter((item) => sectionFilter === 'all' || item.sectionId === sectionFilter)
-    .filter((item) => sourceFilter === 'all' || item.source === sourceFilter)
-    .filter((item) => severityFilter === 'all' || item.severity === severityFilter)
-    .filter((item) => dueFilter === 'all' || item.dueState === dueFilter)
-    .filter((item) => itemMatchesQuery(item, query))
+  const filteredQueue = useMemo(
+    () =>
+      queue
+        .filter((item) => sectionFilter === 'all' || item.sectionId === sectionFilter)
+        .filter((item) => sourceFilter === 'all' || item.source === sourceFilter)
+        .filter((item) => severityFilter === 'all' || item.severity === severityFilter)
+        .filter((item) => dueFilter === 'all' || item.dueState === dueFilter)
+        .filter((item) => itemMatchesQuery(item, query)),
+    [dueFilter, query, queue, sectionFilter, severityFilter, sourceFilter],
+  )
   const summary = useMemo(() => summarizeReviewQueue(queue), [queue])
   const reviewSummary = useMemo(() => summarizeReviewState(review), [review])
   const sections = useMemo(
@@ -223,6 +303,8 @@ export function ReviewCenter({
   )
   const latestSessions = review.sessions.slice(0, 5)
   const latestNotes = review.notes.slice(0, 5)
+  const activeReviewItemId =
+    filteredQueue.find((item) => item.id === expandedItemId)?.id ?? filteredQueue[0]?.id ?? null
 
   function startSession(items: ReviewQueueItem[]) {
     if (items.length === 0) {
@@ -359,7 +441,7 @@ export function ReviewCenter({
           <div>
             <GitBranch size={17} />
             <strong>{summary.unboundRepos}</strong>
-            <span>Unbound repos</span>
+            <span>Unconnected repos</span>
           </div>
           <div>
             <FileText size={17} />
@@ -382,7 +464,7 @@ export function ReviewCenter({
         />
         <SourceNotice label="Viewer GitHub repos" loading={viewerRepos.loading} error={viewerRepos.error} />
         <SourceNotice
-          label="Bound GitHub command summaries"
+          label="Connected GitHub command summaries"
           loading={githubCommandSummaries.loading}
           error={githubCommandSummaries.error}
         />
@@ -427,9 +509,15 @@ export function ReviewCenter({
             {filteredQueue.map((item) => {
               const outcome = outcomeDrafts[item.id] ?? 'noted'
               const noteDraft = noteDrafts[item.id] ?? ''
+              const isExpanded = item.id === activeReviewItemId
 
               return (
-                <article key={item.id} className={`review-item review-severity-${item.severity}`}>
+                <article
+                  key={item.id}
+                  className={`review-item review-severity-${item.severity} ${
+                    isExpanded ? 'is-expanded' : ''
+                  }`}
+                >
                   <div className="review-item-heading">
                     <div>
                       <div className="review-chip-row">
@@ -444,84 +532,100 @@ export function ReviewCenter({
                       <h2>{item.title}</h2>
                       <p>{item.detail}</p>
                     </div>
-                    {item.projectId ? (
-                      <button
-                        type="button"
-                        onClick={() => onSelectProject(item.projectId!)}
-                      >
-                        Open project
+                    <div className="review-row-actions">
+                      <button type="button" onClick={() => setExpandedItemId(item.id)}>
+                        {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                        {isExpanded ? 'Reviewing' : 'Review'}
                       </button>
-                    ) : null}
+                      {item.projectId ? (
+                        <button
+                          type="button"
+                          onClick={() => onSelectProject(item.projectId!)}
+                        >
+                          Open project
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <p className="review-reason">{item.reason}</p>
                   <div className="activity-meta">
                     {item.projectName ? <span>{item.projectName}</span> : null}
                     {item.sectionName ? <span>{item.sectionName}</span> : null}
                     {item.groupName ? <span>{item.groupName}</span> : null}
-                    {item.occurredAt ? <span>{formatDateTimeLabel(item.occurredAt)}</span> : null}
-                    {item.meta.slice(0, 4).map((meta, metaIndex) => (
+                    {item.occurredAt && isExpanded ? (
+                      <span>{formatDateTimeLabel(item.occurredAt)}</span>
+                    ) : null}
+                    {item.meta.slice(0, isExpanded ? 4 : 2).map((meta, metaIndex) => (
                       <span key={`${item.id}-${meta}-${metaIndex}`}>{meta}</span>
                     ))}
                   </div>
 
-                  <div className="review-note-grid">
-                    <label className="field field-full">
-                      <span>Review note</span>
-                      <textarea
-                        aria-label={`Review note for ${item.title}`}
-                        rows={2}
-                        value={noteDraft}
-                        onChange={(event) =>
-                          setNoteDrafts((current) => ({
-                            ...current,
-                            [item.id]: event.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Outcome</span>
-                      <select
-                        aria-label={`Review outcome for ${item.title}`}
-                        value={outcome}
-                        onChange={(event) =>
-                          setOutcomeDrafts((current) => ({
-                            ...current,
-                            [item.id]: event.target.value as ReviewOutcome,
-                          }))
-                        }
-                      >
-                        <option value="noted">Noted</option>
-                        <option value="needs-follow-up">Needs follow-up</option>
-                        <option value="no-action">No action</option>
-                        <option value="planned">Planned</option>
-                      </select>
-                    </label>
-                  </div>
+                  {isExpanded ? (
+                    <>
+                      <p className="review-reason">{item.reason}</p>
+                      <div className="review-note-grid">
+                        <label className="field field-full">
+                          <span>Review note</span>
+                          <textarea
+                            aria-label={`Review note for ${item.title}`}
+                            rows={2}
+                            value={noteDraft}
+                            onChange={(event) =>
+                              setNoteDrafts((current) => ({
+                                ...current,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Outcome</span>
+                          <select
+                            aria-label={`Review outcome for ${item.title}`}
+                            value={outcome}
+                            onChange={(event) =>
+                              setOutcomeDrafts((current) => ({
+                                ...current,
+                                [item.id]: event.target.value as ReviewOutcome,
+                              }))
+                            }
+                          >
+                            <option value="noted">Noted</option>
+                            <option value="needs-follow-up">Needs follow-up</option>
+                            <option value="no-action">No action</option>
+                            <option value="planned">Planned</option>
+                          </select>
+                        </label>
+                      </div>
 
-                  <div className="review-actions">
-                    <button type="button" onClick={() => startSession([item])}>
-                      <ClipboardList size={15} />
-                      Start session
-                    </button>
-                    <button type="button" disabled={!noteDraft.trim()} onClick={() => addNote(item, outcome)}>
-                      <NotebookPen size={15} />
-                      Add review note
-                    </button>
-                    {item.projectId ? (
-                      <button type="button" onClick={() => createPlanningNote(item)}>
-                        <CalendarCheck size={15} />
-                        Create planning note
-                      </button>
-                    ) : null}
-                    {item.projectId ? (
-                      <button type="button" onClick={() => onOpenPlanning(item.projectId!)}>
-                        <ClipboardList size={15} />
-                        Open Planning
-                      </button>
-                    ) : null}
-                  </div>
+                      <div className="review-actions">
+                        <button type="button" onClick={() => startSession([item])}>
+                          <ClipboardList size={15} />
+                          Start session
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!noteDraft.trim()}
+                          onClick={() => addNote(item, outcome)}
+                        >
+                          <NotebookPen size={15} />
+                          Add review note
+                        </button>
+                        {item.projectId ? (
+                          <button type="button" onClick={() => createPlanningNote(item)}>
+                            <CalendarCheck size={15} />
+                            Create planning note
+                          </button>
+                        ) : null}
+                        {item.projectId ? (
+                          <button type="button" onClick={() => onOpenPlanning(item.projectId!)}>
+                            <ClipboardList size={15} />
+                            Open Planning
+                          </button>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
                 </article>
               )
             })}
@@ -552,20 +656,13 @@ export function ReviewCenter({
 
           {latestNotes.length > 0 ? (
             <div className="review-history-list" aria-label="Review notes">
-              {latestNotes.map((note) => {
-                const link = note.projectId
-                  ? projectRecords.find((record) => record.project.id === note.projectId)
-                  : undefined
-
-                return (
-                  <article key={note.id}>
-                    <span>{formatDateTimeLabel(note.createdAt)}</span>
-                    <strong>{link?.project.name ?? labelize(note.source)}</strong>
-                    <p>{note.body}</p>
-                    <small>{labelize(note.outcome)}</small>
-                  </article>
-                )
-              })}
+              {latestNotes.map((note) => (
+                <ReviewHistoryNoteCard
+                  key={note.id}
+                  note={note}
+                  projectRecords={projectRecords}
+                />
+              ))}
             </div>
           ) : (
             <p className="empty-state">No review notes recorded yet.</p>

@@ -51,7 +51,7 @@ export function GitHubProjectCommandRollupPanel({
         <div>
           <GitBranch size={16} />
           <strong>{rollup.boundRepoCount}</strong>
-          <span>Bound repos</span>
+          <span>Connected repos</span>
         </div>
         <div>
           <ShieldAlert size={16} />
@@ -95,9 +95,8 @@ export function GitHubProjectCommandRollupPanel({
           ))}
         </ol>
       ) : (
-        <p className="empty-state">No loaded bound repository needs GitHub attention.</p>
+        <p className="empty-state">No loaded connected repository needs GitHub attention.</p>
       )}
     </section>
   )
 }
-

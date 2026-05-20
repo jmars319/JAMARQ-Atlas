@@ -362,11 +362,11 @@ export function GitHubIntakeDashboard({
           <p className="section-label">GitHub Command</p>
           <h1 id="github-intake-title">Command Center</h1>
           <p>
-            See which bound or selected repositories need attention, why, and what evidence backs
-            the signal. Binding and Inbox import remain explicit manual actions.
+            See which connected or selected repositories need attention, why, and what evidence
+            backs the signal. Repo connection and Inbox import remain explicit manual actions.
           </p>
         </div>
-        <div className="dashboard-stats" aria-label="GitHub intake counts">
+        <div className="dashboard-stats" aria-label="GitHub command counts">
           <div>
             <GitBranch size={17} />
             <strong>{repositories.length}</strong>
@@ -375,7 +375,7 @@ export function GitHubIntakeDashboard({
           <div>
             <Link2 size={17} />
             <strong>{boundCount}</strong>
-            <span>Bound</span>
+            <span>Connected</span>
           </div>
           <div>
             <ShieldAlert size={17} />
@@ -394,7 +394,7 @@ export function GitHubIntakeDashboard({
         <div>
           <Link2 size={16} />
           <strong>{boundCount}</strong>
-          <span>Bound repos</span>
+          <span>Connected repos</span>
         </div>
         <div>
           <GitBranch size={16} />
@@ -483,14 +483,6 @@ export function GitHubIntakeDashboard({
         </section>
       </details>
 
-      <ActionPlannerPanel
-        intents={actionIntents}
-        loading={commandSummaries.loading}
-        error={commandSummaries.error}
-        onRefresh={commandSummaries.reload}
-        onDraftIssue={(intent) => setWriteDraft(createGithubIssueDraftFromIntent(intent))}
-      />
-
       <div className="github-intake-controls">
         <label className="search-control">
           <Search size={16} />
@@ -502,12 +494,12 @@ export function GitHubIntakeDashboard({
           />
         </label>
 
-        <div className="repo-tabs" role="tablist" aria-label="GitHub intake filters">
+        <div className="repo-tabs" role="tablist" aria-label="GitHub repository filters">
           {[
             ['all', 'All'],
             ['configured', 'Configured'],
             ['viewer', viewerLabel],
-            ['unbound', 'Unbound'],
+            ['unbound', 'Unconnected'],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -542,9 +534,9 @@ export function GitHubIntakeDashboard({
       <div className="github-intake-controls">
         <label className="repo-selector">
           <GitBranch size={16} />
-          <span className="sr-only">Deep dive repository</span>
+          <span className="sr-only">Selected repository menu</span>
           <select
-            aria-label="Deep dive repository"
+            aria-label="Selected repository menu"
             value={selectedDeepDive?.repository.fullName ?? ''}
             onChange={(event) => setDeepDiveRepo(event.target.value)}
           >
@@ -620,8 +612,22 @@ export function GitHubIntakeDashboard({
 
       <details className="github-disclosure">
         <summary>
+          <span>Action planner</span>
+          <strong>{actionIntents.length} advisory actions</strong>
+        </summary>
+        <ActionPlannerPanel
+          intents={actionIntents}
+          loading={commandSummaries.loading}
+          error={commandSummaries.error}
+          onRefresh={commandSummaries.reload}
+          onDraftIssue={(intent) => setWriteDraft(createGithubIssueDraftFromIntent(intent))}
+        />
+      </details>
+
+      <details className="github-disclosure">
+        <summary>
           <span>Suggested placement</span>
-          <strong>{placementSuggestions.length} unbound repos</strong>
+          <strong>{placementSuggestions.length} unconnected repos</strong>
         </summary>
         <section
           className="github-suggestion-panel"
@@ -633,12 +639,12 @@ export function GitHubIntakeDashboard({
               <div>
                 <h2>Suggested Placement</h2>
                 <p>
-                  Deterministic local matches for unbound repos. Atlas will not bind or import until
-                  you choose an action.
+                  Deterministic local matches for unconnected repos. Atlas will not connect or
+                  import until you choose an action.
                 </p>
               </div>
             </div>
-            <span className="resource-pill">{placementSuggestions.length} unbound</span>
+            <span className="resource-pill">{placementSuggestions.length} unconnected</span>
           </div>
 
           {placementSuggestions.length > 0 ? (
@@ -745,8 +751,8 @@ export function GitHubIntakeDashboard({
             </div>
           ) : (
             <p className="empty-state">
-              No unbound repositories are available for placement suggestions in the current GitHub
-              inventory.
+              No unconnected repositories are available for placement suggestions in the current
+              GitHub inventory.
             </p>
           )}
         </section>
@@ -805,7 +811,7 @@ export function GitHubIntakeDashboard({
               ) : (
                 <div className="github-binding-state is-unbound">
                   <Inbox size={15} />
-                  <span>Not bound to Atlas yet</span>
+                  <span>Not connected to Atlas yet</span>
                 </div>
               )}
 
@@ -855,7 +861,7 @@ export function GitHubIntakeDashboard({
         {visibleRepositories.length === 0 ? (
           <p className="empty-state">
             No repositories match this view. Missing credentials or permission gaps only affect this
-            intake surface.
+            command center view.
           </p>
         ) : null}
 

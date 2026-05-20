@@ -55,8 +55,8 @@ export const REVIEW_SESSION_PRESETS: ReviewSessionPreset[] = [
   },
   {
     id: 'github-intake-review',
-    label: 'GitHub intake review',
-    detail: 'Start a GitHub-focused review session for unbound repo and placement items.',
+    label: 'GitHub repo review',
+    detail: 'Start a GitHub-focused review session for unconnected repos and placement items.',
     scope: 'github',
     cadence: 'ad-hoc',
   },
@@ -371,6 +371,62 @@ export function createReviewNote({
     outcome,
     body: body.trim() || 'Review note captured.',
     createdAt: now.toISOString(),
+  }
+}
+
+export interface GithubWritePilotReviewNoteDisplay {
+  action: 'issue' | 'comment'
+  title: string
+  repositoryKey: string
+  result: string
+  resultNumber: number | null
+  htmlUrl: string
+  actor: string
+  source: string
+  broadWriteControlsEnabled: string
+  bodyExcerpt: string
+  rawBody: string
+}
+
+function labeledReviewLine(lines: string[], label: string) {
+  const prefix = `${label}:`
+  const line = lines.find((candidate) => candidate.startsWith(prefix))
+
+  return line ? line.slice(prefix.length).trim() : ''
+}
+
+export function parseGithubWritePilotReviewNote(
+  body: string,
+): GithubWritePilotReviewNoteDisplay | null {
+  const lines = body.split('\n').map((line) => line.trim())
+  const headline = lines[0] ?? ''
+  const action =
+    headline === 'GitHub issue created by Atlas write pilot.'
+      ? 'issue'
+      : headline === 'GitHub comment posted by Atlas write pilot.'
+        ? 'comment'
+        : null
+
+  if (!action) {
+    return null
+  }
+
+  const result = labeledReviewLine(lines, 'Result')
+  const issueMatch = result.match(/^#(\d+)/)
+  const commentMatch = result.match(/^comment on #(\d+)/)
+
+  return {
+    action,
+    title: action === 'issue' ? 'GitHub issue created' : 'GitHub comment posted',
+    repositoryKey: labeledReviewLine(lines, 'Repository') || 'Unknown repository',
+    result,
+    resultNumber: Number(issueMatch?.[1] ?? commentMatch?.[1]) || null,
+    htmlUrl: labeledReviewLine(lines, 'URL'),
+    actor: labeledReviewLine(lines, 'Actor') || 'unknown',
+    source: labeledReviewLine(lines, 'Source') || 'manual draft',
+    broadWriteControlsEnabled: labeledReviewLine(lines, 'Broad writeControlsEnabled') || 'false',
+    bodyExcerpt: labeledReviewLine(lines, 'Body excerpt'),
+    rawBody: body,
   }
 }
 
@@ -758,13 +814,13 @@ function githubItems(suggestions: RepoPlacementSuggestion[]) {
     source: 'github',
     severity: suggestion.confidence === 'high' ? 'medium' : 'low',
     dueState: 'attention',
-    title: `${suggestion.repository.fullName} is unbound`,
+    title: `${suggestion.repository.fullName} is unconnected`,
     detail:
       suggestion.suggestedProjectName ??
       ([suggestion.suggestedSectionName, suggestion.suggestedGroupName]
         .filter(Boolean)
         .join(' / ') || 'No strong placement suggestion.'),
-    reason: suggestion.reasons[0]?.detail || 'Repository is available but not bound to Atlas.',
+    reason: suggestion.reasons[0]?.detail || 'Repository is available but not connected to Atlas.',
     projectId: suggestion.suggestedProjectId,
     sectionId: suggestion.suggestedSectionId,
     sectionName: suggestion.suggestedSectionName,

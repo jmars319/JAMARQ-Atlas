@@ -774,15 +774,17 @@ async function installGithubApiMocks(page: Page) {
   })
 }
 
-test('operator can bind and import repositories from GitHub intake', async ({ page }) => {
+test('operator can connect and import repositories from GitHub command center', async ({ page }) => {
   await installGithubApiMocks(page)
 
   await page.goto('/')
   await clickAtlasNav(page, 'GitHub')
   await expect(page.getByRole('heading', { name: 'Command Center' })).toBeVisible()
+  await openGithubDisclosure(page, 'Connection and permission details')
   await expect(page.getByLabel('GitHub future controls locked')).toContainText(
     'writeControlsEnabled: false',
   )
+  await openGithubDisclosure(page, 'Action planner')
   const actionPlanner = page.getByRole('region', { name: 'Action Planner' })
   await expect(actionPlanner).toContainText('writeControlsEnabled: false')
   await expect(actionPlanner).toContainText('investigate checks data gap')
@@ -806,7 +808,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   await openGithubDisclosure(page, 'Suggested placement')
   await openGithubDisclosure(page, 'Repository inventory')
   await expect(page.locator('.github-intake-card').filter({ hasText: 'jmars319/tenra.dev' })).toBeVisible()
-  const deepDive = page.getByLabel('GitHub repo deep dive')
+  const deepDive = page.getByLabel('GitHub selected repo details')
   await expect(deepDive).toContainText('jmars319/JAMARQ-Atlas')
   await expect(deepDive).toContainText('main / clean / 0 ahead / 0 behind')
   await expect(page.getByLabel('Local Git preview')).toContainText('Commit execution')
@@ -850,7 +852,7 @@ test('operator can bind and import repositories from GitHub intake', async ({ pa
   )
 })
 
-test('GitHub intake auto-loads later installed repo pages for search', async ({ page }) => {
+test('GitHub command center auto-loads later installed repo pages for search', async ({ page }) => {
   await page.route('**/api/github/status', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
@@ -1029,14 +1031,14 @@ test('GitHub command center shows advisory failure and stale evidence', async ({
 
   await page.goto('/')
   await clickAtlasNav(page, 'GitHub')
-  const deepDive = page.getByLabel('GitHub repo deep dive')
+  const deepDive = page.getByLabel('GitHub selected repo details')
 
   await expect(deepDive).toContainText('Latest workflow failed')
   await expect(deepDive).toContainText('unit tests / npm run test:unit / failure')
   await expect(deepDive).toContainText('Local clone has changes')
   await expect(deepDive).toContainText('GitHub data gap')
   await expect(page.getByLabel('GitHub command bands')).toContainText('Local dirty clones')
-  await page.getByLabel('Deep dive repository').selectOption('jmars319/tenra.dev')
+  await page.getByLabel('Selected repository menu').selectOption('jmars319/tenra.dev')
   await expect(deepDive).toContainText('Historical workflow failure')
   await expect(deepDive).toContainText('Historical failure')
 })
@@ -1047,6 +1049,7 @@ test('GitHub write pilot creates issues and comments with typed confirmation', a
   await page.goto('/')
   await clickAtlasNav(page, 'GitHub')
 
+  await openGithubDisclosure(page, 'Action planner')
   const actionPlanner = page.getByRole('region', { name: 'Action Planner' })
   await actionPlanner.getByRole('button', { name: 'Draft GitHub issue' }).first().click()
   const writeDialog = page.getByRole('dialog', { name: 'Draft GitHub Issue' })
@@ -1059,7 +1062,7 @@ test('GitHub write pilot creates issues and comments with typed confirmation', a
   await expect(writeDialog).toContainText('Created GitHub issue in jmars319/JAMARQ-Atlas')
   await writeDialog.getByRole('button', { name: 'Close' }).click()
 
-  const deepDive = page.getByLabel('GitHub repo deep dive')
+  const deepDive = page.getByLabel('GitHub selected repo details')
   await deepDive.getByRole('tab', { name: 'Issues' }).click()
   await deepDive.getByRole('button', { name: 'Detail' }).click()
   await expect(page.getByLabel('GitHub PR or issue detail')).toContainText(
@@ -1078,12 +1081,9 @@ test('GitHub write pilot creates issues and comments with typed confirmation', a
 
   await clickAtlasNav(page, 'Review')
   const reviewNotes = page.getByLabel('Review notes', { exact: true })
-  await expect(reviewNotes).toContainText(
-    'GitHub issue created by Atlas write pilot',
-  )
-  await expect(reviewNotes).toContainText(
-    'GitHub comment posted by Atlas write pilot',
-  )
+  await expect(reviewNotes).toContainText('GitHub issue created')
+  await expect(reviewNotes).toContainText('GitHub comment posted')
+  await expect(reviewNotes).toContainText('Open on GitHub')
 })
 
 test('settings shows GitHub App sign-in state without active write controls', async ({ page }) => {

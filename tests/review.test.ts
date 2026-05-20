@@ -18,6 +18,7 @@ import {
   emptyReviewStore,
   saveReviewFilter,
   normalizeReviewState,
+  parseGithubWritePilotReviewNote,
   summarizeReviewQueue,
 } from '../src/services/review'
 import { emptySyncState } from '../src/services/syncSnapshots'
@@ -165,6 +166,33 @@ describe('operator review center', () => {
     expect(updated.notes).toHaveLength(1)
     expect(updated.notes[0].outcome).toBe('needs-follow-up')
     expect(seedWorkspace.sections[0].groups[0].projects[0].manual.status).toBe('Active')
+  })
+
+  it('parses GitHub write pilot notes for structured history display without changing storage', () => {
+    const parsed = parseGithubWritePilotReviewNote(
+      [
+        'GitHub issue created by Atlas write pilot.',
+        '',
+        'Repository: jmars319/JAMARQ-Atlas',
+        'Result: #12 Atlas follow-up',
+        'URL: https://github.com/jmars319/JAMARQ-Atlas/issues/12',
+        'Actor: jmars319',
+        'Source: action-jmars319-jamarq-atlas-prepare-commit',
+        'Broad writeControlsEnabled: false',
+        '',
+        'Body excerpt: Atlas action intent excerpt.',
+      ].join('\n'),
+    )
+
+    expect(parsed).toMatchObject({
+      action: 'issue',
+      title: 'GitHub issue created',
+      repositoryKey: 'jmars319/JAMARQ-Atlas',
+      resultNumber: 12,
+      htmlUrl: 'https://github.com/jmars319/JAMARQ-Atlas/issues/12',
+      broadWriteControlsEnabled: 'false',
+    })
+    expect(parseGithubWritePilotReviewNote('Regular operator note.')).toBeNull()
   })
 
   it('saves filters and creates preset sessions without mutating source stores', () => {

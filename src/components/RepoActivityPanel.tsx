@@ -491,7 +491,7 @@ export function RepoActivityPanel({ project }: RepoActivityPanelProps) {
   if (project.repositories.length === 0 || !selectedRepo) {
     return (
       <div className="repo-activity">
-        <p className="empty-state">No GitHub repository is bound to this Atlas project.</p>
+        <p className="empty-state">No GitHub repository is connected to this Atlas project.</p>
       </div>
     )
   }

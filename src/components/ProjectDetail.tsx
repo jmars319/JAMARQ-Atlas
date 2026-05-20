@@ -456,7 +456,7 @@ export function ProjectDetail({
               loading={commandSummaries.loading}
               error={commandSummaries.error}
               title="Project Action Planner"
-              detail="Top advisory Git/GitHub actions for bound repositories"
+              detail="Top advisory Git/GitHub actions for connected repositories"
               compact
               maxItems={5}
               onRefresh={commandSummaries.reload}
@@ -464,7 +464,7 @@ export function ProjectDetail({
           </>
         ) : (
           <p className="empty-state">
-            No repository is bound, so deploy delta summaries are unavailable.
+            No repository is connected, so deploy delta summaries are unavailable.
           </p>
         )}
         <RepoActivityPanel project={project} />
@@ -585,7 +585,7 @@ export function ProjectDetail({
             ))}
           </ul>
         ) : (
-          <p className="empty-state">No repository binding yet.</p>
+          <p className="empty-state">No connected repository yet.</p>
         )}
       </section>
 

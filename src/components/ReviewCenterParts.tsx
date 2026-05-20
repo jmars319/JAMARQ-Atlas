@@ -176,7 +176,7 @@ export function ReviewControlsPanel({
         </button>
         <button type="button" onClick={onOpenGitHub}>
           <GitBranch size={15} />
-          Open GitHub intake
+          Open GitHub command center
         </button>
       </div>
       <div className="review-preset-grid" aria-label="Review session presets">
