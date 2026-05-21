@@ -852,6 +852,90 @@ test('operator can connect and import repositories from GitHub command center', 
   )
 })
 
+test('GitHub command center labels zero repositories as connection required', async ({ page }) => {
+  await page.route('**/api/github/status', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        configured: false,
+        githubAppConfigured: false,
+        envTokenConfigured: false,
+        authenticated: false,
+        configuredRepos: [],
+        authMode: 'none',
+        appSlug: '',
+        callbackUrlConfigured: false,
+        missingConfig: ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY'],
+        user: null,
+        tokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
+        installCount: 0,
+        repoCount: 0,
+        writeControlsEnabled: false,
+        issueCommentPilotEnabled: false,
+        permissionPlan: [],
+        message: 'GitHub connection is not configured.',
+      }),
+    })
+  })
+
+  await page.route('**/api/github/repos?**', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [],
+        pageInfo: {
+          currentPage: 1,
+          hasNextPage: false,
+          nextPage: null,
+          perPage: 100,
+        },
+        error: {
+          type: 'missing-token',
+          status: 401,
+          resource: 'repos',
+          message:
+            'Sign in with the configured GitHub App, or set GITHUB_TOKEN/GH_TOKEN for legacy local fallback.',
+        },
+        permission: 'missing-token',
+      }),
+    })
+  })
+
+  await page.route(commandSummariesRoute, async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [],
+        pageInfo: {
+          currentPage: 1,
+          hasNextPage: false,
+          nextPage: null,
+          perPage: 20,
+        },
+        error: {
+          type: 'missing-token',
+          status: 401,
+          resource: 'command-summaries',
+          message: 'GitHub connection is not configured.',
+        },
+        permission: 'missing-token',
+      }),
+    })
+  })
+
+  await page.goto('/')
+  await clickAtlasNav(page, 'GitHub')
+
+  await expect(page.getByLabel('GitHub command counts')).toContainText('Connection required')
+  await expect(page.getByLabel('GitHub connection required')).toContainText(
+    '0 repositories means Atlas could not read GitHub yet',
+  )
+  await expect(page.getByLabel('GitHub connection required')).toContainText(
+    'sign-in or token required',
+  )
+})
+
 test('GitHub command center auto-loads later installed repo pages for search', async ({ page }) => {
   await page.route('**/api/github/status', async (route) => {
     await route.fulfill({

@@ -21,6 +21,10 @@ Supported variables:
 
 The app still runs when these variables are absent.
 
+When GitHub access is missing, Command Center labels the zero-repository state as a connection
+requirement. A `0 repos` count should be read as "Atlas could not read GitHub yet," not as proof
+that the product has no repositories.
+
 ## Service Boundary
 
 Browser code does not receive GitHub tokens. Requests go through the local Vite API boundary in `server/githubApi.ts`.

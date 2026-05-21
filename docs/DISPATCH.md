@@ -147,7 +147,7 @@ Closeout states include:
 
 These states are labels for human review. They are not stored as operational truth and do not prove that Atlas deployed, verified, published, or completed anything. Closeout analytics do not create deployment records, mark verification, update readiness, change target status, or mutate Workspace, Planning, GitHub, Writing, Reports, Settings, or Sync state.
 
-The Dispatch dashboard shows queue-level closeout counts, queue rows show compact closeout chips, and project Dispatch panels show a Closeout Review with requirements and evidence signals.
+The Dispatch dashboard shows queue-level closeout counts, a compact closeout-first view grouped by evidence, manual session state, missing records, protected checks, backup/rollback posture, and report creation. Queue rows show compact closeout chips, and project Dispatch panels show a Closeout Review with requirements and evidence signals.
 
 ## Deploy Sessions
 

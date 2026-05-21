@@ -118,6 +118,11 @@ Review queue inputs include:
 - Writing drafts and report packets awaiting review, approval, export, or follow-up.
 - Data/Sync backup age and snapshot attention states.
 
+The Review queue defaults to a daily-first view and groups rows into due/overdue, blocked,
+Dispatch, GitHub/data gaps, planning/writing/reports, and data/sync sections. Review can create
+single or batch Planning notes for project-backed queue items, preserving Review source links and
+defaulting the Planning status to `planned`.
+
 Review outcomes are `noted`, `needs-follow-up`, `no-action`, and `planned`. Creating a Planning note from Review is an explicit human action. Review sessions do not change project status, risk, next action, verification, Dispatch readiness, GitHub bindings, Writing drafts, Reports, Settings, or Sync.
 
 Review includes reusable session presets for daily sweep, weekly ops review, deploy follow-up, and GitHub intake review. Presets only preselect derived queue items for a human review session; they do not change source records or decide outcomes.
@@ -265,7 +270,7 @@ The optional Host Inspector can use server-side `ATLAS_HOST_PREFLIGHT_CONFIG` en
 
 The Dispatch Queue Command Center derives one ordered row per current cPanel runbook. It summarizes artifact inspection, latest preflight, latest host evidence, latest runbook verification evidence, deploy-session state, and manual deployment records. Queue rows include plain-language state explanations, artifact inspection counts, warning counts, and latest evidence timestamps. It can run read-only evidence checks and create local readiness report packets, but it does not persist a separate queue store or make shipping decisions.
 
-Dispatch Closeout Analytics derives a review posture from runbook artifact inspection, deploy-session steps, latest host evidence, latest runbook verification evidence, manual deployment records, backup/rollback references, and related deployment report packets. Closeout states such as `not-started`, `session-active`, `needs-evidence`, `needs-manual-record`, `needs-follow-up`, and `closeout-ready` are advisory labels only. They do not deploy, verify, publish, mark readiness, or change any Atlas/Dispatch source-of-truth field.
+Dispatch Closeout Analytics derives a review posture from runbook artifact inspection, deploy-session steps, latest host evidence, latest runbook verification evidence, manual deployment records, protected checks, backup/rollback references, and related deployment report packets. The dashboard includes a compact closeout-first view grouped by evidence, manual session state, missing records, protected checks, backup/rollback posture, and report creation. Closeout states such as `not-started`, `session-active`, `needs-evidence`, `needs-manual-record`, `needs-follow-up`, and `closeout-ready` are advisory labels only. They do not deploy, verify, publish, mark readiness, or change any Atlas/Dispatch source-of-truth field.
 
 Deploy Sessions sit between runbooks and deployment records. A session guides a human through preflight review, artifact inspection, preserve/create path checks, backup readiness, an outside-Atlas upload note, verification checks, operator notes, and wrap-up. Checklist presets can explicitly mark pre-upload review or closeout review steps as human-reviewed, but they only update the selected session. Atlas does not perform the upload. Recording the final deployment requires typing `RECORD MANUAL DEPLOYMENT`, and the resulting record states that Atlas did not deploy, upload, overwrite, back up, restore, roll back, SSH/SFTP write, cPanel write, or touch databases.
 

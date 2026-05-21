@@ -12,7 +12,8 @@ Review Center supports:
 - Saved filters for repeatable review views.
 - Session presets for daily sweep, weekly ops review, deploy follow-up, and GitHub intake review.
 - Review outcomes: `noted`, `needs-follow-up`, `no-action`, and `planned`.
-- Optional explicit Planning note creation from a review item.
+- A Today’s review mode for the highest-impact subset.
+- Explicit single-item and batch Planning note creation for project-backed review items.
 - Project detail review history and quick review notes.
 
 The derived queue is not persisted. Sessions, notes, and saved filter definitions are stored under `jamarq-atlas.review.v1`.
@@ -32,6 +33,10 @@ Review queue items may come from:
 - Data and Sync snapshot/backup age attention states.
 
 Each queue item includes source, severity, due state, project or repository context when available, and plain-language reasons.
+
+The visible queue is grouped into due/overdue, blocked, Dispatch, GitHub/data gaps,
+planning/writing/reports, and data/sync sections. The derived queue and current selection remain
+component-local; they are not stored as source-of-truth data.
 
 ## Stored Data
 
@@ -56,7 +61,7 @@ Saved filters preserve the visible queue criteria so common review views can be 
 
 ## Planning Handoff
 
-Review can create a Planning note only when the operator explicitly chooses that action. The Planning note is stored through the Planning service with a source link back to the Review note, and the original Review note/session remains review-only context.
+Review can create a Planning note only when the operator explicitly chooses that action. The Planning note is stored through the Planning service with a source link back to the Review note, status `planned`, and the Review reason/detail preserved. Batch planning creates notes only for selected project-backed queue items; items without project IDs remain Review/session context only.
 
 Creating a Planning note from Review does not change project status, risk, next action, verification, Dispatch readiness, Writing state, Reports, GitHub bindings, Settings, or Sync.
 

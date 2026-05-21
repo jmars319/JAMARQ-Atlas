@@ -433,6 +433,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(queue).toContainText('#5 / Bow Wow')
   await clickAtlasNav(page, 'Ops')
   await expect(page.getByRole('heading', { name: 'Ops Cockpit' })).toBeVisible()
+  await expect(page.getByLabel('Ops daily entry points')).toContainText('Review')
+  await expect(page.getByLabel('Ops daily entry points')).toContainText('Dispatch')
+  await expect(page.getByLabel('Ops daily entry points')).toContainText('Data backup')
   await expect(page.getByLabel('Ops daily queue')).toContainText('Midway Mobile Storage')
   await page
     .getByLabel('Ops daily queue')

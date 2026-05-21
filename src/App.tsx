@@ -501,6 +501,9 @@ function App() {
               atlasActions.selectProject(projectId)
               setAppView('dispatch')
             }}
+            onOpenReview={() => setAppView('review')}
+            onOpenPlanning={() => setAppView('planning')}
+            onOpenDispatch={() => setAppView('dispatch')}
             onOpenCalibration={() => setAppView('settings')}
             onOpenDataCenter={() => setAppView('data')}
             onRunEvidenceSweep={(targetIds) => atlasActions.runQueueEvidenceSweep(targetIds)}

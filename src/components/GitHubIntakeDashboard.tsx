@@ -357,6 +357,16 @@ export function GitHubIntakeDashboard({
   const missingLocalClones = commandSummaries.data.filter(
     (summary) => summary.localGit.status === 'not-found',
   )
+  const repoSourcesSettled = !configuredRepos.loading && !viewerRepos.loading
+  const githubConnectionRequired =
+    repoSourcesSettled &&
+    repositories.length === 0 &&
+    (!githubStatus?.authenticated || Boolean(configuredRepos.error || viewerRepos.error))
+  const githubConnectionDetail =
+    githubStatus?.message ||
+    configuredRepos.error?.message ||
+    viewerRepos.error?.message ||
+    'Connect GitHub App sign-in or configure a local read token before treating repository counts as product data.'
 
   function selectProjectBoundRepository(projectId: string) {
     const record = projectRecords.find((candidate) => candidate.project.id === projectId)
@@ -406,7 +416,7 @@ export function GitHubIntakeDashboard({
           <div>
             <GitBranch size={17} />
             <strong>{repositories.length}</strong>
-            <span>Repos</span>
+            <span>{githubConnectionRequired ? 'Connection required' : 'Repos'}</span>
           </div>
           <div>
             <Link2 size={17} />
@@ -458,6 +468,31 @@ export function GitHubIntakeDashboard({
           <span>Missing local clone</span>
         </div>
       </div>
+
+      {githubConnectionRequired ? (
+        <section className="github-setup-state" aria-label="GitHub connection required">
+          <div>
+            <ShieldAlert size={17} />
+            <div>
+              <strong>Connection required</strong>
+              <span>
+                0 repositories means Atlas could not read GitHub yet, not that the product has no
+                repositories.
+              </span>
+            </div>
+          </div>
+          <div className="resource-meta">
+            <span>{githubConnectionDetail}</span>
+            <span>
+              Status:{' '}
+              {githubStatus?.authenticated
+                ? 'authenticated but no repositories visible'
+                : 'sign-in or token required'}
+            </span>
+            <span>writeControlsEnabled: false</span>
+          </div>
+        </section>
+      ) : null}
 
       <details className="github-disclosure">
         <summary>

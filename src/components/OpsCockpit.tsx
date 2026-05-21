@@ -34,6 +34,9 @@ interface OpsCockpitProps {
   dataIntegrityDiagnostics: DataIntegrityDiagnostic[]
   onOpenProject: (projectId: string) => void
   onOpenDispatchTarget: (projectId: string, targetId: string) => void
+  onOpenReview: () => void
+  onOpenPlanning: () => void
+  onOpenDispatch: () => void
   onOpenCalibration: () => void
   onOpenDataCenter: () => void
   onRunEvidenceSweep: (targetIds: string[]) => Promise<void>
@@ -84,6 +87,9 @@ export function OpsCockpit({
   dataIntegrityDiagnostics,
   onOpenProject,
   onOpenDispatchTarget,
+  onOpenReview,
+  onOpenPlanning,
+  onOpenDispatch,
   onOpenCalibration,
   onOpenDataCenter,
   onRunEvidenceSweep,
@@ -176,6 +182,34 @@ export function OpsCockpit({
           <Stat icon={<ClipboardCheck size={16} />} value={summary.counts.closeoutGaps} label="Closeout gaps" />
         </div>
       </div>
+
+      <section className="ops-entry-points" aria-label="Ops daily entry points">
+        <button type="button" onClick={onOpenReview}>
+          <ListChecks size={15} />
+          <strong>Review</strong>
+          <span>Daily queue</span>
+        </button>
+        <button type="button" onClick={onOpenPlanning}>
+          <ClipboardCheck size={15} />
+          <strong>Planning</strong>
+          <span>Planned notes</span>
+        </button>
+        <button type="button" onClick={onOpenDispatch}>
+          <Rocket size={15} />
+          <strong>Dispatch</strong>
+          <span>Closeout focus</span>
+        </button>
+        <button type="button" onClick={onOpenCalibration}>
+          <ShieldAlert size={15} />
+          <strong>Calibration</strong>
+          <span>{calibrationIssues.length} gaps</span>
+        </button>
+        <button type="button" onClick={onOpenDataCenter}>
+          <ArchiveRestore size={15} />
+          <strong>Data backup</strong>
+          <span>Snapshots</span>
+        </button>
+      </section>
 
       <section className="dispatch-preflight" aria-label="Ops global readiness">
         <div className="panel-heading">
