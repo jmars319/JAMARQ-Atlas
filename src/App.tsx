@@ -430,6 +430,7 @@ function App() {
         ) : appView === 'github' ? (
           <GitHubIntakeDashboard
             projectRecords={projectRecords}
+            dispatch={dispatch}
             selectedProjectId={selectedRecord?.project.id ?? ''}
             onSelectProject={atlasActions.selectProject}
             onBindRepository={atlasActions.bindRepository}

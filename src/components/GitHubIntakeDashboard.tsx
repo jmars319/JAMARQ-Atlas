@@ -7,6 +7,7 @@ import {
   Lightbulb,
   Link2,
   RefreshCcw,
+  Rocket,
   Search,
   ShieldAlert,
   SquareArrowOutUpRight,
@@ -19,10 +20,12 @@ import type {
   GithubRepositorySummary,
 } from '../services/githubIntegration'
 import type { ProjectRecord } from '../domain/atlas'
+import type { DispatchState } from '../domain/dispatch'
 import type { ReviewNote } from '../domain/review'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
+import { useVercelCommandSummaries } from '../hooks/useVercelCommandSummaries'
 import type { GithubRepoCommandSummary } from '../services/githubCommand'
 import { deriveAtlasActionIntents } from '../services/actionPlanner'
 import {
@@ -38,6 +41,10 @@ import { ActionPlannerPanel } from './ActionPlannerPanel'
 import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
 import { GitHubWritePilotDialog } from './GitHubWritePilotDialog'
+import {
+  deriveVercelReadinessSignals,
+  vercelDeploymentLabel,
+} from '../services/vercelIntegration'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
 
@@ -48,6 +55,7 @@ interface IntakeRepository {
 
 interface GitHubIntakeDashboardProps {
   projectRecords: ProjectRecord[]
+  dispatch: DispatchState
   selectedProjectId: string
   onSelectProject: (projectId: string) => void
   onBindRepository: (projectId: string, repository: GithubRepositorySummary) => void
@@ -196,6 +204,7 @@ function SourceNotice({
 
 export function GitHubIntakeDashboard({
   projectRecords,
+  dispatch,
   selectedProjectId,
   onSelectProject,
   onBindRepository,
@@ -301,6 +310,33 @@ export function GitHubIntakeDashboard({
   const selectedCommandSummary = selectedDeepDive
     ? summaryFor(commandSummaries.data, selectedDeepDive.repository.fullName)
     : null
+  const selectedVercelTargets = useMemo(
+    () =>
+      selectedDeepDiveBinding
+        ? dispatch.targets.filter(
+            (target) =>
+              target.projectId === selectedDeepDiveBinding.project.id &&
+              target.hostType === 'vercel',
+          )
+        : [],
+    [dispatch.targets, selectedDeepDiveBinding],
+  )
+  const selectedVercelSummaries = useVercelCommandSummaries(
+    selectedVercelTargets.map((target) => target.id),
+  )
+  const selectedVercelSignals = useMemo(
+    () =>
+      selectedVercelSummaries.data.flatMap((summary) => {
+        const target = selectedVercelTargets.find((candidate) => candidate.id === summary.targetId)
+
+        return deriveVercelReadinessSignals({
+          summary,
+          target,
+          repositoryKeys: selectedDeepDive ? [selectedDeepDive.repository.fullName] : [],
+        })
+      }),
+    [selectedDeepDive, selectedVercelSummaries.data, selectedVercelTargets],
+  )
   const attentionSummaries = commandSummaries.data.filter((summary) =>
     ['attention', 'stale', 'unknown'].includes(summary.state),
   )
@@ -594,6 +630,39 @@ export function GitHubIntakeDashboard({
               </button>
             </div>
           )}
+        </section>
+      ) : null}
+
+      {selectedDeepDiveBinding ? (
+        <section className="github-connection-panel" aria-label="Selected repository deployment evidence">
+          <div>
+            <Rocket size={17} />
+            <div>
+              <strong>Deployment evidence</strong>
+              <span>
+                {selectedVercelTargets.length} Vercel target(s) linked through the connected
+                project.
+              </span>
+            </div>
+          </div>
+          <div className="resource-meta">
+            {selectedVercelSummaries.data.length > 0 ? (
+              selectedVercelSummaries.data.map((summary) => (
+                <span key={summary.targetId}>
+                  {summary.project?.name ?? summary.projectIdOrName ?? summary.targetId}:{' '}
+                  {vercelDeploymentLabel(summary.latestProduction)}
+                </span>
+              ))
+            ) : (
+              <span>
+                {selectedVercelSummaries.loading
+                  ? 'Loading Vercel evidence'
+                  : 'No Vercel evidence loaded'}
+              </span>
+            )}
+            <span>{selectedVercelSignals.filter((signal) => signal.severity !== 'ok').length} deployment signal(s)</span>
+            <span>writeControlsEnabled: false</span>
+          </div>
         </section>
       ) : null}
 

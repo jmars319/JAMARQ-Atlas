@@ -3,6 +3,7 @@ import type { AtlasSyncProviderState } from '../domain/sync'
 import type { GithubConnectionState } from '../services/githubIntegration'
 import type { HostConnectionStatusResponse } from '../services/hostConnection'
 import type { HostedSyncStatus } from '../services/hostedSync'
+import type { VercelConnectionState } from '../services/vercelIntegration'
 import type { WritingProviderStatusResponse } from '../services/writingProvider'
 
 export type GithubStatusResponse = GithubConnectionState
@@ -146,6 +147,39 @@ export function buildHostConnectionCard(
     detail: `${status.data?.configuredTargets.length ?? 0} targets configured; ${
       status.data?.sftpEnabledCount ?? 0
     } SFTP read-only. Atlas stores credential reference labels only.`,
+  } satisfies AtlasConnectionCard
+}
+
+export function buildVercelCard(status: VercelConnectionState | null, error: string | null) {
+  if (error) {
+    return {
+      id: 'vercel',
+      title: 'Vercel Deployment Evidence',
+      status: 'unknown',
+      summary: 'Vercel status could not be read.',
+      detail: error,
+    } satisfies AtlasConnectionCard
+  }
+
+  if (!status?.configured) {
+    return {
+      id: 'vercel',
+      title: 'Vercel Deployment Evidence',
+      status: 'missing',
+      summary: 'Vercel read-only API is not configured.',
+      detail:
+        'Set VERCEL_TOKEN and ATLAS_VERCEL_PROJECT_MAP locally to read deployment evidence. Deploy, promote, rollback, domain, and env controls stay locked.',
+    } satisfies AtlasConnectionCard
+  }
+
+  return {
+    id: 'vercel',
+    title: 'Vercel Deployment Evidence',
+    status: 'available',
+    summary: `${status.mappedTargetCount} Dispatch target(s) mapped to Vercel projects.`,
+    detail: `Read-only Vercel API is available. Team scope configured: ${String(
+      status.teamScope.teamIdConfigured || status.teamScope.teamSlugConfigured,
+    )}. Deployment writes locked: ${String(status.writeControlsEnabled)}.`,
   } satisfies AtlasConnectionCard
 }
 

@@ -133,9 +133,9 @@ function createInboxActivity(projectId: string, repository: GithubRepositorySumm
     id: `${projectId}-github-intake`,
     source: 'manual',
     type: 'note',
-    title: 'Created from GitHub Intake',
+    title: 'Created from GitHub Command Center',
     detail:
-      'Repository binding was created for manual triage. GitHub did not set status, priority, risk, or roadmap.',
+      'Repository connection was created for manual triage. GitHub did not set status, priority, risk, or roadmap.',
     occurredAt: todayIsoDate(),
     url: repository.htmlUrl,
   }
@@ -161,13 +161,13 @@ function createInboxProject(workspace: Workspace, repository: GithubRepositorySu
       nextAction: 'Review this repository and decide where it belongs in Atlas.',
       lastMeaningfulChange: repository.pushedAt
         ? `GitHub reports latest push at ${repository.pushedAt}. Atlas has not interpreted it.`
-        : 'Created from GitHub Intake. Atlas has not interpreted activity yet.',
+        : 'Created from GitHub Command Center. Atlas has not interpreted activity yet.',
       lastVerified: '',
       currentRisk: 'Not yet operationally classified.',
       blockers: [],
       deferredItems: [],
       notDoingItems: [],
-      notes: ['Created from GitHub Intake. Review manually before changing status.'],
+      notes: ['Created from GitHub Command Center. Review manually before changing status.'],
       decisions: [],
     },
     repositories: [link],

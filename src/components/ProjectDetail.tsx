@@ -55,6 +55,7 @@ import {
 } from '../services/actionPlanner'
 import { deriveGithubProjectCommandRollup } from '../services/githubCommand'
 import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
+import { useVercelCommandSummaries } from '../hooks/useVercelCommandSummaries'
 import { ActionPlannerPanel } from './ActionPlannerPanel'
 import { ActivityFeed } from './ActivityFeed'
 import { DispatchPanel } from './DispatchPanel'
@@ -65,6 +66,10 @@ import { RepoActivityPanel } from './RepoActivityPanel'
 import { ReviewPanel } from './ReviewPanel'
 import { StatusBadge } from './StatusBadge'
 import { TimelineEventList } from './TimelineEventList'
+import {
+  deriveVercelReadinessSignals,
+  vercelDeploymentLabel,
+} from '../services/vercelIntegration'
 
 interface ProjectDetailProps {
   record: ProjectRecord
@@ -267,6 +272,32 @@ export function ProjectDetail({
     () => deriveAtlasProjectActionRollup({ projectRecord: record, intents: actionIntents }),
     [actionIntents, record],
   )
+  const projectTargets = useMemo(
+    () => dispatch.targets.filter((target) => target.projectId === project.id),
+    [dispatch.targets, project.id],
+  )
+  const vercelTargets = useMemo(
+    () => projectTargets.filter((target) => target.hostType === 'vercel'),
+    [projectTargets],
+  )
+  const vercelSummaries = useVercelCommandSummaries(vercelTargets.map((target) => target.id))
+  const vercelSignals = useMemo(
+    () =>
+      vercelSummaries.data.flatMap((summary) => {
+        const target = vercelTargets.find((candidate) => candidate.id === summary.targetId)
+
+        return deriveVercelReadinessSignals({
+          summary,
+          target,
+          repositoryKeys: projectRepoKeys,
+        })
+      }),
+    [projectRepoKeys, vercelSummaries.data, vercelTargets],
+  )
+  const latestVercelProduction = vercelSummaries.data.find(
+    (summary) => summary.latestProduction,
+  )?.latestProduction
+  const projectReviewItems = review.notes.filter((note) => note.projectId === project.id).length
 
   return (
     <aside className="project-detail" aria-labelledby="project-detail-title">
@@ -287,6 +318,49 @@ export function ProjectDetail({
           Reset seed
         </button>
       </div>
+
+      <section className="detail-panel">
+        <div className="panel-heading">
+          <ClipboardList size={17} />
+          <h3>Project Command Summary</h3>
+        </div>
+        <div className="github-health-grid is-compact">
+          <div>
+            <GitBranch size={16} />
+            <strong>{githubRollup.latestCiStatus}</strong>
+            <span>Latest CI/check</span>
+          </div>
+          <div>
+            <Rocket size={16} />
+            <strong>{vercelDeploymentLabel(latestVercelProduction ?? null)}</strong>
+            <span>Vercel production</span>
+          </div>
+          <div>
+            <Rocket size={16} />
+            <strong>{projectTargets.length}</strong>
+            <span>Dispatch targets</span>
+          </div>
+          <div>
+            <ShieldAlert size={16} />
+            <strong>{vercelSignals.filter((signal) => signal.severity !== 'ok').length}</strong>
+            <span>Deployment signals</span>
+          </div>
+          <div>
+            <GitBranch size={16} />
+            <strong>{actionRollup.dirtyLocalRepoCount}</strong>
+            <span>Dirty local repos</span>
+          </div>
+          <div>
+            <NotebookPen size={16} />
+            <strong>{projectReviewItems}</strong>
+            <span>Review notes</span>
+          </div>
+        </div>
+        <p className="dispatch-muted-note">
+          Advisory summary only. Manual project status, Dispatch readiness, verification, and
+          deploy state remain unchanged.
+        </p>
+      </section>
 
       <section className="detail-panel">
         <div className="panel-heading">

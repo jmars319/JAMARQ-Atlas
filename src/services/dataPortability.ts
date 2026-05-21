@@ -581,7 +581,7 @@ export function createAtlasStoreDiagnostics(
     countSummary: `${summary.workspace.projects} projects / ${summary.workspace.repositoryBindings} repo bindings`,
     messages: workspaceMessages,
     repairHint:
-      'Use Board/GitHub Intake to add projects or bindings. Export a backup before Reset seed.',
+      'Use Board/GitHub Command Center to add projects or repository connections. Export a backup before Reset seed.',
   })
 
   const dispatchMessages = [

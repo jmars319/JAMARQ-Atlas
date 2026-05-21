@@ -73,6 +73,13 @@ export interface LocalGitFileChange {
   deletions: number | null
 }
 
+export interface LocalGitChangeGroup {
+  change: LocalGitChangeKind
+  label: string
+  count: number
+  paths: string[]
+}
+
 export interface LocalGitDryRunCommitPreview {
   available: boolean
   blocked: boolean
@@ -90,6 +97,7 @@ export interface LocalGitRepositoryPreview {
   additions: number | null
   deletions: number | null
   changedFiles: LocalGitFileChange[]
+  changeGroups: LocalGitChangeGroup[]
   diffStat: {
     unstaged: string
     staged: string
@@ -373,6 +381,7 @@ function createDryRunCommitPreview(
   changes: LocalGitFileChange[],
 ): LocalGitDryRunCommitPreview {
   const hasChanges = changes.length > 0
+  const groups = groupLocalGitChanges(changes)
   const subjectSuggestion = hasChanges
     ? `Review ${changes.length} local change${changes.length === 1 ? '' : 's'} on ${status.branch}`
     : `No local changes on ${status.branch}`
@@ -387,6 +396,7 @@ function createDryRunCommitPreview(
           `${changes.filter((change) => change.staged).length} staged file(s).`,
           `${changes.filter((change) => change.unstaged).length} unstaged file(s).`,
           `${changes.filter((change) => change.untracked).length} untracked file(s).`,
+          ...groups.map((group) => `${group.label}: ${group.count} file(s).`),
         ]
       : ['Working tree is clean.'],
     commandPreview: [
@@ -401,6 +411,31 @@ function createDryRunCommitPreview(
       'Atlas did not stage, commit, branch, pull, push, reset, stash, or checkout anything.',
     ],
   }
+}
+
+function groupLabel(change: LocalGitChangeKind) {
+  return change
+    .split('-')
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function groupLocalGitChanges(changes: LocalGitFileChange[]): LocalGitChangeGroup[] {
+  const groups = new Map<LocalGitChangeKind, LocalGitFileChange[]>()
+
+  changes.forEach((change) => {
+    const current = groups.get(change.change) ?? []
+
+    current.push(change)
+    groups.set(change.change, current)
+  })
+
+  return [...groups.entries()].map(([change, groupChanges]) => ({
+    change,
+    label: groupLabel(change),
+    count: groupChanges.length,
+    paths: groupChanges.slice(0, 8).map((item) => item.path),
+  }))
 }
 
 async function git(repoPath: string, args: string[]) {
@@ -679,6 +714,7 @@ export async function getLocalGitRepositoryPreview(
         additions: totalNullable(numericAdditions),
         deletions: totalNullable(numericDeletions),
         changedFiles,
+        changeGroups: groupLocalGitChanges(changedFiles),
         diffStat: {
           unstaged: clipDiffStat([unstagedNameStatus, unstagedDiffStat].filter(Boolean).join('\n')),
           staged: clipDiffStat([stagedNameStatus, stagedDiffStat].filter(Boolean).join('\n')),

@@ -125,7 +125,7 @@ export function DispatchQueueCommandCenter({
     <section className="dispatch-queue" aria-label="Dispatch queue command center">
       <div className="panel-heading">
         <ClipboardCheck size={17} />
-        <h2>Queue Command Center</h2>
+        <h2>Deployment Queue Command Center</h2>
       </div>
       <div className="dispatch-preflight-actions">
         <button
@@ -137,7 +137,8 @@ export function DispatchQueueCommandCenter({
           {evidenceSweepRunning ? 'Sweeping evidence' : 'Run read-only evidence sweep'}
         </button>
         <span>
-          Ordered cPanel queue. Evidence only; uploads and production changes happen outside Atlas.
+          Ordered deployment queue. Evidence only; uploads and production changes happen outside
+          Atlas.
         </span>
       </div>
 

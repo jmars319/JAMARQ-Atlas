@@ -108,8 +108,12 @@ export type DispatchPreflightCheckType =
   | 'github-release'
   | 'github-deployment'
   | 'github-permission'
+  | 'vercel-project'
+  | 'vercel-deployment'
+  | 'vercel-domain'
+  | 'vercel-permission'
 
-export type DispatchPreflightSource = 'atlas' | 'dispatch' | 'health-check' | 'github'
+export type DispatchPreflightSource = 'atlas' | 'dispatch' | 'health-check' | 'github' | 'vercel'
 
 export interface DispatchPreflightCheck {
   id: string

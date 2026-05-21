@@ -24,6 +24,13 @@ import type {
 } from './githubIntegration'
 import { fetchGithubJson } from './githubIntegration'
 import { probeHealthChecks } from './dispatchHealthChecks'
+import {
+  deriveVercelReadinessSignals,
+  fetchVercelCommandSummaries,
+  isVercelDeploymentFailure,
+  vercelDeploymentLabel,
+  type VercelReadinessSignal,
+} from './vercelIntegration'
 
 const FAILURE_CONCLUSIONS = new Set(['failure', 'timed_out', 'action_required'])
 const WARNING_CONCLUSIONS = new Set(['cancelled', 'neutral', 'skipped', 'stale'])
@@ -120,6 +127,111 @@ function githubWarning(
       ? `${resource} unavailable: ${error.message}`
       : `${resource} unavailable for ${fullName}.`,
   })
+}
+
+function statusFromVercelSignal(signal: VercelReadinessSignal): DispatchPreflightStatus {
+  if (signal.severity === 'danger') {
+    return 'failed'
+  }
+
+  if (signal.severity === 'warning') {
+    return 'warning'
+  }
+
+  if (signal.severity === 'ok') {
+    return 'passing'
+  }
+
+  return 'skipped'
+}
+
+async function buildVercelPreflightChecks({
+  record,
+  target,
+  checkedAt,
+  signal: abortSignal,
+}: {
+  record: ProjectRecord
+  target?: DeploymentTarget
+  checkedAt: string
+  signal?: AbortSignal
+}): Promise<DispatchPreflightCheck[]> {
+  if (!target || target.hostType !== 'vercel') {
+    return []
+  }
+
+  try {
+    const result = await fetchVercelCommandSummaries([target.id], abortSignal, 'reload')
+    const summary = result.data?.find((candidate) => candidate.targetId === target.id)
+
+    if (!summary) {
+      return [
+        check({
+          type: 'vercel-permission',
+          source: 'vercel',
+          label: 'Vercel deployment evidence',
+          status: result.error ? 'warning' : 'skipped',
+          checkedAt,
+          message: result.error?.message ?? 'No Vercel command summary was returned.',
+        }),
+      ]
+    }
+
+    const repositoryKeys = record.project.repositories.map(
+      (repository) => `${repository.owner}/${repository.name}`,
+    )
+    const signals = deriveVercelReadinessSignals({ summary, target, repositoryKeys })
+    const checks: DispatchPreflightCheck[] = signals.map((vercelSignal) =>
+      check({
+        type:
+          vercelSignal.category === 'domain'
+            ? 'vercel-domain'
+            : vercelSignal.category === 'permission'
+              ? 'vercel-permission'
+              : vercelSignal.category === 'project' || vercelSignal.category === 'mapping'
+                ? 'vercel-project'
+                : 'vercel-deployment',
+        source: 'vercel',
+        label: vercelSignal.title,
+        status: statusFromVercelSignal(vercelSignal),
+        checkedAt,
+        url: vercelSignal.url ?? undefined,
+        message: vercelSignal.detail,
+        details: vercelSignal.evidence,
+      }),
+    )
+
+    if (summary.latestProduction) {
+      checks.push(
+        check({
+          type: 'vercel-deployment',
+          source: 'vercel',
+          label: 'Latest Vercel production deployment',
+          status: isVercelDeploymentFailure(summary.latestProduction) ? 'failed' : 'passing',
+          checkedAt,
+          url: summary.latestProduction.inspectorUrl ?? summary.latestProduction.deploymentUrl ?? undefined,
+          message: vercelDeploymentLabel(summary.latestProduction),
+          details: [
+            summary.latestProduction.readyAt ?? summary.latestProduction.createdAt ?? 'time unknown',
+            summary.latestProduction.creator ?? 'creator unknown',
+          ],
+        }),
+      )
+    }
+
+    return checks
+  } catch (error) {
+    return [
+      check({
+        type: 'vercel-permission',
+        source: 'vercel',
+        label: 'Vercel deployment evidence',
+        status: 'warning',
+        checkedAt,
+        message: error instanceof Error ? error.message : 'Vercel evidence could not be read.',
+      }),
+    ]
+  }
 }
 
 export function buildTargetPreflightChecks({
@@ -441,6 +553,7 @@ export async function runDispatchPreflight({
     )
   }
 
+  checks.push(...(await buildVercelPreflightChecks({ record, target, checkedAt: startedAt, signal })))
   checks.push(...(await buildGithubPreflightChecks(record, startedAt, signal)))
 
   const completedAt = new Date().toISOString()

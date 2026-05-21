@@ -62,26 +62,35 @@ export function LocalGitPreviewPanel({ owner, repo }: LocalGitPreviewPanelProps)
           </div>
 
           {data.changedFiles.length > 0 ? (
-            <ol className="local-git-file-list">
-              {data.changedFiles.slice(0, 12).map((change) => (
-                <li key={`${change.path}-${change.indexStatus}-${change.worktreeStatus}`}>
-                  <span>{change.change}</span>
-                  <strong>{change.path}</strong>
-                  <small>
-                    {[
-                      change.previousPath ? `from ${change.previousPath}` : '',
-                      change.staged ? 'staged' : '',
-                      change.unstaged ? 'unstaged' : '',
-                      change.untracked ? 'untracked' : '',
-                      change.additions === null ? '' : `+${change.additions}`,
-                      change.deletions === null ? '' : `-${change.deletions}`,
-                    ]
-                      .filter(Boolean)
-                      .join(' / ')}
-                  </small>
-                </li>
-              ))}
-            </ol>
+            <>
+              <div className="resource-meta">
+                {(data.changeGroups ?? []).map((group) => (
+                  <span key={group.change}>
+                    {group.label}: {group.count}
+                  </span>
+                ))}
+              </div>
+              <ol className="local-git-file-list">
+                {data.changedFiles.slice(0, 12).map((change) => (
+                  <li key={`${change.path}-${change.indexStatus}-${change.worktreeStatus}`}>
+                    <span>{change.change}</span>
+                    <strong>{change.path}</strong>
+                    <small>
+                      {[
+                        change.previousPath ? `from ${change.previousPath}` : '',
+                        change.staged ? 'staged' : '',
+                        change.unstaged ? 'unstaged' : '',
+                        change.untracked ? 'untracked' : '',
+                        change.additions === null ? '' : `+${change.additions}`,
+                        change.deletions === null ? '' : `-${change.deletions}`,
+                      ]
+                        .filter(Boolean)
+                        .join(' / ')}
+                    </small>
+                  </li>
+                ))}
+              </ol>
+            </>
           ) : (
             <p className="empty-state">Working tree is clean for the matched local clone.</p>
           )}
@@ -91,6 +100,11 @@ export function LocalGitPreviewPanel({ owner, repo }: LocalGitPreviewPanelProps)
               <Lock size={15} />
               <strong>{data.dryRunCommit.subjectSuggestion}</strong>
               <span>{data.dryRunCommit.blockers.join(' ')}</span>
+            </div>
+            <div className="resource-meta">
+              {data.dryRunCommit.bodyLines.map((line) => (
+                <span key={line}>{line}</span>
+              ))}
             </div>
             <ol>
               {data.dryRunCommit.commandPreview.map((command) => (

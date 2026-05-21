@@ -28,6 +28,7 @@ import type { TimelineEvent } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
 import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
+import { useVercelCommandSummaries } from '../hooks/useVercelCommandSummaries'
 import type { GithubRepositorySource, GithubRepositorySummary } from '../services/githubIntegration'
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import {
@@ -260,6 +261,11 @@ export function ReviewCenter({
     [projectRecords],
   )
   const githubCommandSummaries = useGithubCommandSummaries(boundRepoKeys)
+  const vercelTargetIds = useMemo(
+    () => dispatch.targets.filter((target) => target.hostType === 'vercel').map((target) => target.id),
+    [dispatch.targets],
+  )
+  const vercelCommandSummaries = useVercelCommandSummaries(vercelTargetIds)
   const queue = useMemo(
     () =>
       deriveReviewQueue({
@@ -272,6 +278,7 @@ export function ReviewCenter({
         timelineEvents,
         repoSuggestions,
         githubCommandSummaries: githubCommandSummaries.data,
+        vercelCommandSummaries: vercelCommandSummaries.data,
       }),
     [
       dispatch,
@@ -282,6 +289,7 @@ export function ReviewCenter({
       reports,
       sync,
       timelineEvents,
+      vercelCommandSummaries.data,
       writing,
     ],
   )
@@ -467,6 +475,11 @@ export function ReviewCenter({
           label="Connected GitHub command summaries"
           loading={githubCommandSummaries.loading}
           error={githubCommandSummaries.error}
+        />
+        <SourceNotice
+          label="Vercel deployment evidence"
+          loading={vercelCommandSummaries.loading}
+          error={vercelCommandSummaries.error}
         />
       </div>
 

@@ -67,6 +67,13 @@ export interface LocalGitFileChange {
   deletions: number | null
 }
 
+export interface LocalGitChangeGroup {
+  change: LocalGitChangeKind
+  label: string
+  count: number
+  paths: string[]
+}
+
 export interface LocalGitDryRunCommitPreview {
   available: boolean
   blocked: boolean
@@ -84,6 +91,7 @@ export interface LocalGitRepositoryPreview {
   additions: number | null
   deletions: number | null
   changedFiles: LocalGitFileChange[]
+  changeGroups: LocalGitChangeGroup[]
   diffStat: {
     unstaged: string
     staged: string

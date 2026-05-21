@@ -25,9 +25,11 @@ import type { TimelineEvent } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
 import type { GithubRepoCommandSummary } from './githubCommand'
 import type { RepoPlacementSuggestion } from './repoSuggestions'
+import type { VercelDeploymentCommandSummary } from './vercelIntegration'
 import { deriveAtlasActionIntents } from './actionPlanner'
 import { deriveDispatchQueueItems } from './dispatchQueue'
 import { evaluateVerification } from './verification'
+import { deriveVercelReadinessSignals } from './vercelIntegration'
 
 const REVIEW_STALE_SNAPSHOT_DAYS = 14
 
@@ -690,6 +692,50 @@ function dispatchItems({
   })
 }
 
+function vercelDeploymentItems({
+  projectRecords,
+  dispatch,
+  summaries,
+}: {
+  projectRecords: ProjectRecord[]
+  dispatch: DispatchState
+  summaries: VercelDeploymentCommandSummary[]
+}): ReviewQueueItem[] {
+  const recordsByProject = new Map(projectRecords.map((record) => [record.project.id, record]))
+  const targetById = new Map(dispatch.targets.map((target) => [target.id, target]))
+
+  return summaries.flatMap((summary): ReviewQueueItem[] => {
+    const target = targetById.get(summary.targetId)
+
+    if (!target) {
+      return []
+    }
+
+    const record = recordsByProject.get(target.projectId)
+    const repositoryKeys =
+      record?.project.repositories.map((repository) => `${repository.owner}/${repository.name}`) ??
+      []
+    const activeSignals = deriveVercelReadinessSignals({
+      summary,
+      target,
+      repositoryKeys,
+    }).filter((signal) => ['warning', 'danger'].includes(signal.severity))
+
+    return activeSignals.slice(0, 5).map((signal): ReviewQueueItem => ({
+      id: `dispatch-vercel-${target.id}-${signal.id}`,
+      source: 'dispatch',
+      severity: signal.severity === 'danger' ? 'high' : 'medium',
+      dueState: signal.severity === 'danger' ? 'blocked' : 'attention',
+      title: `${record?.project.name ?? target.name}: ${signal.title}`,
+      detail: signal.detail,
+      reason: 'Vercel deployment evidence is advisory and needs human review before any deploy decision.',
+      ...projectFields(record, target.projectId),
+      occurredAt: summary.fetchedAt,
+      meta: [target.hostType, target.environment, signal.category, summary.projectIdOrName ?? 'unmapped'],
+    }))
+  })
+}
+
 function planningDate(item: PlanningItem) {
   if (item.kind === 'objective') {
     return item.targetDate
@@ -937,6 +983,7 @@ export function deriveReviewQueue({
   timelineEvents,
   repoSuggestions = [],
   githubCommandSummaries = [],
+  vercelCommandSummaries = [],
   now = new Date(),
 }: {
   projectRecords: ProjectRecord[]
@@ -948,12 +995,14 @@ export function deriveReviewQueue({
   timelineEvents: TimelineEvent[]
   repoSuggestions?: RepoPlacementSuggestion[]
   githubCommandSummaries?: GithubRepoCommandSummary[]
+  vercelCommandSummaries?: VercelDeploymentCommandSummary[]
   now?: Date
 }): ReviewQueueItem[] {
   return [
     ...verificationItems(projectRecords, now),
     ...workspaceItems(projectRecords),
     ...dispatchItems({ projectRecords, dispatch, reports }),
+    ...vercelDeploymentItems({ projectRecords, dispatch, summaries: vercelCommandSummaries }),
     ...planningItems(projectRecords, planning, now),
     ...writingItems(projectRecords, writing),
     ...reportItems(projectRecords, reports),

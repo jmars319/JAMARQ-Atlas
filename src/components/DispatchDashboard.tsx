@@ -42,6 +42,11 @@ import {
   compareVerificationEvidenceRuns,
 } from '../services/dispatchEvidence'
 import { evaluateRecoveryPlanReadiness } from '../services/dispatchRecovery'
+import { useVercelCommandSummaries } from '../hooks/useVercelCommandSummaries'
+import {
+  deriveVercelReadinessSignals,
+  vercelDeploymentLabel,
+} from '../services/vercelIntegration'
 
 interface DispatchDashboardProps {
   dispatch: DispatchState
@@ -99,8 +104,32 @@ export function DispatchDashboard({
     () => deriveDispatchCloseoutSummaries({ dispatch, reports }),
     [dispatch, reports],
   )
-  const cpanelTargets = dispatch.targets.filter((target) =>
+  const hostInspectableTargets = dispatch.targets.filter((target) =>
     ['cpanel', 'godaddy-cpanel'].includes(target.hostType),
+  )
+  const vercelTargets = dispatch.targets.filter((target) => target.hostType === 'vercel')
+  const vercelSummaries = useVercelCommandSummaries(vercelTargets.map((target) => target.id))
+  const targetById = useMemo(
+    () => new Map(dispatch.targets.map((target) => [target.id, target])),
+    [dispatch.targets],
+  )
+  const vercelSignalCount = vercelSummaries.data.reduce(
+    (total, summary) => {
+      const target = targetById.get(summary.targetId)
+      const repositoryKeys =
+        projectRecords
+          .find((record) => record.project.id === target?.projectId)
+          ?.project.repositories.map((repository) => `${repository.owner}/${repository.name}`) ??
+        []
+
+      return (
+        total +
+        deriveVercelReadinessSignals({ summary, target, repositoryKeys }).filter((signal) =>
+          ['warning', 'danger'].includes(signal.severity),
+        ).length
+      )
+    },
+    0,
   )
   const hostInspectionRunning = hostInspectionRunningTargetIds.length > 0
   const blockedTargets = dispatch.targets.filter((target) => {
@@ -179,6 +208,11 @@ export function DispatchDashboard({
             <strong>{closeoutReadyCount}</strong>
             <span>Closeout</span>
           </div>
+          <div>
+            <Rocket size={16} />
+            <strong>{vercelSignalCount}</strong>
+            <span>Vercel signals</span>
+          </div>
         </div>
       </div>
 
@@ -228,6 +262,118 @@ export function DispatchDashboard({
         onCreateReadinessReport={onCreateReadinessReport}
       />
 
+      <section className="dispatch-preflight" aria-label="Vercel deployment evidence">
+        <div className="panel-heading settings-panel-heading-row">
+          <div>
+            <Rocket size={17} />
+            <h2>Vercel Deployment Evidence</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => vercelSummaries.reload()}
+            disabled={vercelSummaries.loading || vercelTargets.length === 0}
+          >
+            <RefreshCw size={15} />
+            {vercelSummaries.loading ? 'Refreshing' : 'Refresh Vercel'}
+          </button>
+        </div>
+        <div className="dispatch-signal-grid">
+          <div>
+            <strong>{vercelTargets.length}</strong>
+            <span>Vercel targets</span>
+          </div>
+          <div>
+            <strong>{vercelSummaries.data.filter((summary) => summary.binding.mapped).length}</strong>
+            <span>Mapped</span>
+          </div>
+          <div>
+            <strong>{vercelSummaries.data.filter((summary) => summary.latestProduction).length}</strong>
+            <span>Production evidence</span>
+          </div>
+          <div>
+            <strong>{vercelSignalCount}</strong>
+            <span>Needs review</span>
+          </div>
+        </div>
+        {vercelSummaries.error ? (
+          <div className="github-error">
+            <ShieldAlert size={16} />
+            <div>
+              <strong>{vercelSummaries.error.type}</strong>
+              <span>{vercelSummaries.error.message}</span>
+            </div>
+          </div>
+        ) : null}
+        {vercelTargets.length === 0 ? (
+          <p className="empty-state">No Vercel deployment targets are configured in Dispatch.</p>
+        ) : null}
+        <div className="dispatch-card-grid">
+          {vercelTargets.map((target) => {
+            const summary = vercelSummaries.data.find((candidate) => candidate.targetId === target.id)
+            const repositoryKeys =
+              projectRecords
+                .find((record) => record.project.id === target.projectId)
+                ?.project.repositories.map(
+                  (repository) => `${repository.owner}/${repository.name}`,
+                ) ?? []
+            const signals = summary
+              ? deriveVercelReadinessSignals({ summary, target, repositoryKeys })
+              : []
+
+            return (
+              <article className="dispatch-card" key={target.id}>
+                <div className="dispatch-summary-heading">
+                  <div>
+                    <span className="card-context">{projectName(projectRecords, target.projectId)}</span>
+                    <strong>{target.name}</strong>
+                  </div>
+                  <span className={`resource-pill state-${summary?.state ?? 'unknown'}`}>
+                    {summary?.state ?? 'unknown'}
+                  </span>
+                </div>
+                <div className="dispatch-mini-grid">
+                  <div>
+                    <span>Vercel project</span>
+                    <strong>{summary?.project?.name ?? summary?.projectIdOrName ?? 'Unmapped'}</strong>
+                  </div>
+                  <div>
+                    <span>Production</span>
+                    <strong>{vercelDeploymentLabel(summary?.latestProduction ?? null)}</strong>
+                  </div>
+                  <div>
+                    <span>Preview</span>
+                    <strong>{vercelDeploymentLabel(summary?.latestPreview ?? null)}</strong>
+                  </div>
+                  <div>
+                    <span>Domains</span>
+                    <strong>{summary?.domains.length ?? 0}</strong>
+                  </div>
+                </div>
+                <p>{target.publicUrl || 'No public URL configured.'}</p>
+                <div className="activity-meta">
+                  <span>writeControlsEnabled: false</span>
+                  <span>deploy/promote/rollback locked</span>
+                  {summary?.fetchedAt ? <span>{formatDateTimeLabel(summary.fetchedAt)}</span> : null}
+                </div>
+                {signals.length > 0 ? (
+                  <ul className="dispatch-list dispatch-warning-list">
+                    {signals.slice(0, 4).map((signal) => (
+                      <li key={signal.id}>
+                        {signal.title}: {signal.detail}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="dispatch-muted-note">
+                    No Vercel evidence loaded yet. Refresh Vercel or configure target mapping.
+                  </p>
+                )}
+              </article>
+            )
+          })}
+        </div>
+      </section>
+
       <section className="dispatch-preflight" aria-label="Deploy session queue">
         <div className="panel-heading">
           <Rocket size={17} />
@@ -268,7 +414,7 @@ export function DispatchDashboard({
           </ol>
         ) : (
           <p className="empty-state">
-            No deploy sessions yet. Start one from a cPanel runbook card.
+            No deploy sessions yet. Start one from a deployment runbook card.
           </p>
         )}
       </section>
@@ -280,8 +426,8 @@ export function DispatchDashboard({
         </div>
         <div className="dispatch-signal-grid">
           <div>
-            <strong>{cpanelTargets.length}</strong>
-            <span>cPanel targets in scope</span>
+            <strong>{hostInspectableTargets.length}</strong>
+            <span>Manual host targets in scope</span>
           </div>
           <div>
             <strong>{dispatch.hostEvidenceRuns.length}</strong>
@@ -291,11 +437,11 @@ export function DispatchDashboard({
         <div className="dispatch-preflight-actions">
           <button
             type="button"
-            disabled={hostInspectionRunning || cpanelTargets.length === 0}
-            onClick={() => onRunHostInspections(cpanelTargets.map((target) => target.id))}
+            disabled={hostInspectionRunning || hostInspectableTargets.length === 0}
+            onClick={() => onRunHostInspections(hostInspectableTargets.map((target) => target.id))}
           >
             <RefreshCw size={15} />
-            {hostInspectionRunning ? 'Inspecting hosts' : 'Run cPanel host inspections'}
+            {hostInspectionRunning ? 'Inspecting hosts' : 'Run manual host inspections'}
           </button>
           <span>SFTP/local-mirror/TCP evidence only. No uploads, deletes, or writes.</span>
         </div>

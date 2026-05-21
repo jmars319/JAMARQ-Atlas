@@ -2,7 +2,6 @@ import { ClipboardList, GitBranch, NotebookPen, RefreshCcw, Search, ShieldAlert 
 import type { ProjectRecord } from '../domain/atlas'
 import type { ReviewSavedFilter, ReviewSessionPresetId } from '../domain/review'
 import { REVIEW_SESSION_PRESETS } from '../services/review'
-import type { useGithubRepositories } from '../hooks/useGithubRepositories'
 import {
   dueOptions,
   labelize,
@@ -21,7 +20,7 @@ export function SourceNotice({
 }: {
   label: string
   loading: boolean
-  error: ReturnType<typeof useGithubRepositories>['error']
+  error: { message: string } | null
 }) {
   if (loading) {
     return (

@@ -46,6 +46,7 @@ import {
   type HostConnectionStatusResponse,
 } from '../services/hostConnection'
 import { clearGithubRequestCache } from '../services/githubIntegration'
+import { fetchVercelStatus, type VercelConnectionState } from '../services/vercelIntegration'
 import {
   CALIBRATION_BULK_FIELDS,
   CALIBRATION_CATEGORIES,
@@ -87,6 +88,7 @@ import {
   buildGithubCard,
   buildHostConnectionCard,
   buildHostedSyncCard,
+  buildVercelCard,
   buildWritingProviderCard,
   issueCountLabel,
   statusLabel,
@@ -204,6 +206,9 @@ export function SettingsCenter({
     useState<HostConnectionStatusResponse | null>(null)
   const [hostConnectionError, setHostConnectionError] = useState<string | null>(null)
   const [loadingHostConnection, setLoadingHostConnection] = useState(false)
+  const [vercelStatus, setVercelStatus] = useState<VercelConnectionState | null>(null)
+  const [vercelError, setVercelError] = useState<string | null>(null)
+  const [loadingVercel, setLoadingVercel] = useState(false)
   const [snapshotLabel, setSnapshotLabel] = useState('')
   const [snapshotNote, setSnapshotNote] = useState('')
   const [selectedSnapshotId, setSelectedSnapshotId] = useState('')
@@ -350,6 +355,20 @@ export function SettingsCenter({
     }
   }
 
+  async function loadVercelStatus() {
+    setLoadingVercel(true)
+    setVercelError(null)
+
+    try {
+      setVercelStatus(await fetchVercelStatus())
+    } catch (error) {
+      setVercelError(error instanceof Error ? error.message : 'Vercel status request failed.')
+      setVercelStatus(null)
+    } finally {
+      setLoadingVercel(false)
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController()
 
@@ -365,6 +384,26 @@ export function SettingsCenter({
 
         setGithubError(error instanceof Error ? error.message : 'GitHub status request failed.')
         setGithubStatus(null)
+      })
+
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    void fetchVercelStatus(controller.signal)
+      .then((status) => {
+        setVercelStatus(status)
+        setVercelError(null)
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setVercelError(error instanceof Error ? error.message : 'Vercel status request failed.')
+        setVercelStatus(null)
       })
 
     return () => controller.abort()
@@ -452,6 +491,7 @@ export function SettingsCenter({
     () => [
       buildGithubCard(githubStatus, githubError),
       ...buildStaticConnectionCards(),
+      buildVercelCard(vercelStatus, vercelError),
       buildHostConnectionCard(hostConnectionStatus, hostConnectionError),
       buildWritingProviderCard(writingProviderStatus, writingProviderError),
       buildHostedSyncCard(hostedSyncStatus, hostedSyncError, sync.provider),
@@ -464,6 +504,8 @@ export function SettingsCenter({
       hostedSyncError,
       hostedSyncStatus,
       sync.provider,
+      vercelError,
+      vercelStatus,
       writingProviderError,
       writingProviderStatus,
     ],
@@ -888,6 +930,7 @@ export function SettingsCenter({
   async function handleRefreshConnectionStatuses() {
     await Promise.all([
       loadGithubStatus(),
+      loadVercelStatus(),
       loadHostedSyncStatus(),
       loadWritingProviderStatus(),
       loadHostConnectionStatus(),
@@ -975,7 +1018,8 @@ export function SettingsCenter({
                 loadingGithub ||
                 loadingHostedSync ||
                 loadingWritingProvider ||
-                loadingHostConnection
+                loadingHostConnection ||
+                loadingVercel
               }
             >
               <RefreshCw size={15} />
@@ -1050,6 +1094,50 @@ export function SettingsCenter({
                 </span>
               ))}
             </div>
+          </div>
+          <div className="settings-calibration-readiness" aria-label="Vercel deployment checkpoint">
+            <div className="settings-subpanel-heading">
+              <ShieldCheck size={16} />
+              <strong>Vercel Deployment Checkpoint</strong>
+              <span>{vercelStatus?.message ?? 'Vercel status has not loaded yet.'}</span>
+            </div>
+            <div className="settings-preview-grid">
+              <div className="settings-snapshot-summary">
+                <strong>{vercelStatus?.configured ? 'Configured' : 'Missing config'}</strong>
+                <span>Token configured: {String(vercelStatus?.tokenConfigured ?? false)}</span>
+                <span>
+                  Missing:{' '}
+                  {vercelStatus?.missingConfig.length
+                    ? vercelStatus.missingConfig.join(', ')
+                    : 'none'}
+                </span>
+              </div>
+              <div className="settings-snapshot-summary">
+                <strong>{vercelStatus?.mappedTargetCount ?? 0}</strong>
+                <span>Mapped Dispatch targets</span>
+                <span>
+                  Team scope:{' '}
+                  {vercelStatus?.teamScope.teamIdConfigured ||
+                  vercelStatus?.teamScope.teamSlugConfigured
+                    ? 'configured'
+                    : 'personal/default'}
+                </span>
+              </div>
+              <div className="settings-snapshot-summary">
+                <strong>Read only</strong>
+                <span>writeControlsEnabled: {String(vercelStatus?.writeControlsEnabled ?? false)}</span>
+                <span>Deploy/promote/rollback/env/domain controls locked</span>
+              </div>
+            </div>
+            {vercelStatus?.mappedTargets.length ? (
+              <div className="resource-meta">
+                {vercelStatus.mappedTargets.map((entry) => (
+                  <span key={entry.targetId}>
+                    {entry.targetId}: {entry.projectIdOrName}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
 

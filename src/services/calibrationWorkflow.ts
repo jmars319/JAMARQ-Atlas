@@ -116,7 +116,7 @@ export function createCalibrationWorkflow({
           label: 'Domains / repo bindings',
           count: repositoryBindings,
           unresolved: unresolvedByField.get('repositoryBindings'),
-          emptyDetail: 'Bind repositories or domains through GitHub Intake or project details.',
+          emptyDetail: 'Connect repositories or domains through GitHub Command Center or project details.',
           completeDetail: `${repositoryBindings} repository binding(s) are present.`,
         }),
       ],

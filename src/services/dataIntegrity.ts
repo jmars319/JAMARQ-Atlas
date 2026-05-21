@@ -90,7 +90,7 @@ export function createDataIntegrityDiagnostics({
         .filter(Boolean),
     ),
     detail: 'One or more repository bindings are missing an owner or repository name.',
-    repairSuggestion: 'Open the project repository list, remove incomplete bindings, then rebind from GitHub Intake.',
+    repairSuggestion: 'Open the project repository list, remove incomplete connections, then reconnect from GitHub Command Center.',
   })
 
   pushDiagnostic(diagnostics, {

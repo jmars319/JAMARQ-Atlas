@@ -112,6 +112,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expectSettingsConnectionStatus(page, 'Writing Provider', 'Missing')
   await expectSettingsConnectionStatus(page, 'Supabase Hosted Sync', 'Missing')
   await expectSettingsConnectionStatus(page, 'Read-Only Host Boundary', 'Missing')
+  await expectSettingsConnectionStatus(page, 'Vercel Deployment Evidence', 'Missing')
   await expect(page.getByLabel('Calibration progress summary')).toContainText('Progress records')
   await expect(page.getByLabel('Calibration readiness report')).toContainText('Readiness report')
   await page
@@ -747,7 +748,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
       .locator('.dispatch-queue-item')
       .filter({ hasText: 'Midway Mobile Storage' }),
   ).toContainText('Passing / sftp-readonly')
-  await page.getByRole('button', { name: 'Run cPanel host inspections' }).click()
+  await page.getByRole('button', { name: 'Run manual host inspections' }).click()
   await expect(
     page.locator('.dispatch-card').filter({ hasText: 'Midway Music Hall production' }),
   ).toContainText('passing / sftp-readonly')
