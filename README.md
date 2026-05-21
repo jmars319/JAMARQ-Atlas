@@ -156,6 +156,14 @@ npm run test:e2e
 
 The app runs without GitHub credentials. Repo panels show a clear missing-token state instead of failing the dashboard.
 
+## Local Tooling
+
+- Use `actionlint` after editing GitHub Actions workflows.
+- Use `osv-scanner` for advisory checks across dependency manifests and lockfiles.
+- Use `supabase` for hosted snapshot table checks and Supabase project diagnostics when Sync is configured.
+- Use `pa11y` and Lighthouse for public-page accessibility and performance checks when the operator UI, Dispatch surfaces, or report pages change.
+- Use `shellcheck` and `shfmt` after editing shell scripts.
+
 ## Daily Use
 
 1. Open `Review` to scan due verification, blockers, Dispatch follow-up, unbound repos, draft/report follow-up, and backup/sync attention.

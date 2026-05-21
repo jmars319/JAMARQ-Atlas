@@ -37,6 +37,8 @@ The Supabase service role key is server-side only. It is read by the Vite middle
 
 Atlas runs normally when these values are missing. Settings reports a scoped not-configured state and local snapshots remain available.
 
+Use the local `supabase` CLI for project diagnostics, table inspection, and local Supabase workflows when hosted snapshots are configured. Do not use the CLI to expose or commit service-role keys; Atlas still treats all Supabase credentials as server-side-only configuration.
+
 ## API Routes
 
 Hosted sync uses the local server boundary:

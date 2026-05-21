@@ -16,6 +16,13 @@ npm run test:e2e
 
 GitHub Actions runs the same validation on `main` and pull requests through `.github/workflows/ci.yml`.
 
+Recommended local support tools:
+
+- `actionlint` after editing `.github/workflows`.
+- `osv-scanner` for advisory checks across dependency manifests and lockfiles.
+- `pa11y` and Lighthouse for accessibility and performance checks when UI behavior changes.
+- `supabase` for hosted snapshot diagnostics when Sync is configured.
+
 ## Local Preview
 
 ```sh
