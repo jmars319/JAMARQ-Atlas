@@ -10,6 +10,7 @@ import {
   addReviewNote,
   addReviewSession,
   createReviewNote,
+  createReviewPlanningHandoff,
   createReviewSavedFilter,
   createReviewSession,
   createReviewSessionFromPreset,
@@ -275,5 +276,31 @@ describe('operator review center', () => {
           ['overdue', 'due', 'blocked', 'attention'].includes(item.dueState),
       ),
     ).toBe(true)
+  })
+
+  it('builds Review-to-Planning handoff text without changing source records', () => {
+    const repoSuggestions = deriveRepoPlacementSuggestions(projectRecords, [unboundRepository])
+    const queue = deriveReviewQueue({
+      projectRecords,
+      dispatch: seedDispatchState,
+      planning: emptyPlanningStore(now),
+      reports: emptyReportsStore(now),
+      writing,
+      sync: emptySyncState(now),
+      timelineEvents: [],
+      repoSuggestions,
+      now,
+    })
+    const item = queue.find((candidate) => candidate.projectId)
+
+    expect(item).toBeDefined()
+
+    const handoff = createReviewPlanningHandoff(item!)
+
+    expect(handoff.title).toBe(`Review follow-up: ${item!.title}`)
+    expect(handoff.detail).toContain(item!.reason)
+    expect(handoff.detail).toContain(item!.detail)
+    expect(handoff.reviewNoteBody).toContain('Created explicit Planning note from Review Center.')
+    expect(seedWorkspace.sections[0].groups[0].projects[0].manual.status).toBe('Active')
   })
 })

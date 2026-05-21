@@ -1134,6 +1134,18 @@ export function deriveTodaysReviewQueue(items: ReviewQueueItem[], limit = 12): R
     .slice(0, limit)
 }
 
+export function createReviewPlanningHandoff(item: ReviewQueueItem, noteDraft = '') {
+  const detail =
+    noteDraft.trim() ||
+    `${item.title}\n\nReason: ${item.reason}\n\nDetail: ${item.detail}`
+
+  return {
+    title: `Review follow-up: ${item.title}`,
+    detail,
+    reviewNoteBody: `Created explicit Planning note from Review Center.\n\n${detail}`,
+  }
+}
+
 export function summarizeReviewState(state: ReviewState) {
   return {
     sessions: state.sessions.length,

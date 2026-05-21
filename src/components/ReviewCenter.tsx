@@ -33,6 +33,7 @@ import type { GithubRepositorySource, GithubRepositorySummary } from '../service
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import {
   createReviewNote,
+  createReviewPlanningHandoff,
   createReviewSavedFilter,
   createReviewSession,
   createReviewSessionFromPreset,
@@ -238,6 +239,8 @@ export function ReviewCenter({
   const [outcomeDrafts, setOutcomeDrafts] = useState<Record<string, ReviewOutcome>>({})
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
   const [queueMode, setQueueMode] = useState<ReviewQueueMode>('today')
+  const [selectedReviewItemIds, setSelectedReviewItemIds] = useState<string[]>([])
+  const [planningJumpProjectId, setPlanningJumpProjectId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const repositories = useMemo(
     () => mergeRepositories(configuredRepos.data, viewerRepos.data),
@@ -315,6 +318,14 @@ export function ReviewCenter({
     [filteredQueue, queueMode],
   )
   const groupedQueue = useMemo(() => groupReviewQueue(visibleQueue), [visibleQueue])
+  const visiblePlanningItems = useMemo(
+    () => visibleQueue.filter((item) => item.projectId),
+    [visibleQueue],
+  )
+  const selectedPlanningItems = useMemo(
+    () => visiblePlanningItems.filter((item) => selectedReviewItemIds.includes(item.id)),
+    [selectedReviewItemIds, visiblePlanningItems],
+  )
   const sections = useMemo(
     () => [...new Map(projectRecords.map((record) => [record.section.id, record.section])).values()],
     [projectRecords],
@@ -342,6 +353,7 @@ export function ReviewCenter({
     })
 
     onAddReviewSession(session)
+    setPlanningJumpProjectId(null)
     setMessage('Review session started locally.')
   }
 
@@ -349,11 +361,13 @@ export function ReviewCenter({
     const session = createReviewSessionFromPreset({ presetId, queue })
 
     if (!session) {
+      setPlanningJumpProjectId(null)
       setMessage('No review queue items match that preset right now.')
       return
     }
 
     onAddReviewSession(session)
+    setPlanningJumpProjectId(null)
     setMessage(`${session.title} started locally.`)
   }
 
@@ -368,6 +382,7 @@ export function ReviewCenter({
     })
 
     onSaveReviewFilter(filter)
+    setPlanningJumpProjectId(null)
     setMessage('Review filter saved locally.')
   }
 
@@ -377,6 +392,7 @@ export function ReviewCenter({
     setSourceFilter(filter.sourceFilter)
     setSeverityFilter(filter.severityFilter)
     setDueFilter(filter.dueFilter)
+    setPlanningJumpProjectId(null)
     setMessage(`Applied saved filter: ${filter.label}.`)
   }
 
@@ -397,27 +413,25 @@ export function ReviewCenter({
       }),
     )
     setNoteDrafts((current) => ({ ...current, [item.id]: '' }))
+    setPlanningJumpProjectId(null)
     setMessage('Review note captured locally.')
   }
 
   function createPlanningNote(item: ReviewQueueItem) {
-    const body =
-      noteDrafts[item.id]?.trim() ||
-      `${item.title}\n\nReason: ${item.reason}\n\nDetail: ${item.detail}`
-
     if (!item.projectId) {
       return
     }
 
+    const handoff = createReviewPlanningHandoff(item, noteDrafts[item.id])
     const note = createReviewNote({
       itemId: item.id,
       projectId: item.projectId,
       source: item.source,
       outcome: 'planned',
-      body: `Created explicit Planning note from Review Center.\n\n${body}`,
+      body: handoff.reviewNoteBody,
     })
 
-    onCreatePlanningNote(item.projectId, `Review follow-up: ${item.title}`, body, [
+    onCreatePlanningNote(item.projectId, handoff.title, handoff.detail, [
       {
         type: 'review-note',
         id: note.id,
@@ -426,7 +440,60 @@ export function ReviewCenter({
     ])
     onAddReviewNote(note)
     setNoteDrafts((current) => ({ ...current, [item.id]: '' }))
+    setPlanningJumpProjectId(item.projectId)
     setMessage('Planning note created from Review. Project operational status was not changed.')
+  }
+
+  function toggleSelectedReviewItem(itemId: string, selected: boolean) {
+    setSelectedReviewItemIds((current) =>
+      selected
+        ? current.includes(itemId)
+          ? current
+          : [...current, itemId]
+        : current.filter((candidate) => candidate !== itemId),
+    )
+  }
+
+  function selectVisiblePlanningItems() {
+    setSelectedReviewItemIds(visiblePlanningItems.map((item) => item.id))
+  }
+
+  function createPlanningNotesForSelected() {
+    if (selectedPlanningItems.length === 0) {
+      setPlanningJumpProjectId(null)
+      setMessage('Select review items with projects before creating Planning notes.')
+      return
+    }
+
+    selectedPlanningItems.forEach((item) => {
+      if (!item.projectId) {
+        return
+      }
+
+      const handoff = createReviewPlanningHandoff(item)
+      const note = createReviewNote({
+        itemId: item.id,
+        projectId: item.projectId,
+        source: item.source,
+        outcome: 'planned',
+        body: handoff.reviewNoteBody,
+      })
+
+      onCreatePlanningNote(item.projectId, handoff.title, handoff.detail, [
+        {
+          type: 'review-note',
+          id: note.id,
+          label: `Review note ${note.id}`,
+        },
+      ])
+      onAddReviewNote(note)
+    })
+
+    setSelectedReviewItemIds([])
+    setPlanningJumpProjectId(selectedPlanningItems[0]?.projectId ?? null)
+    setMessage(
+      `${selectedPlanningItems.length} Planning notes created from Review. Project operational status was not changed.`,
+    )
   }
 
   return (
@@ -543,6 +610,29 @@ export function ReviewCenter({
             </button>
           </div>
 
+          <div className="review-batch-actions" aria-label="Review batch planning actions">
+            <span>
+              {selectedPlanningItems.length} selected / {visiblePlanningItems.length} project items
+            </span>
+            <button type="button" onClick={selectVisiblePlanningItems}>
+              Select project items
+            </button>
+            <button
+              type="button"
+              disabled={selectedPlanningItems.length === 0}
+              onClick={createPlanningNotesForSelected}
+            >
+              Create Planning notes
+            </button>
+            <button
+              type="button"
+              disabled={selectedReviewItemIds.length === 0}
+              onClick={() => setSelectedReviewItemIds([])}
+            >
+              Clear
+            </button>
+          </div>
+
           <div className="review-queue" aria-label="Operator review queue">
             {visibleQueue.length === 0 ? (
               <p className="empty-state">No review items match this view.</p>
@@ -570,11 +660,24 @@ export function ReviewCenter({
                     isExpanded ? 'is-expanded' : ''
                   }`}
                 >
-                  <div className="review-item-heading">
-                    <div>
-                      <div className="review-chip-row">
-                        <span className={`queue-chip queue-${item.dueState}`}>
-                          {labelize(item.dueState)}
+                      <div className="review-item-heading">
+                        <div>
+                          {item.projectId ? (
+                            <label className="review-select-control">
+                              <input
+                                type="checkbox"
+                                checked={selectedReviewItemIds.includes(item.id)}
+                                aria-label={`Select ${item.title} for Planning handoff`}
+                                onChange={(event) =>
+                                  toggleSelectedReviewItem(item.id, event.target.checked)
+                                }
+                              />
+                              <span>Plan</span>
+                            </label>
+                          ) : null}
+                          <div className="review-chip-row">
+                            <span className={`queue-chip queue-${item.dueState}`}>
+                              {labelize(item.dueState)}
                         </span>
                         <span className={`review-chip review-chip-${item.severity}`}>
                           {item.severity}
@@ -724,7 +827,16 @@ export function ReviewCenter({
         </aside>
       </div>
 
-      {message ? <p className="data-action-message">{message}</p> : null}
+      {message ? (
+        <div className="data-action-message review-action-message">
+          <span>{message}</span>
+          {planningJumpProjectId ? (
+            <button type="button" onClick={() => onOpenPlanning(planningJumpProjectId)}>
+              Open Planning
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   )
 }
