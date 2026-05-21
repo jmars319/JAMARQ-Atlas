@@ -3437,6 +3437,82 @@ h3 {
   gap: 9px;
 }
 
+.settings-calibration-issue-group {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.018);
+  padding: 9px;
+}
+
+.settings-calibration-group-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr) max-content;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  padding: 0;
+  text-align: left;
+}
+
+.settings-calibration-group-heading > div:first-child,
+.settings-calibration-group-heading strong,
+.settings-calibration-group-heading span,
+.settings-calibration-group-counts strong,
+.settings-calibration-group-counts span {
+  min-width: 0;
+}
+
+.settings-calibration-group-heading > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.settings-calibration-group-heading > div:first-child strong {
+  color: var(--paper-white);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.settings-calibration-group-heading > div:first-child span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.settings-calibration-group-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.settings-calibration-group-counts span {
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: rgba(11, 13, 16, 0.34);
+  padding: 6px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.settings-calibration-group-counts strong {
+  color: var(--paper-white);
+  font-size: 0.88rem;
+}
+
+.settings-calibration-group-body {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
 .settings-calibration-groups,
 .settings-bulk-calibration,
 .settings-calibration-summary,
@@ -4522,6 +4598,8 @@ code {
   .settings-form-grid,
   .settings-bulk-calibration,
   .settings-calibration-card,
+  .settings-calibration-group-heading,
+  .settings-calibration-group-counts,
   .settings-calibration-groups,
   .settings-calibration-summary,
   .settings-calibration-actions,

@@ -89,11 +89,88 @@ export const CALIBRATION_BULK_FIELDS: Array<{
   { id: 'credentialRef', label: 'Credential reference label' },
 ]
 
+export interface CalibrationIssueGroup {
+  id: string
+  label: string
+  detail: string
+  category: CalibrationCategory
+  categoryLabel: string
+  projectId: string | null
+  targetId: string | null
+  issueCount: number
+  needsRealValueCount: number
+  warningCount: number
+  editableCount: number
+  issues: CalibrationIssue[]
+}
+
 const PLACEHOLDER_PATTERN = /\b(placeholder|example|needs real|tbd|todo|unknown|not set)\b/i
 const SECRET_SHAPED_PATTERN =
   /(password|passphrase|secret|token|api[_ -]?key|apikey|private[_ -]?key|credential|env[_ -]?var)/i
 
 const CALIBRATION_AUDIT_LIMIT = 80
+
+export function calibrationCategoryLabel(category: CalibrationCategory) {
+  return CALIBRATION_CATEGORIES.find((candidate) => candidate.id === category)?.label ?? category
+}
+
+function calibrationIssueGroupKey(issue: CalibrationIssue) {
+  const scope = issue.targetId
+    ? `target:${issue.targetId}`
+    : issue.projectId
+      ? `project:${issue.projectId}`
+      : `source:${issue.source}`
+
+  return `${scope}:${issue.category}`
+}
+
+export function groupCalibrationIssues(issues: CalibrationIssue[]): CalibrationIssueGroup[] {
+  const groups = new Map<
+    string,
+    Omit<
+      CalibrationIssueGroup,
+      'issueCount' | 'needsRealValueCount' | 'warningCount' | 'editableCount'
+    >
+  >()
+
+  for (const issue of issues) {
+    const key = calibrationIssueGroupKey(issue)
+    const existing = groups.get(key)
+
+    if (existing) {
+      existing.issues.push(issue)
+      continue
+    }
+
+    groups.set(key, {
+      id: key,
+      label: issue.targetName || issue.projectName,
+      detail: issue.targetName ? issue.projectName : 'Project-level calibration',
+      category: issue.category,
+      categoryLabel: calibrationCategoryLabel(issue.category),
+      projectId: issue.projectId,
+      targetId: issue.targetId,
+      issues: [issue],
+    })
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      issueCount: group.issues.length,
+      needsRealValueCount: group.issues.filter(
+        (issue) => issue.severity === 'needs-real-value',
+      ).length,
+      warningCount: group.issues.filter((issue) => issue.severity === 'warning').length,
+      editableCount: group.issues.filter((issue) => issue.editable).length,
+    }))
+    .sort(
+      (left, right) =>
+        right.issueCount - left.issueCount ||
+        left.label.localeCompare(right.label) ||
+        left.categoryLabel.localeCompare(right.categoryLabel),
+    )
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null

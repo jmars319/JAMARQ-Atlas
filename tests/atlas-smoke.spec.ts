@@ -129,7 +129,16 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     'godaddy-e2e-production',
   )
   await expect(page.getByLabel('Calibration group counts')).toContainText('Host config')
-  await page.getByRole('button', { name: /Host config/ }).click()
+  await page
+    .getByLabel('Calibration group counts')
+    .getByRole('button', { name: /Host config/ })
+    .click()
+  const groupedCalibration = page.getByLabel('Grouped calibration issues')
+  await expect(groupedCalibration).toContainText('Needs value')
+  await expect(groupedCalibration).not.toContainText(
+    'Confirm the production host without storing passwords or tokens.',
+  )
+  await groupedCalibration.locator('.settings-calibration-group-heading').first().click()
   await expect(page.getByLabel('Atlas calibration operations')).toContainText('Remote host')
   const calibrationCard = page.locator('.settings-calibration-card').filter({ hasText: 'Remote host' }).first()
   await calibrationCard.getByLabel(/Calibration note/).fill('Confirmed during E2E calibration.')

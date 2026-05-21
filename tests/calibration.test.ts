@@ -9,6 +9,7 @@ import {
   canStoreCalibrationValue,
   createCalibrationReadinessReport,
   emptyCalibrationState,
+  groupCalibrationIssues,
   isPlaceholderValue,
   normalizeCalibrationState,
   parseCalibrationImportPreview,
@@ -29,6 +30,25 @@ describe('Atlas calibration checks', () => {
     expect(issues.some((issue) => issue.category === 'host-config')).toBe(true)
     expect(issues.some((issue) => issue.category === 'health-urls')).toBe(true)
     expect(issues.some((issue) => issue.category === 'backup-rollback')).toBe(true)
+  })
+
+  it('groups unresolved calibration work by target or project and field category', () => {
+    const groups = groupCalibrationIssues(scanAtlasCalibration(seedWorkspace, seedDispatchState))
+    const targetHostGroup = groups.find(
+      (group) =>
+        group.targetId === 'midway-music-hall-production' && group.category === 'host-config',
+    )
+    const projectRepoGroup = groups.find(
+      (group) => group.targetId === null && group.category === 'github-bindings',
+    )
+
+    expect(targetHostGroup).toBeDefined()
+    expect(targetHostGroup?.label).toBe('Midway Music Hall production')
+    expect(targetHostGroup?.detail).toBe('Midway Music Hall website')
+    expect(targetHostGroup?.issues.every((issue) => issue.category === 'host-config')).toBe(true)
+    expect(targetHostGroup?.editableCount).toBeGreaterThan(0)
+    expect(projectRepoGroup?.projectId).toBeTruthy()
+    expect(groups[0].issueCount).toBeGreaterThanOrEqual(groups[1].issueCount)
   })
 
   it('detects placeholder values consistently', () => {

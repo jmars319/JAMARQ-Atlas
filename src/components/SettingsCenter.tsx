@@ -55,6 +55,7 @@ import {
   createCalibrationCsvTemplate,
   createCalibrationJsonTemplate,
   createCalibrationReadinessReport,
+  groupCalibrationIssues,
   parseCalibrationImportPreview,
   scanAtlasCalibration,
   summarizeCalibrationState,
@@ -228,6 +229,7 @@ export function SettingsCenter({
   const [bulkCalibrationValue, setBulkCalibrationValue] = useState('')
   const [calibrationMessage, setCalibrationMessage] = useState('')
   const [calibrationNoteDrafts, setCalibrationNoteDrafts] = useState<Record<string, string>>({})
+  const [expandedCalibrationGroupIds, setExpandedCalibrationGroupIds] = useState<string[]>([])
   const [credentialLabel, setCredentialLabel] = useState('')
   const [credentialProvider, setCredentialProvider] = useState('')
   const [credentialPurpose, setCredentialPurpose] = useState('')
@@ -563,6 +565,39 @@ export function SettingsCenter({
         : calibrationIssues.filter((issue) => issue.category === calibrationFilter),
     [calibrationFilter, calibrationIssues],
   )
+  const groupedCalibrationIssues = useMemo(
+    () => groupCalibrationIssues(filteredCalibrationIssues),
+    [filteredCalibrationIssues],
+  )
+  const expandedCalibrationGroupIdSet = useMemo(
+    () => new Set(expandedCalibrationGroupIds),
+    [expandedCalibrationGroupIds],
+  )
+  const calibrationStatusCountsByGroup = useMemo(
+    () =>
+      new Map(
+        groupedCalibrationIssues.map((group) => {
+          const counts = {
+            needsValue: 0,
+            entered: 0,
+            verified: 0,
+            deferred: 0,
+          }
+
+          for (const issue of group.issues) {
+            const status = calibrationProgressByIssue.get(issue.id)?.status ?? 'needs-value'
+            if (status === 'needs-value') {
+              counts.needsValue += 1
+            } else {
+              counts[status] += 1
+            }
+          }
+
+          return [group.id, counts] as const
+        }),
+      ),
+    [calibrationProgressByIssue, groupedCalibrationIssues],
+  )
   const calibrationCategoryCounts = useMemo(
     () =>
       CALIBRATION_CATEGORIES.filter((category) => category.id !== 'all').map((category) => ({
@@ -656,6 +691,14 @@ export function SettingsCenter({
     const note = calibrationNoteDrafts[issue.id] ?? calibrationProgressByIssue.get(issue.id)?.note ?? ''
     onCalibrationProgressChange(issue, status, note)
     setCalibrationMessage(`${issue.label} marked ${status}.`)
+  }
+
+  function toggleCalibrationGroup(groupId: string) {
+    setExpandedCalibrationGroupIds((current) =>
+      current.includes(groupId)
+        ? current.filter((candidate) => candidate !== groupId)
+        : [...current, groupId],
+    )
   }
 
   function handleSaveCredentialReference() {
@@ -1471,85 +1514,157 @@ export function SettingsCenter({
           </div>
 
           {filteredCalibrationIssues.length > 0 ? (
-            <div className="settings-calibration-list">
-              {filteredCalibrationIssues.slice(0, 40).map((issue) => (
-                <article key={issue.id} className="settings-calibration-card">
-                  <div>
-                    <div className="settings-card-heading">
-                      <h3>{issue.label}</h3>
-                      <span className="resource-pill state-warning">
-                        {issue.severity === 'needs-real-value' ? 'Needs real value' : 'Warning'}
-                      </span>
-                    </div>
-                    <p>{issue.message}</p>
-                    <div className="resource-meta">
-                      <span>{issue.projectName}</span>
-                      {issue.targetName ? <span>{issue.targetName}</span> : null}
-                      <span>{issue.category}</span>
-                      <span>{issue.field}</span>
-                    </div>
-                  </div>
-                  <CalibrationField
-                    key={`${issue.id}-${issue.value}`}
-                    issue={issue}
-                    credentialReferences={calibration.credentialReferences}
-                    onTargetChange={(targetId, update) => {
-                      onDispatchTargetChange(targetId, update)
-                      onCalibrationProgressChange(
-                        issue,
-                        'entered',
-                        calibrationNoteDrafts[issue.id] ??
-                          calibrationProgressByIssue.get(issue.id)?.note ??
-                          '',
-                      )
-                      onCalibrationAudit({
-                        type: 'field-edit',
-                        summary: `Updated ${issue.label} for ${issue.projectName}.`,
-                        issue,
-                      })
-                      setCalibrationMessage('Calibration field updated locally.')
-                    }}
-                    onRejectValue={setCalibrationMessage}
-                  />
-                  <div className="settings-calibration-progress">
-                    <label className="field field-full">
-                      <span>Calibration note</span>
-                      <textarea
-                        aria-label={`Calibration note for ${issue.label}`}
-                        rows={2}
-                        value={
-                          calibrationNoteDrafts[issue.id] ??
-                          calibrationProgressByIssue.get(issue.id)?.note ??
-                          ''
-                        }
-                        onChange={(event) =>
-                          setCalibrationNoteDrafts((current) => ({
-                            ...current,
-                            [issue.id]: event.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <div className="settings-calibration-actions">
+            <div className="settings-calibration-list" aria-label="Grouped calibration issues">
+              {groupedCalibrationIssues.map((group) => {
+                const isExpanded = expandedCalibrationGroupIdSet.has(group.id)
+                const statusCounts = calibrationStatusCountsByGroup.get(group.id) ?? {
+                  needsValue: group.issueCount,
+                  entered: 0,
+                  verified: 0,
+                  deferred: 0,
+                }
+                const groupPreview = group.issues.slice(0, 12)
+
+                return (
+                  <section key={group.id} className="settings-calibration-issue-group">
+                    <button
+                      type="button"
+                      className="settings-calibration-group-heading"
+                      aria-expanded={isExpanded}
+                      onClick={() => toggleCalibrationGroup(group.id)}
+                    >
+                      <div>
+                        <strong>{group.label}</strong>
+                        <span>
+                          {group.detail} / {group.categoryLabel}
+                        </span>
+                      </div>
+                      <div className="settings-calibration-group-counts">
+                        <span>
+                          <strong>{group.issueCount}</strong>
+                          Items
+                        </span>
+                        <span>
+                          <strong>{statusCounts.needsValue}</strong>
+                          Needs value
+                        </span>
+                        <span>
+                          <strong>{statusCounts.verified}</strong>
+                          Verified
+                        </span>
+                        <span>
+                          <strong>{statusCounts.deferred}</strong>
+                          Deferred
+                        </span>
+                      </div>
                       <span className="resource-pill">
-                        {calibrationProgressByIssue.get(issue.id)?.status ?? 'needs-value'}
+                        {isExpanded ? 'Collapse' : 'Open'}
                       </span>
-                      <button type="button" onClick={() => handleProgressChange(issue, 'entered')}>
-                        Mark entered
-                      </button>
-                      <button type="button" onClick={() => handleProgressChange(issue, 'verified')}>
-                        Mark verified
-                      </button>
-                      <button type="button" onClick={() => handleProgressChange(issue, 'deferred')}>
-                        Defer
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-              {filteredCalibrationIssues.length > 40 ? (
+                    </button>
+                    {isExpanded ? (
+                      <div className="settings-calibration-group-body">
+                        {groupPreview.map((issue) => (
+                          <article key={issue.id} className="settings-calibration-card">
+                            <div>
+                              <div className="settings-card-heading">
+                                <h3>{issue.label}</h3>
+                                <span className="resource-pill state-warning">
+                                  {issue.severity === 'needs-real-value'
+                                    ? 'Needs real value'
+                                    : 'Warning'}
+                                </span>
+                              </div>
+                              <p>{issue.message}</p>
+                              <div className="resource-meta">
+                                <span>{issue.projectName}</span>
+                                {issue.targetName ? <span>{issue.targetName}</span> : null}
+                                <span>{issue.category}</span>
+                                <span>{issue.field}</span>
+                              </div>
+                            </div>
+                            <CalibrationField
+                              key={`${issue.id}-${issue.value}`}
+                              issue={issue}
+                              credentialReferences={calibration.credentialReferences}
+                              onTargetChange={(targetId, update) => {
+                                onDispatchTargetChange(targetId, update)
+                                onCalibrationProgressChange(
+                                  issue,
+                                  'entered',
+                                  calibrationNoteDrafts[issue.id] ??
+                                    calibrationProgressByIssue.get(issue.id)?.note ??
+                                    '',
+                                )
+                                onCalibrationAudit({
+                                  type: 'field-edit',
+                                  summary: `Updated ${issue.label} for ${issue.projectName}.`,
+                                  issue,
+                                })
+                                setCalibrationMessage('Calibration field updated locally.')
+                              }}
+                              onRejectValue={setCalibrationMessage}
+                            />
+                            <div className="settings-calibration-progress">
+                              <label className="field field-full">
+                                <span>Calibration note</span>
+                                <textarea
+                                  aria-label={`Calibration note for ${issue.label}`}
+                                  rows={2}
+                                  value={
+                                    calibrationNoteDrafts[issue.id] ??
+                                    calibrationProgressByIssue.get(issue.id)?.note ??
+                                    ''
+                                  }
+                                  onChange={(event) =>
+                                    setCalibrationNoteDrafts((current) => ({
+                                      ...current,
+                                      [issue.id]: event.target.value,
+                                    }))
+                                  }
+                                />
+                              </label>
+                              <div className="settings-calibration-actions">
+                                <span className="resource-pill">
+                                  {calibrationProgressByIssue.get(issue.id)?.status ??
+                                    'needs-value'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleProgressChange(issue, 'entered')}
+                                >
+                                  Mark entered
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleProgressChange(issue, 'verified')}
+                                >
+                                  Mark verified
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleProgressChange(issue, 'deferred')}
+                                >
+                                  Defer
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        ))}
+                        {group.issues.length > groupPreview.length ? (
+                          <p className="empty-state">
+                            Showing 12 of {group.issues.length} items in this group. Narrow the
+                            filter for the rest.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </section>
+                )
+              })}
+              {groupedCalibrationIssues.length > 12 ? (
                 <p className="empty-state">
-                  Showing the first 40 unresolved items. Narrow the filter for the rest.
+                  {groupedCalibrationIssues.length} grouped targets/projects are visible. Use the
+                  filter cards above to narrow the list.
                 </p>
               ) : null}
             </div>
