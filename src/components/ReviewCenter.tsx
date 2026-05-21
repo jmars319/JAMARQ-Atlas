@@ -36,7 +36,9 @@ import {
   createReviewSavedFilter,
   createReviewSession,
   createReviewSessionFromPreset,
+  deriveTodaysReviewQueue,
   deriveReviewQueue,
+  groupReviewQueue,
   parseGithubWritePilotReviewNote,
   summarizeReviewQueue,
   summarizeReviewState,
@@ -57,6 +59,8 @@ interface IntakeRepository {
   repository: GithubRepositorySummary
   sources: GithubRepositorySource[]
 }
+
+type ReviewQueueMode = 'today' | 'all'
 
 interface ReviewCenterProps {
   review: ReviewState
@@ -233,6 +237,7 @@ export function ReviewCenter({
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
   const [outcomeDrafts, setOutcomeDrafts] = useState<Record<string, ReviewOutcome>>({})
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
+  const [queueMode, setQueueMode] = useState<ReviewQueueMode>('today')
   const [message, setMessage] = useState('')
   const repositories = useMemo(
     () => mergeRepositories(configuredRepos.data, viewerRepos.data),
@@ -305,6 +310,11 @@ export function ReviewCenter({
   )
   const summary = useMemo(() => summarizeReviewQueue(queue), [queue])
   const reviewSummary = useMemo(() => summarizeReviewState(review), [review])
+  const visibleQueue = useMemo(
+    () => (queueMode === 'today' ? deriveTodaysReviewQueue(filteredQueue) : filteredQueue),
+    [filteredQueue, queueMode],
+  )
+  const groupedQueue = useMemo(() => groupReviewQueue(visibleQueue), [visibleQueue])
   const sections = useMemo(
     () => [...new Map(projectRecords.map((record) => [record.section.id, record.section])).values()],
     [projectRecords],
@@ -312,7 +322,7 @@ export function ReviewCenter({
   const latestSessions = review.sessions.slice(0, 5)
   const latestNotes = review.notes.slice(0, 5)
   const activeReviewItemId =
-    filteredQueue.find((item) => item.id === expandedItemId)?.id ?? filteredQueue[0]?.id ?? null
+    visibleQueue.find((item) => item.id === expandedItemId)?.id ?? visibleQueue[0]?.id ?? null
 
   function startSession(items: ReviewQueueItem[]) {
     if (items.length === 0) {
@@ -497,7 +507,7 @@ export function ReviewCenter({
           onSourceFilterChange={setSourceFilter}
           onSeverityFilterChange={setSeverityFilter}
           onDueFilterChange={setDueFilter}
-          onStartReviewSession={() => startSession(filteredQueue.slice(0, 20))}
+          onStartReviewSession={() => startSession(visibleQueue.slice(0, 20))}
           onSaveFilter={saveCurrentFilter}
           onOpenGitHub={onOpenGitHub}
           onStartPresetSession={startPresetSession}
@@ -507,19 +517,48 @@ export function ReviewCenter({
 
         <div className="review-main">
           <div className="review-summary">
-            <span>{filteredQueue.length} review items shown</span>
+            <span>
+              {visibleQueue.length} of {filteredQueue.length} review items shown
+            </span>
             <span>
               Sessions {reviewSummary.sessions} / Notes {reviewSummary.notes} / Follow-ups{' '}
               {reviewSummary.followUps}
             </span>
           </div>
 
+          <div className="review-mode-toggle" aria-label="Review queue mode">
+            <button
+              type="button"
+              className={queueMode === 'today' ? 'is-selected' : ''}
+              onClick={() => setQueueMode('today')}
+            >
+              Today&apos;s review
+            </button>
+            <button
+              type="button"
+              className={queueMode === 'all' ? 'is-selected' : ''}
+              onClick={() => setQueueMode('all')}
+            >
+              Full queue
+            </button>
+          </div>
+
           <div className="review-queue" aria-label="Operator review queue">
-            {filteredQueue.length === 0 ? (
+            {visibleQueue.length === 0 ? (
               <p className="empty-state">No review items match this view.</p>
             ) : null}
 
-            {filteredQueue.map((item) => {
+            {groupedQueue.map((group) => (
+              <section className="review-queue-group" key={group.id} aria-label={group.label}>
+                <div className="review-group-heading">
+                  <div>
+                    <h3>{group.label}</h3>
+                    <p>{group.detail}</p>
+                  </div>
+                  <strong>{group.items.length}</strong>
+                </div>
+
+                {group.items.map((item) => {
               const outcome = outcomeDrafts[item.id] ?? 'noted'
               const noteDraft = noteDrafts[item.id] ?? ''
               const isExpanded = item.id === activeReviewItemId
@@ -641,7 +680,9 @@ export function ReviewCenter({
                   ) : null}
                 </article>
               )
-            })}
+                })}
+              </section>
+            ))}
           </div>
         </div>
 

@@ -2835,6 +2835,53 @@ h3 {
   font-size: 0.78rem;
 }
 
+.review-mode-toggle {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.review-mode-toggle button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 7px 10px;
+}
+
+.review-mode-toggle button.is-selected {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+}
+
+.review-queue-group {
+  display: grid;
+  gap: 8px;
+}
+
+.review-group-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.025);
+  padding: 9px 10px;
+}
+
+.review-group-heading p {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.review-group-heading strong {
+  color: var(--paper-white);
+  font-size: 0.88rem;
+}
+
 .review-item {
   background: rgba(250, 250, 250, 0.02);
 }

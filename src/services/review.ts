@@ -1043,6 +1043,97 @@ export function summarizeReviewQueue(items: ReviewQueueItem[]): ReviewQueueSumma
   }
 }
 
+export type ReviewQueueGroupId =
+  | 'due-overdue'
+  | 'blocked'
+  | 'dispatch'
+  | 'github-data'
+  | 'planning-writing-reports'
+  | 'data-sync'
+
+export interface ReviewQueueGroup {
+  id: ReviewQueueGroupId
+  label: string
+  detail: string
+  items: ReviewQueueItem[]
+}
+
+const REVIEW_QUEUE_GROUPS: Array<Omit<ReviewQueueGroup, 'items'>> = [
+  {
+    id: 'due-overdue',
+    label: 'Due / overdue',
+    detail: 'Verification and planning items with dates that need attention.',
+  },
+  {
+    id: 'blocked',
+    label: 'Blocked',
+    detail: 'Manual blockers, waiting work, and high-risk workspace items.',
+  },
+  {
+    id: 'dispatch',
+    label: 'Dispatch',
+    detail: 'Deploy queue, closeout, and deployment evidence follow-up.',
+  },
+  {
+    id: 'github-data',
+    label: 'GitHub / data gaps',
+    detail: 'Repository placement, command signals, permission gaps, and Timeline warnings.',
+  },
+  {
+    id: 'planning-writing-reports',
+    label: 'Planning / Writing / Reports',
+    detail: 'Follow-up records and local packets waiting for human action.',
+  },
+  {
+    id: 'data-sync',
+    label: 'Data / Sync',
+    detail: 'Backup and snapshot freshness checks.',
+  },
+]
+
+export function reviewQueueGroupId(item: ReviewQueueItem): ReviewQueueGroupId {
+  if (item.source === 'dispatch') {
+    return 'dispatch'
+  }
+
+  if (item.source === 'github' || item.source === 'timeline') {
+    return 'github-data'
+  }
+
+  if (['planning', 'writing', 'reports'].includes(item.source)) {
+    return item.dueState === 'overdue' || item.dueState === 'due'
+      ? 'due-overdue'
+      : 'planning-writing-reports'
+  }
+
+  if (item.source === 'data-sync') {
+    return 'data-sync'
+  }
+
+  if (item.dueState === 'overdue' || item.dueState === 'due') {
+    return 'due-overdue'
+  }
+
+  return 'blocked'
+}
+
+export function groupReviewQueue(items: ReviewQueueItem[]): ReviewQueueGroup[] {
+  return REVIEW_QUEUE_GROUPS.map((group) => ({
+    ...group,
+    items: items.filter((item) => reviewQueueGroupId(item) === group.id),
+  })).filter((group) => group.items.length > 0)
+}
+
+export function deriveTodaysReviewQueue(items: ReviewQueueItem[], limit = 12): ReviewQueueItem[] {
+  return items
+    .filter(
+      (item) =>
+        ['critical', 'high'].includes(item.severity) ||
+        ['overdue', 'due', 'blocked', 'attention'].includes(item.dueState),
+    )
+    .slice(0, limit)
+}
+
 export function summarizeReviewState(state: ReviewState) {
   return {
     sessions: state.sessions.length,

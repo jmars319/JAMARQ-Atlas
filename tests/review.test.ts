@@ -14,8 +14,10 @@ import {
   createReviewSession,
   createReviewSessionFromPreset,
   deleteReviewFilter,
+  deriveTodaysReviewQueue,
   deriveReviewQueue,
   emptyReviewStore,
+  groupReviewQueue,
   saveReviewFilter,
   normalizeReviewState,
   parseGithubWritePilotReviewNote,
@@ -236,5 +238,42 @@ describe('operator review center', () => {
     expect(githubSession?.scope).toBe('github')
     expect(githubSession?.itemIds.every((id) => id.startsWith('github-'))).toBe(true)
     expect(seedWorkspace.sections[0].groups[0].projects[0].manual.status).toBe('Active')
+  })
+
+  it('groups review queues into scannable operator buckets and derives a focused Today view', () => {
+    const repoSuggestions = deriveRepoPlacementSuggestions(projectRecords, [unboundRepository])
+    const queue = deriveReviewQueue({
+      projectRecords,
+      dispatch: seedDispatchState,
+      planning: emptyPlanningStore(now),
+      reports: emptyReportsStore(now),
+      writing,
+      sync: emptySyncState(now),
+      timelineEvents: [],
+      repoSuggestions,
+      now,
+    })
+    const groups = groupReviewQueue(queue)
+    const today = deriveTodaysReviewQueue(queue, 8)
+
+    expect(groups.map((group) => group.id)).toEqual(
+      expect.arrayContaining([
+        'due-overdue',
+        'blocked',
+        'dispatch',
+        'github-data',
+        'planning-writing-reports',
+        'data-sync',
+      ]),
+    )
+    expect(groups.flatMap((group) => group.items)).toHaveLength(queue.length)
+    expect(today).toHaveLength(8)
+    expect(
+      today.every(
+        (item) =>
+          ['critical', 'high'].includes(item.severity) ||
+          ['overdue', 'due', 'blocked', 'attention'].includes(item.dueState),
+      ),
+    ).toBe(true)
   })
 })
