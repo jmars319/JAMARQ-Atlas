@@ -2012,6 +2012,7 @@ h3 {
 .state-open,
 .state-active,
 .state-available,
+.state-satisfied,
 .state-passing {
   color: var(--success);
 }
@@ -2019,6 +2020,7 @@ h3 {
 .state-failure,
 .state-failed,
 .state-blocked,
+.state-missing,
 .state-cancelled,
 .state-closed {
   color: var(--danger);
@@ -2035,6 +2037,7 @@ h3 {
 }
 
 .state-skipped,
+.state-none,
 .state-archived {
   color: var(--text-muted);
 }
@@ -2278,6 +2281,87 @@ h3 {
   color: var(--text-soft);
   font-size: 0.78rem;
   line-height: 1.45;
+}
+
+.dispatch-closeout-focus {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.dispatch-closeout-focus-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.dispatch-closeout-focus-group .dispatch-summary-heading span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.dispatch-closeout-focus-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.dispatch-closeout-focus-counts span {
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: rgba(11, 13, 16, 0.34);
+  color: var(--text-muted);
+  padding: 6px;
+  font-size: 0.68rem;
+}
+
+.dispatch-closeout-focus-counts strong {
+  color: var(--paper-white);
+  font-size: 0.84rem;
+}
+
+.dispatch-closeout-focus-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dispatch-closeout-focus-list li {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.dispatch-closeout-focus-list strong,
+.dispatch-closeout-focus-list span,
+.dispatch-closeout-focus-list p {
+  display: block;
+}
+
+.dispatch-closeout-focus-list strong {
+  color: var(--paper-white);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-closeout-focus-list span,
+.dispatch-closeout-focus-list p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.69rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .dispatch-queue-heading strong {
@@ -4589,6 +4673,9 @@ code {
   .dispatch-mini-grid,
   .dispatch-summary-grid,
   .dispatch-signal-grid,
+  .dispatch-closeout-focus,
+  .dispatch-closeout-focus-counts,
+  .dispatch-closeout-focus-list li,
   .dispatch-queue-signals,
   .dispatch-queue-runbook,
   .dispatch-runbook-grid,

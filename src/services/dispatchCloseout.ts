@@ -69,6 +69,33 @@ export interface DispatchCloseoutSummary {
   warnings: string[]
 }
 
+export type DispatchCloseoutFocusGroupId =
+  | 'evidence'
+  | 'manual-session'
+  | 'manual-record'
+  | 'protected-checks'
+  | 'backup-rollback'
+  | 'report'
+
+export interface DispatchCloseoutFocusItem {
+  projectId: string
+  targetId: string
+  state: DispatchCloseoutState
+  status: DispatchCloseoutRequirementStatus
+  detail: string
+  requirementIds: string[]
+}
+
+export interface DispatchCloseoutFocusGroup {
+  id: DispatchCloseoutFocusGroupId
+  label: string
+  detail: string
+  readyCount: number
+  needsActionCount: number
+  warningCount: number
+  items: DispatchCloseoutFocusItem[]
+}
+
 export const deploymentReportPacketTypes: ReportPacketType[] = [
   'deployment-readiness-packet',
   'post-deploy-verification-packet',
@@ -84,6 +111,59 @@ export const closeoutStateLabels: Record<DispatchCloseoutState, string> = {
   'needs-manual-record': 'Needs manual record',
   'needs-follow-up': 'Needs follow-up',
   'closeout-ready': 'Closeout ready',
+}
+
+const closeoutFocusDefinitions: Array<{
+  id: DispatchCloseoutFocusGroupId
+  label: string
+  detail: string
+  requirementIds: string[]
+}> = [
+  {
+    id: 'evidence',
+    label: 'Evidence',
+    detail: 'Artifacts, host evidence, and runbook verification evidence.',
+    requirementIds: ['artifacts', 'host-evidence', 'verification-evidence'],
+  },
+  {
+    id: 'manual-session',
+    label: 'Manual session state',
+    detail: 'Deploy session presence and step completion.',
+    requirementIds: ['deploy-session', 'session-steps'],
+  },
+  {
+    id: 'manual-record',
+    label: 'Missing record',
+    detail: 'Human-confirmed deployment record coverage.',
+    requirementIds: ['manual-deployment-record'],
+  },
+  {
+    id: 'protected-checks',
+    label: 'Protected checks',
+    detail: 'Required preserve paths and protected URL checks in the runbook.',
+    requirementIds: ['protected-checks'],
+  },
+  {
+    id: 'backup-rollback',
+    label: 'Backup / rollback',
+    detail: 'Backup references, rollback references, and recovery plan posture.',
+    requirementIds: ['backup-reference', 'rollback-reference', 'recovery-plan'],
+  },
+  {
+    id: 'report',
+    label: 'Report creation',
+    detail: 'Deployment or closeout report packet presence.',
+    requirementIds: ['report-packet'],
+  },
+]
+
+const closeoutStateRank: Record<DispatchCloseoutState, number> = {
+  'needs-evidence': 0,
+  'needs-manual-record': 1,
+  'needs-follow-up': 2,
+  'session-active': 3,
+  'not-started': 4,
+  'closeout-ready': 5,
 }
 
 function latestManualDeploymentRecord(state: DispatchState, targetId: string) {
@@ -359,6 +439,38 @@ function rollbackRequirement({
   }
 }
 
+function protectedChecksRequirement(
+  runbook: DeploymentRunbook | undefined,
+): DispatchCloseoutRequirement {
+  if (!runbook) {
+    return {
+      id: 'protected-checks',
+      label: 'Protected checks',
+      status: 'warning',
+      detail: 'No runbook is configured, so protected path checks are not documented.',
+    }
+  }
+
+  const requiredPreservePaths = runbook.preservePaths.filter((path) => path.required)
+  const protectedUrlChecks = runbook.verificationChecks.filter((check) => check.protectedResource)
+
+  if (requiredPreservePaths.length === 0 && protectedUrlChecks.length === 0) {
+    return {
+      id: 'protected-checks',
+      label: 'Protected checks',
+      status: 'warning',
+      detail: 'No required preserve paths or protected URL checks are documented.',
+    }
+  }
+
+  return {
+    id: 'protected-checks',
+    label: 'Protected checks',
+    status: 'satisfied',
+    detail: `${requiredPreservePaths.length} preserve path(s), ${protectedUrlChecks.length} protected URL check(s).`,
+  }
+}
+
 function recoveryRequirement({
   dispatch,
   target,
@@ -547,6 +659,7 @@ export function deriveDispatchCloseoutForTarget({
       missingDetail: 'No runbook verification evidence has been captured.',
     }),
     manualRecordRequirement(latestManualRecord),
+    protectedChecksRequirement(runbook),
     backupRequirement({ target, session: latestSession, record: latestManualRecord }),
     rollbackRequirement({ session: latestSession, record: latestManualRecord }),
     recoveryRequirement({ dispatch, target }),
@@ -613,4 +726,69 @@ export function deriveDispatchCloseoutSummaries({
       runbook: getRunbookForTarget(dispatch, target.id),
     }),
   )
+}
+
+function focusItemStatus(
+  requirements: DispatchCloseoutRequirement[],
+): DispatchCloseoutRequirementStatus {
+  if (requirements.some((requirement) => requirement.status === 'missing')) {
+    return 'missing'
+  }
+
+  if (requirements.some((requirement) => requirement.status === 'warning')) {
+    return 'warning'
+  }
+
+  return 'satisfied'
+}
+
+export function deriveDispatchCloseoutFocusGroups(
+  summaries: DispatchCloseoutSummary[],
+  limitPerGroup = 4,
+): DispatchCloseoutFocusGroup[] {
+  const sortedSummaries = summaries
+    .slice()
+    .sort(
+      (left, right) =>
+        closeoutStateRank[left.state] - closeoutStateRank[right.state] ||
+        right.warnings.length - left.warnings.length ||
+        left.targetId.localeCompare(right.targetId),
+    )
+
+  return closeoutFocusDefinitions.map((definition) => {
+    const items = sortedSummaries.map((summary) => {
+      const requirements = summary.requirements.filter((requirement) =>
+        definition.requirementIds.includes(requirement.id),
+      )
+      const status = focusItemStatus(requirements)
+
+      return {
+        projectId: summary.projectId,
+        targetId: summary.targetId,
+        state: summary.state,
+        status,
+        detail:
+          requirements
+            .filter((requirement) => requirement.status !== 'satisfied')
+            .map((requirement) => `${requirement.label}: ${requirement.detail}`)
+            .join(' ') ||
+          requirements.map((requirement) => requirement.detail).join(' '),
+        requirementIds: requirements.map((requirement) => requirement.id),
+      }
+    })
+    const prioritizedItems = [
+      ...items.filter((item) => item.status !== 'satisfied'),
+      ...items.filter((item) => item.status === 'satisfied'),
+    ]
+
+    return {
+      id: definition.id,
+      label: definition.label,
+      detail: definition.detail,
+      readyCount: items.filter((item) => item.status === 'satisfied').length,
+      needsActionCount: items.filter((item) => item.status === 'missing').length,
+      warningCount: items.filter((item) => item.status === 'warning').length,
+      items: prioritizedItems.slice(0, limitPerGroup),
+    }
+  })
 }

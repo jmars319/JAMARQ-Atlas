@@ -71,7 +71,11 @@ import {
   deriveDispatchQueueItems,
   summarizeArtifactInspectionDetails,
 } from '../src/services/dispatchQueue'
-import { deriveDispatchCloseoutForTarget } from '../src/services/dispatchCloseout'
+import {
+  deriveDispatchCloseoutFocusGroups,
+  deriveDispatchCloseoutForTarget,
+  deriveDispatchCloseoutSummaries,
+} from '../src/services/dispatchCloseout'
 import { emptyPlanningStore } from '../src/services/planning'
 import { addReportPacket, createReportPacket, emptyReportsStore } from '../src/services/reports'
 
@@ -1002,6 +1006,28 @@ describe('dispatch readiness', () => {
     expect(summary.requirements.map((requirement) => requirement.id)).toContain('report-packet')
     expect(JSON.stringify(seedDispatchState)).toBe(dispatchBefore)
     expect(JSON.stringify(reports)).toBe(reportsBefore)
+  })
+
+  it('groups closeout focus by evidence, session, records, protected checks, backup, and reports', () => {
+    const reports = emptyReportsStore(new Date('2026-05-10T12:00:00Z'))
+    const summaries = deriveDispatchCloseoutSummaries({ dispatch: seedDispatchState, reports })
+    const groups = deriveDispatchCloseoutFocusGroups(summaries, 3)
+    const evidence = groups.find((group) => group.id === 'evidence')
+    const protectedChecks = groups.find((group) => group.id === 'protected-checks')
+    const report = groups.find((group) => group.id === 'report')
+
+    expect(groups.map((group) => group.id)).toEqual([
+      'evidence',
+      'manual-session',
+      'manual-record',
+      'protected-checks',
+      'backup-rollback',
+      'report',
+    ])
+    expect(evidence?.needsActionCount).toBeGreaterThan(0)
+    expect(protectedChecks?.items[0].requirementIds).toContain('protected-checks')
+    expect(report?.items[0].requirementIds).toContain('report-packet')
+    expect(groups.every((group) => group.items.length <= 3)).toBe(true)
   })
 
   it('derives closeout states for active, completed, and failed-evidence sessions', () => {

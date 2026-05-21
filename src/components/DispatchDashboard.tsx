@@ -36,7 +36,11 @@ import { deriveDispatchQueueItems } from '../services/dispatchQueue'
 import { DispatchQueueCommandCenter } from './DispatchQueueCommandCenter'
 import type { DeploymentArtifact } from '../domain/dispatch'
 import type { ReportsState } from '../domain/reports'
-import { closeoutStateLabels, deriveDispatchCloseoutSummaries } from '../services/dispatchCloseout'
+import {
+  closeoutStateLabels,
+  deriveDispatchCloseoutFocusGroups,
+  deriveDispatchCloseoutSummaries,
+} from '../services/dispatchCloseout'
 import {
   compareHostEvidenceRuns,
   compareVerificationEvidenceRuns,
@@ -103,6 +107,10 @@ export function DispatchDashboard({
   const closeoutSummaries = useMemo(
     () => deriveDispatchCloseoutSummaries({ dispatch, reports }),
     [dispatch, reports],
+  )
+  const closeoutFocusGroups = useMemo(
+    () => deriveDispatchCloseoutFocusGroups(closeoutSummaries),
+    [closeoutSummaries],
   )
   const hostInspectableTargets = dispatch.targets.filter((target) =>
     ['cpanel', 'godaddy-cpanel'].includes(target.hostType),
@@ -238,6 +246,55 @@ export function DispatchDashboard({
             <strong>{needsFollowUpCount}</strong>
             <span>{closeoutStateLabels['needs-follow-up']}</span>
           </div>
+        </div>
+        <div className="dispatch-closeout-focus" aria-label="Dispatch closeout compact view">
+          {closeoutFocusGroups.map((group) => (
+            <article key={group.id} className="dispatch-closeout-focus-group">
+              <div className="dispatch-summary-heading">
+                <div>
+                  <strong>{group.label}</strong>
+                  <span>{group.detail}</span>
+                </div>
+                <span className="resource-pill state-warning">
+                  {group.needsActionCount + group.warningCount} open
+                </span>
+              </div>
+              <div className="dispatch-closeout-focus-counts">
+                <span>
+                  <strong>{group.readyCount}</strong>
+                  Ready
+                </span>
+                <span>
+                  <strong>{group.needsActionCount}</strong>
+                  Missing
+                </span>
+                <span>
+                  <strong>{group.warningCount}</strong>
+                  Follow-up
+                </span>
+              </div>
+              <ul className="dispatch-closeout-focus-list">
+                {group.items.map((item) => {
+                  const target = targetById.get(item.targetId)
+
+                  return (
+                    <li key={`${group.id}-${item.targetId}`}>
+                      <span className={`resource-pill state-${item.status}`}>
+                        {item.status}
+                      </span>
+                      <div>
+                        <strong>{target?.name ?? item.targetId}</strong>
+                        <span>
+                          {target ? projectName(projectRecords, target.projectId) : item.projectId}
+                        </span>
+                        <p>{item.detail || closeoutStateLabels[item.state]}</p>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </article>
+          ))}
         </div>
         <p className="dispatch-muted-note">
           Derived from {closeoutSummaries.length} Dispatch target(s). Closeout analytics are

@@ -422,6 +422,8 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
   await expect(page.getByLabel('Dispatch closeout analytics')).toBeVisible()
   await expect(page.getByLabel('Dispatch closeout analytics')).toContainText('Closeout ready')
+  await expect(page.getByLabel('Dispatch closeout compact view')).toContainText('Protected checks')
+  await expect(page.getByLabel('Dispatch closeout compact view')).toContainText('Report creation')
   const queue = page.getByLabel('Dispatch queue command center')
   await expect(queue).toBeVisible()
   await expect(queue).toContainText('#1 / Midway Mobile Storage')
