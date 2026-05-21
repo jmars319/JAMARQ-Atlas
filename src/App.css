@@ -6,6 +6,7 @@
   width: min(1780px, 100%);
   margin: 0 auto;
   padding: 16px;
+  overflow-x: clip;
 }
 
 .topbar,
@@ -74,7 +75,7 @@
 
 .app-tabs {
   display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(360px, auto) minmax(0, 1fr);
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -98,14 +99,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+  min-width: 0;
 }
 
 .app-tabs button {
   min-height: 36px;
+  min-width: 0;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--text-soft);
   padding: 8px 14px;
+  white-space: nowrap;
 }
 
 .app-tab-group-secondary button {
@@ -4249,6 +4253,10 @@ code {
 }
 
 @media (max-width: 1280px) {
+  .app-tabs {
+    grid-template-columns: 1fr;
+  }
+
   .app-layout,
   .app-layout.is-inspector-open {
     grid-template-columns: 1fr;
@@ -4263,6 +4271,30 @@ code {
 @media (max-width: 900px) {
   .app-shell {
     padding: 10px;
+  }
+
+  .app-tabs {
+    gap: 8px;
+  }
+
+  .app-tab-group {
+    padding: 7px;
+  }
+
+  .app-tab-group > div {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  }
+
+  .app-tab-group-secondary > div {
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  }
+
+  .app-tabs button,
+  .app-tab-group-secondary button {
+    min-height: 38px;
+    padding: 7px 9px;
+    white-space: normal;
   }
 
   .topbar,
@@ -4387,5 +4419,45 @@ code {
 
   .dispatch-preflight-history li {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    padding: 8px;
+  }
+
+  .topbar {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .brand-lockup {
+    min-width: 0;
+  }
+
+  .topbar-meta,
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+
+  .topbar-meta span,
+  .current-project-chip,
+  .inspector-toggle {
+    width: 100%;
+  }
+
+  .topbar-meta span {
+    justify-content: flex-start;
+  }
+
+  .app-tab-group > div,
+  .app-tab-group-secondary > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-tabs button {
+    justify-content: center;
+    font-size: 0.84rem;
   }
 }
