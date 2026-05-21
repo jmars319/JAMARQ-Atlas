@@ -26,4 +26,6 @@ test('operator can batch Review items into explicit Planning notes', async ({ pa
   await expect(page.getByLabel('Planning records', { exact: true })).toContainText(
     'Review follow-up:',
   )
+  await expect(page.getByLabel('Planning records', { exact: true })).toContainText('Review note')
+  await expect(page.locator('.planning-summary')).toContainText('Review handoffs')
 })

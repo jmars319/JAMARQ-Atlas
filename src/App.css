@@ -2689,6 +2689,34 @@ h3 {
   font-size: 0.76rem;
 }
 
+.planning-source-links {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(9, 166, 214, 0.24);
+  background: rgba(9, 166, 214, 0.06);
+  padding: 8px 9px;
+}
+
+.planning-source-links > span {
+  color: var(--accent-cyan);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.planning-source-links div {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.planning-source-links div span {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 4px 7px;
+  font-size: 0.72rem;
+}
+
 .planning-card-fields {
   border-top: 1px solid var(--line);
   padding-top: 10px;

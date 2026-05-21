@@ -45,6 +45,18 @@ function statusLabel(status: PlanningStatus) {
   return PLANNING_STATUSES.find((definition) => definition.id === status)?.label ?? status
 }
 
+function sourceLinkLabel(type: PlanningItem['sourceLinks'][number]['type']) {
+  const labels: Record<PlanningItem['sourceLinks'][number]['type'], string> = {
+    'review-note': 'Review note',
+    'review-session': 'Review session',
+    'dispatch-session': 'Dispatch session',
+    'report-packet': 'Report packet',
+    'timeline-event': 'Timeline event',
+  }
+
+  return labels[type]
+}
+
 function getItemDateLabel(item: PlanningItem) {
   if (item.kind === 'objective') {
     return 'Target date'
@@ -165,6 +177,19 @@ function PlanningItemCard({
         </button>
       </div>
 
+      {item.sourceLinks.length > 0 ? (
+        <div className="planning-source-links" aria-label={`Source links for ${item.title}`}>
+          <span>Source links</span>
+          <div>
+            {item.sourceLinks.map((link) => (
+              <span key={`${item.id}-${link.type}-${link.id}`}>
+                {sourceLinkLabel(link.type)}: {link.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="field-grid planning-card-fields">
         <label className="field">
           <span>Planning title</span>
@@ -272,6 +297,9 @@ export function PlanningCenter({
     .filter((row) => statusFilter === 'all' || row.item.status === statusFilter)
     .filter((row) => sectionFilter === 'all' || row.record?.section.id === sectionFilter)
     .filter((row) => itemMatchesQuery(row, query))
+  const visibleReviewHandoffs = filteredRows.filter((row) =>
+    row.item.sourceLinks.some((link) => link.type === 'review-note'),
+  ).length
 
   function handleCreate() {
     if (!selectedRecord || !draftTitle.trim()) {
@@ -497,7 +525,8 @@ export function PlanningCenter({
           <div className="planning-summary">
             <span>{filteredRows.length} planning records shown</span>
             <span>
-              Active {summary.active} / Planned {summary.planned} / Waiting {summary.waiting}
+              Active {summary.active} / Planned {summary.planned} / Waiting {summary.waiting} /
+              Review handoffs {visibleReviewHandoffs}
             </span>
           </div>
 
