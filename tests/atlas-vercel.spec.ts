@@ -176,6 +176,7 @@ test('Vercel deployment evidence stays read-only across Settings, Dispatch, Proj
   await expect(projectDetail).toContainText('Deployment signals')
 
   await clickAtlasNav(page, 'Review')
+  await page.getByRole('button', { name: 'Full queue' }).click()
   const reviewQueue = page.getByLabel('Operator review queue')
   const vercelReviewItem = reviewQueue
     .locator('.review-item')
