@@ -21,6 +21,7 @@ import type {
   CalibrationFieldStatus,
 } from '../domain/calibration'
 import type { DeploymentTarget, DispatchState } from '../domain/dispatch'
+import type { AtlasOptimizationState } from '../domain/optimization'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
 import type { ReviewState } from '../domain/review'
@@ -105,6 +106,7 @@ interface SettingsCenterProps {
   reports: ReportsState
   review: ReviewState
   calibration: AtlasCalibrationState
+  optimization: AtlasOptimizationState
   sync: AtlasSyncState
   onSettingsChange: (
     update: Partial<Pick<AtlasSettingsState, 'deviceLabel' | 'operatorLabel' | 'notes'>>,
@@ -177,6 +179,7 @@ export function SettingsCenter({
   reports,
   review,
   calibration,
+  optimization,
   sync,
   onSettingsChange,
   onDispatchTargetChange,
@@ -611,8 +614,8 @@ export function SettingsCenter({
     (issue) => issue.editable && issue.targetId && issue.field === bulkCalibrationField,
   )
   const currentStores = useMemo(
-    () => ({ workspace, dispatch, writing, planning, reports, review, calibration }),
-    [calibration, dispatch, planning, reports, review, workspace, writing],
+    () => ({ workspace, dispatch, writing, planning, reports, review, calibration, optimization }),
+    [calibration, dispatch, optimization, planning, reports, review, workspace, writing],
   )
   const selectedSnapshot =
     sync.snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? sync.snapshots[0]
@@ -786,7 +789,7 @@ export function SettingsCenter({
     onRestoreSnapshot(restorePreview.normalizedStores)
     setSnapshotConfirmation('')
     setSyncMessage(
-      'Snapshot restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores were replaced.',
+      'Snapshot restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization stores were replaced.',
     )
   }
 

@@ -24,6 +24,7 @@ import type {
   CalibrationCredentialReference,
   CalibrationFieldStatus,
 } from '../domain/calibration'
+import type { AtlasOptimizationState } from '../domain/optimization'
 import type { AtlasBackupStores } from '../domain/dataPortability'
 import type { PlanningSourceLink, PlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
@@ -55,6 +56,7 @@ import type { GithubRepositorySummary } from './githubIntegration'
 
 export type AtlasActionView =
   | 'board'
+  | 'optimize'
   | 'timeline'
   | 'github'
   | 'planning'
@@ -92,6 +94,8 @@ interface AtlasActionsContext {
   setSettings: ReactDispatch<SetStateAction<AtlasSettingsState>>
   calibration: AtlasCalibrationState
   setCalibration: ReactDispatch<SetStateAction<AtlasCalibrationState>>
+  optimization: AtlasOptimizationState
+  setOptimization: ReactDispatch<SetStateAction<AtlasOptimizationState>>
   setCalibrationFieldProgress: (
     issue: CalibrationIssue,
     status: CalibrationFieldStatus,
@@ -423,6 +427,7 @@ export function createAtlasActions(context: AtlasActionsContext) {
     context.setReports(stores.reports)
     context.setReview(stores.review)
     context.setCalibration(stores.calibration)
+    context.setOptimization(stores.optimization)
     context.setSettings(stores.settings)
     context.setSync(stores.sync)
     context.setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
@@ -440,6 +445,7 @@ export function createAtlasActions(context: AtlasActionsContext) {
           reports: context.reports,
           review: context.review,
           calibration: context.calibration,
+          optimization: context.optimization,
         },
         settings: context.settings,
         sync: context.sync,
@@ -457,6 +463,7 @@ export function createAtlasActions(context: AtlasActionsContext) {
     context.setReports(stores.reports)
     context.setReview(stores.review)
     context.setCalibration(stores.calibration)
+    context.setOptimization(stores.optimization)
     context.setSelectedProjectId(flattenProjects(stores.workspace)[0]?.project.id ?? '')
     context.setSelectedWritingDraftId('')
   }

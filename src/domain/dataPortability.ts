@@ -1,6 +1,7 @@
 import type { Workspace } from './atlas'
 import type { AtlasCalibrationState } from './calibration'
 import type { DispatchState } from './dispatch'
+import type { AtlasOptimizationState } from './optimization'
 import type { AtlasPlanningState } from './planning'
 import type { ReportsState } from './reports'
 import type { ReviewState } from './review'
@@ -9,9 +10,9 @@ import type { AtlasSyncState } from './sync'
 import type { WritingWorkbenchState } from './writing'
 
 export const ATLAS_BACKUP_KIND = 'jamarq-atlas-backup'
-export const ATLAS_BACKUP_SCHEMA_VERSION = 5
+export const ATLAS_BACKUP_SCHEMA_VERSION = 6
 
-export type AtlasBackupSchemaVersion = 1 | 2 | 3 | 4 | typeof ATLAS_BACKUP_SCHEMA_VERSION
+export type AtlasBackupSchemaVersion = 1 | 2 | 3 | 4 | 5 | typeof ATLAS_BACKUP_SCHEMA_VERSION
 
 export interface AtlasBackupStores {
   workspace: Workspace
@@ -21,6 +22,7 @@ export interface AtlasBackupStores {
   reports: ReportsState
   review: ReviewState
   calibration: AtlasCalibrationState
+  optimization: AtlasOptimizationState
   settings: AtlasSettingsState
   sync: AtlasSyncState
 }
@@ -79,6 +81,11 @@ export interface AtlasBackupStoreSummary {
     credentialReferences: number
     auditEvents: number
   }
+  optimization: {
+    snapshots: number
+    assessments: number
+    recommendations: number
+  }
   settings: {
     configured: number
     hasOperatorLabel: number
@@ -132,6 +139,7 @@ export type AtlasRestoreWarningType =
   | 'missing-reports'
   | 'missing-review'
   | 'missing-calibration'
+  | 'missing-optimization'
   | 'missing-settings'
   | 'missing-sync'
   | 'legacy-normalized'

@@ -1,4 +1,5 @@
 import type { Workspace } from '../domain/atlas'
+import { normalizeOptimizationState, summarizeOptimizationState } from './optimization'
 import type { AtlasSettingsState } from '../domain/settings'
 import {
   ATLAS_SYNC_SNAPSHOT_STORE_IDS,
@@ -95,6 +96,11 @@ function emptySyncSummary(): AtlasSyncStoreSummary {
       credentialReferences: 0,
       auditEvents: 0,
     },
+    optimization: {
+      snapshots: 0,
+      assessments: 0,
+      recommendations: 0,
+    },
   }
 }
 
@@ -112,6 +118,7 @@ function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
   const reports = isRecord(value.reports) ? value.reports : {}
   const review = isRecord(value.review) ? value.review : {}
   const calibration = isRecord(value.calibration) ? value.calibration : {}
+  const optimization = isRecord(value.optimization) ? value.optimization : {}
 
   return {
     workspace: {
@@ -164,6 +171,11 @@ function normalizeSyncSummary(value: unknown): AtlasSyncStoreSummary {
       deferred: Number(calibration.deferred) || 0,
       credentialReferences: Number(calibration.credentialReferences) || 0,
       auditEvents: Number(calibration.auditEvents) || 0,
+    },
+    optimization: {
+      snapshots: Number(optimization.snapshots) || 0,
+      assessments: Number(optimization.assessments) || 0,
+      recommendations: Number(optimization.recommendations) || 0,
     },
   }
 }
@@ -250,6 +262,7 @@ export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStore
     },
     review: summarizeReviewState(stores.review),
     calibration: summarizeCalibrationState(stores.calibration),
+    optimization: summarizeOptimizationState(stores.optimization),
   }
 }
 
@@ -270,6 +283,7 @@ export function normalizeSyncStores(value: unknown): AtlasSyncCoreStores {
     reports: normalizeReportsState(value.reports ?? {}),
     review: normalizeReviewState(value.review ?? {}),
     calibration: normalizeCalibrationState(value.calibration ?? {}, SYNC_NORMALIZATION_FALLBACK_DATE),
+    optimization: normalizeOptimizationState(value.optimization ?? {}, SYNC_NORMALIZATION_FALLBACK_DATE),
   }
 }
 

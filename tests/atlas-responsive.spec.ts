@@ -3,6 +3,7 @@ import { clickAtlasNav, type AtlasNavLabel } from './helpers/atlasTestUtils'
 
 const criticalViews: Array<{ nav: AtlasNavLabel | null; heading: string; landmark: string }> = [
   { nav: null, heading: 'JAMARQ Atlas', landmark: 'Atlas status board' },
+  { nav: 'Optimize', heading: 'Portfolio Optimization', landmark: 'Portfolio Optimization Center' },
   { nav: 'Review', heading: 'Review Center', landmark: 'Operator review queue' },
   { nav: 'Planning', heading: 'Planning Center', landmark: 'Planning records' },
   { nav: 'Settings', heading: 'Settings & Connections', landmark: 'Calibration progress summary' },
@@ -15,6 +16,7 @@ const criticalViews: Array<{ nav: AtlasNavLabel | null; heading: string; landmar
 
 const navLabels: AtlasNavLabel[] = [
   'Board',
+  'Optimize',
   'GitHub',
   'Planning',
   'Review',

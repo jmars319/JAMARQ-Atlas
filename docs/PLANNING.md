@@ -27,7 +27,7 @@ Planning records are human-authored. They do not update:
 - GitHub bindings or imported projects.
 - Writing draft status or provider suggestions.
 
-GitHub, Dispatch, Verification, and Writing can provide context elsewhere in Atlas, but they cannot create or change Planning records automatically.
+GitHub, Dispatch, Verification, Writing, and Optimization can provide context elsewhere in Atlas, but they cannot create or change Planning records automatically.
 
 ## Current UI
 
@@ -40,7 +40,7 @@ The top-level Planning tab provides:
 
 Project detail pages include a compact Planning panel with per-project counts and the most recent planning records.
 
-Planning cards show source-link labels when a record was created from Review or another operator surface. These links are context only; they do not synchronize state back to the source module.
+Planning cards show source-link labels when a record was created from Review or another operator surface that passes a source link. Optimize-created Planning notes are normal notes and do not synchronize state back to the imported snapshot.
 
 ## Future Work
 

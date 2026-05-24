@@ -33,6 +33,7 @@ Snapshots include normalized copies of:
 - Reports
 - Review
 - Calibration
+- Optimization
 
 Snapshots do not include:
 
@@ -46,11 +47,11 @@ Snapshots do not include:
 - Full live GitHub history
 
 This avoids recursive snapshots and keeps future hosted sync focused on Atlas operational data.
-Calibration is included because it is user-authored operational metadata: field progress, non-secret credential references, and calibration audit history. Settings and Sync metadata stay excluded.
+Calibration is included because it is user-authored operational metadata: field progress, non-secret credential references, and calibration audit history. Optimization is included because imported scorecards and recommendations are local operator review context. Settings and Sync metadata stay excluded.
 
 ## Restore Behavior
 
-Snapshot restore is preview-first and full-replace for Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration only.
+Snapshot restore is preview-first and full-replace for Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization only.
 
 Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
@@ -59,7 +60,7 @@ Snapshot restore does not change Settings, Sync provider configuration, or snaps
 Restore previews warn when:
 
 - Incoming stores are empty.
-- Incoming snapshots have fewer projects, Dispatch targets, Writing drafts, Planning records, Report packets, Review sessions, or Calibration progress records than current local data.
+- Incoming snapshots have fewer projects, Dispatch targets, Writing drafts, Planning records, Report packets, Review sessions, Calibration progress records, or Optimization snapshots than current local data.
 - Incoming fingerprints match current local stores.
 - Remote metadata suggests older snapshots may exist outside the latest loaded set.
 
@@ -79,7 +80,7 @@ The service role key stays server-side. Browser state stores only provider statu
 
 This is not live sync. Push creates a snapshot. Pull lists snapshots. Restore is preview-first and full-replace after typing `RESTORE ATLAS`.
 
-Remote delete removes one snapshot from the hosted snapshot log after explicit confirmation in Settings. It does not delete local snapshots or change Workspace, Dispatch, Writing, Planning, Reports, Review, or Calibration stores.
+Remote delete removes one snapshot from the hosted snapshot log after explicit confirmation in Settings. It does not delete local snapshots or change Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, or Optimization stores.
 
 ## Guardrails
 

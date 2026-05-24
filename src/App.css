@@ -463,6 +463,9 @@ h3 {
 .danger-action,
 .github-card-actions button,
 .github-card-actions a,
+.optimization-card-actions button,
+.optimization-recommendation-card button,
+.optimization-summary-grid button,
 .repo-list-actions button {
   display: inline-flex;
   min-height: 34px;
@@ -473,6 +476,132 @@ h3 {
   background: var(--surface);
   color: var(--text-soft);
   padding: 7px 10px;
+}
+
+.optimization-center {
+  display: grid;
+  gap: 18px;
+}
+
+.optimization-import-panel,
+.optimization-controls,
+.optimization-summary-grid,
+.optimization-card,
+.optimization-recommendation-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.optimization-import-preview,
+.optimization-card-heading,
+.optimization-card-actions,
+.optimization-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.optimization-import-preview {
+  margin-top: 12px;
+  background: var(--surface-2);
+  border-radius: 6px;
+}
+
+.optimization-import-preview div,
+.optimization-card-heading div {
+  display: grid;
+  gap: 4px;
+}
+
+.optimization-summary-grid,
+.optimization-score-grid,
+.optimization-detail-grid,
+.optimization-recommendation-grid,
+.optimization-grid,
+.optimization-grid section,
+.optimization-recommendation-card {
+  display: grid;
+  gap: 12px;
+}
+
+.optimization-summary-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.optimization-summary-grid > div,
+.optimization-score-grid div,
+.optimization-detail-grid div {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.optimization-summary-grid span,
+.optimization-score-grid dt,
+.optimization-detail-grid span,
+.optimization-card-heading span,
+.optimization-recommendation-card span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.optimization-summary-grid strong,
+.optimization-score-grid dd {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--text);
+}
+
+.optimization-grid {
+  gap: 18px;
+}
+
+.optimization-grid h2,
+.optimization-recommendations h2 {
+  margin: 0;
+}
+
+.optimization-score {
+  align-self: start;
+  min-width: 48px;
+  border-radius: 999px;
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--accent-cyan);
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.optimization-score-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.optimization-score-grid dd {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.optimization-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.optimization-card-actions {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.optimization-card-actions span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.optimization-recommendation-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .status-strip button {
@@ -4609,6 +4738,8 @@ code {
 }
 
 .empty-state {
+  display: grid;
+  gap: 4px;
   border: 1px dashed var(--line);
   padding: 10px;
   line-height: 1.4;
@@ -4748,6 +4879,10 @@ code {
   .github-health-grid,
   .github-suggestion-summary,
   .github-suggestion-actions,
+  .optimization-summary-grid,
+  .optimization-score-grid,
+  .optimization-detail-grid,
+  .optimization-recommendation-grid,
   .verification-controls,
   .verification-row,
   .verification-row-meta,
@@ -4794,6 +4929,10 @@ code {
   }
 
   .activity-line,
+  .optimization-import-preview,
+  .optimization-card-heading,
+  .optimization-card-actions,
+  .optimization-controls,
   .resource-line,
   .resource-panel-header,
   .reports-editor-heading {

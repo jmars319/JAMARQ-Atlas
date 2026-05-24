@@ -54,13 +54,13 @@ Calibration progress is human-authored metadata. It does not verify production a
 
 Settings also hosts manual Sync snapshot controls.
 
-Snapshots capture normalized Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores only. They do not include Settings, Sync, GitHub tokens, AI keys, deployment credentials, environment variables, unknown localStorage keys, or live GitHub history.
+Snapshots capture normalized Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization stores only. They do not include Settings, Sync, GitHub tokens, AI keys, deployment credentials, environment variables, unknown localStorage keys, or live GitHub history.
 
 Current snapshot actions:
 
 - Create a manual local snapshot.
 - Preview a snapshot restore.
-- Restore Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration after typing `RESTORE ATLAS`.
+- Restore Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization after typing `RESTORE ATLAS`.
 - Delete a local snapshot after explicit confirmation.
 - Check hosted sync status.
 - Push a manual remote snapshot when Supabase env vars are configured.

@@ -11,6 +11,7 @@ import {
 import type { Workspace } from '../domain/atlas'
 import type { AtlasCalibrationState } from '../domain/calibration'
 import type { DispatchState } from '../domain/dispatch'
+import type { AtlasOptimizationState } from '../domain/optimization'
 import type { AtlasBackupStores, AtlasRestorePreview } from '../domain/dataPortability'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { ReportsState } from '../domain/reports'
@@ -39,6 +40,7 @@ interface DataCenterProps {
   reports: ReportsState
   review: ReviewState
   calibration: AtlasCalibrationState
+  optimization: AtlasOptimizationState
   settings: AtlasSettingsState
   sync: AtlasSyncState
   onRestoreStores: (stores: AtlasBackupStores) => void
@@ -157,6 +159,7 @@ export function DataCenter({
   reports,
   review,
   calibration,
+  optimization,
   settings,
   sync,
   onRestoreStores,
@@ -166,8 +169,19 @@ export function DataCenter({
   const [confirmation, setConfirmation] = useState('')
   const [message, setMessage] = useState('')
   const stores = useMemo(
-    () => ({ workspace, dispatch, writing, planning, reports, review, calibration, settings, sync }),
-    [calibration, dispatch, planning, reports, review, settings, sync, workspace, writing],
+    () => ({
+      workspace,
+      dispatch,
+      writing,
+      planning,
+      reports,
+      review,
+      calibration,
+      optimization,
+      settings,
+      sync,
+    }),
+    [calibration, dispatch, optimization, planning, reports, review, settings, sync, workspace, writing],
   )
   const envelope = useMemo(() => createAtlasBackupEnvelope(stores), [stores])
   const summary = useMemo(() => summarizeAtlasStores(stores), [stores])
@@ -250,7 +264,7 @@ export function DataCenter({
     setConfirmation('')
     setErrors([])
     setMessage(
-      'Backup restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores were replaced.',
+      'Backup restored locally. Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Optimization, Settings, and Sync stores were replaced.',
     )
   }
 
@@ -262,7 +276,7 @@ export function DataCenter({
           <h1 id="data-center-title">Backups & Restore</h1>
           <p>
             Export local Atlas state, inspect backup contents, and restore Workspace, Dispatch,
-            Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores after
+            Writing, Planning, Reports, Review, Calibration, Optimization, Settings, and Sync stores after
             explicit human confirmation.
           </p>
         </div>
@@ -563,7 +577,7 @@ export function DataCenter({
             <h2>Data Rules</h2>
           </div>
           <ul className="dispatch-list">
-            <li>Backups include Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync stores only.</li>
+            <li>Backups include Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Optimization, Settings, and Sync stores only.</li>
             <li>Backups exclude GitHub tokens, env vars, browser secrets, and unknown storage keys.</li>
             <li>Restore replaces local stores after preview and typed confirmation.</li>
             <li>Restore does not send, publish, deploy, verify, or change source-of-truth rules.</li>

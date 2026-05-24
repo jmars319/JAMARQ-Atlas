@@ -28,6 +28,7 @@ import type { DeploySessionChecklistPresetId } from './services/deploySessions'
 import type { WritingTemplateId } from './domain/writing'
 import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalCalibration } from './hooks/useLocalCalibration'
+import { useLocalOptimization } from './hooks/useLocalOptimization'
 import { useLocalPlanning } from './hooks/useLocalPlanning'
 import { useLocalReports } from './hooks/useLocalReports'
 import { useLocalReview } from './hooks/useLocalReview'
@@ -53,6 +54,11 @@ const GitHubIntakeDashboard = lazy(() =>
 )
 const PlanningCenter = lazy(() =>
   import('./components/PlanningCenter').then((module) => ({ default: module.PlanningCenter })),
+)
+const OptimizationCenter = lazy(() =>
+  import('./components/OptimizationCenter').then((module) => ({
+    default: module.OptimizationCenter,
+  })),
 )
 const ReportsCenter = lazy(() =>
   import('./components/ReportsCenter').then((module) => ({ default: module.ReportsCenter })),
@@ -87,7 +93,7 @@ type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
 type AppView = AtlasActionView
 
-const PRIMARY_VIEWS: AppView[] = ['board', 'github', 'planning', 'review', 'dispatch']
+const PRIMARY_VIEWS: AppView[] = ['board', 'optimize', 'github', 'planning', 'review', 'dispatch']
 const SUPPORT_VIEWS: AppView[] = [
   'timeline',
   'ops',
@@ -102,6 +108,7 @@ const PROJECT_INSPECTOR_STORAGE_KEY = 'atlas-project-inspector-open'
 function appViewLabel(view: AppView) {
   const labels: Record<AppView, string> = {
     board: 'Board',
+    optimize: 'Optimize',
     timeline: 'Timeline',
     github: 'GitHub',
     planning: 'Planning',
@@ -179,6 +186,11 @@ function App() {
     updateItem: updatePlanningItem,
     deleteItem: deletePlanningItem,
   } = useLocalPlanning()
+  const {
+    optimization,
+    setOptimization,
+    importSnapshot: importOptimizationSnapshot,
+  } = useLocalOptimization()
   const {
     reports,
     setReports,
@@ -300,6 +312,8 @@ function App() {
     planning,
     setPlanning,
     createPlanningItem,
+    optimization,
+    setOptimization,
     reports,
     setReports,
     addReportPacket,
@@ -426,6 +440,30 @@ function App() {
             projectRecords={projectRecords}
             selectedProjectId={selectedRecord?.project.id ?? ''}
             onSelectProject={atlasActions.selectProject}
+          />
+        ) : appView === 'optimize' ? (
+          <OptimizationCenter
+            optimization={optimization}
+            projectRecords={projectRecords}
+            onImportSnapshot={importOptimizationSnapshot}
+            onSelectProject={atlasActions.selectProject}
+            onCreatePlanningNote={(projectId, title, detail) => {
+              const record = findProjectRecord(workspace, projectId)
+
+              if (!record) {
+                return
+              }
+
+              createPlanningItem({
+                kind: 'note',
+                record,
+                title,
+                detail,
+                status: 'planned',
+              })
+              atlasActions.selectProject(projectId)
+              setAppView('planning')
+            }}
           />
         ) : appView === 'github' ? (
           <GitHubIntakeDashboard
@@ -578,6 +616,7 @@ function App() {
             reports={reports}
             review={review}
             calibration={calibration}
+            optimization={optimization}
             settings={settings}
             sync={sync}
             onRestoreStores={atlasActions.restoreStores}
@@ -592,6 +631,7 @@ function App() {
             reports={reports}
             review={review}
             calibration={calibration}
+            optimization={optimization}
             sync={sync}
             onSettingsChange={updateLocalSettings}
             onDispatchTargetChange={atlasActions.updateDispatchTarget}

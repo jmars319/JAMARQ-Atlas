@@ -1,4 +1,5 @@
 import { ATLAS_CALIBRATION_SCHEMA_VERSION } from './calibration'
+import { ATLAS_OPTIMIZATION_SCHEMA_VERSION } from './optimization'
 import { ATLAS_PLANNING_SCHEMA_VERSION } from './planning'
 import { ATLAS_REPORTS_SCHEMA_VERSION } from './reports'
 import { ATLAS_REVIEW_SCHEMA_VERSION } from './review'
@@ -13,6 +14,7 @@ export type AtlasStoreId =
   | 'reports'
   | 'review'
   | 'calibration'
+  | 'optimization'
   | 'settings'
   | 'sync'
 
@@ -31,6 +33,8 @@ export interface AtlasStoreDefinition {
   restoreBehaviorLabel: string
   secretPolicy: string
 }
+
+const optimizationStorageKey = ['jamarq-atlas', 'optimization', 'v1'].join('.')
 
 const NO_SECRET_POLICY =
   'No secrets are stored here. Tokens, passwords, private keys, API keys, env vars, and credential values stay outside browser storage.'
@@ -116,6 +120,18 @@ export const ATLAS_STORE_REGISTRY = [
     restoreBehaviorLabel: 'Full replace through Data restore and Sync snapshot restore.',
     secretPolicy:
       'Stores non-secret progress, audit events, and credential reference labels only. Credential values and env var names are rejected.',
+  },
+  {
+    id: 'optimization',
+    label: 'Optimization',
+    localStorageKey: optimizationStorageKey,
+    schemaVersionLabel: `v${ATLAS_OPTIMIZATION_SCHEMA_VERSION}`,
+    backupIncluded: true,
+    syncSnapshotIncluded: true,
+    restoreBehavior: 'data-and-sync-full-replace',
+    restoreBehaviorLabel: 'Full replace through Data restore and Sync snapshot restore.',
+    secretPolicy:
+      'Stores imported portfolio optimization snapshots only. No secrets, repo files, tokens, or registry source-of-truth data are stored.',
   },
   {
     id: 'settings',

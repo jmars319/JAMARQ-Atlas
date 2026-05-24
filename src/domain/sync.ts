@@ -1,12 +1,13 @@
 import type { Workspace } from './atlas'
 import type { AtlasCalibrationState } from './calibration'
 import type { DispatchState } from './dispatch'
+import type { AtlasOptimizationState } from './optimization'
 import type { AtlasPlanningState } from './planning'
 import type { ReportsState } from './reports'
 import type { ReviewState } from './review'
 import type { WritingWorkbenchState } from './writing'
 
-export const ATLAS_SYNC_SCHEMA_VERSION = 4
+export const ATLAS_SYNC_SCHEMA_VERSION = 5
 
 export type AtlasSyncSchemaVersion = typeof ATLAS_SYNC_SCHEMA_VERSION
 export type AtlasSyncProviderId = 'local' | 'supabase'
@@ -21,6 +22,7 @@ export interface AtlasSyncCoreStores {
   reports: ReportsState
   review: ReviewState
   calibration: AtlasCalibrationState
+  optimization: AtlasOptimizationState
 }
 
 export interface AtlasSyncStoreSummary {
@@ -74,6 +76,11 @@ export interface AtlasSyncStoreSummary {
     deferred: number
     credentialReferences: number
     auditEvents: number
+  }
+  optimization: {
+    snapshots: number
+    assessments: number
+    recommendations: number
   }
 }
 

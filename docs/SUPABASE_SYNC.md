@@ -7,7 +7,7 @@ Supabase Hosted Sync is an optional manual snapshot bridge for Atlas. It makes l
 The bridge supports:
 
 - Hosted sync status checks.
-- Manual push of the current Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores.
+- Manual push of the current Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization stores.
 - Remote snapshot metadata listing.
 - Remote snapshot preview.
 - Remote/local snapshot comparison.
@@ -49,7 +49,7 @@ Hosted sync uses the local server boundary:
 - `GET /api/sync/remote-snapshots/:id`
 - `DELETE /api/sync/remote-snapshots/:id`
 
-Push requests send a normalized Atlas snapshot containing only Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores. Pull requests return snapshot metadata or one selected snapshot for preview.
+Push requests send a normalized Atlas snapshot containing only Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization stores. Pull requests return snapshot metadata or one selected snapshot for preview.
 
 Remote lists are limited to the latest 50 snapshots for this phase. Settings shows that limit and warns that older hosted snapshots may exist when the loaded list reaches the limit.
 
@@ -88,6 +88,7 @@ Remote snapshots store:
 - Planning objectives, milestones, work sessions, and notes.
 - Reports packets, Markdown, source summaries, and report-only audit events.
 - Calibration field progress, non-secret credential references, and calibration audit events.
+- Optimization snapshots, scorecards, buckets, and recommendations.
 - Snapshot metadata, summary counts, device label, fingerprint, and timestamps.
 
 Remote snapshots do not store:
@@ -104,7 +105,7 @@ Remote snapshots do not store:
 
 ## Restore
 
-Remote restore is preview-first and full-replace. Atlas loads one remote snapshot, normalizes it through existing Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration normalizers, shows count differences, and requires the exact typed confirmation `RESTORE ATLAS`.
+Remote restore is preview-first and full-replace. Atlas loads one remote snapshot, normalizes it through existing Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization normalizers, shows count differences, and requires the exact typed confirmation `RESTORE ATLAS`.
 
 Restore does not merge records, update Settings, change Sync provider configuration, or make operational decisions.
 
@@ -114,4 +115,4 @@ Settings compares selected remote snapshots against current local stores by fing
 
 Remote delete is explicit and one-snapshot-at-a-time. The browser sends `DELETE /api/sync/remote-snapshots/:id` through the local Vite middleware, and the service-role key remains server-side.
 
-Deleting a remote snapshot does not alter local snapshots or replace Workspace, Dispatch, Writing, Planning, Reports, Review, or Calibration stores.
+Deleting a remote snapshot does not alter local snapshots or replace Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, or Optimization stores.

@@ -13,6 +13,7 @@ The app has these main surfaces:
 - GitHub Intake: repository discovery, binding, and explicit Inbox project creation.
 - Review Center: derived operator review queue, manual review sessions, notes, and explicit Planning handoff.
 - Planning Center: human-authored objectives, milestones, work sessions, and notes.
+- Optimize: imported advisory scorecards, priority buckets, and recommendations from the registry-led optimization packet.
 - Verification Center: cadence-based manual review queues and verification audit events.
 - Dispatch: deployment posture, read-only preflight, host evidence, verification evidence, and manual deploy sessions across configured targets.
 - Writing Workbench: local draft packets and reviewable operational writing.
@@ -21,7 +22,7 @@ The app has these main surfaces:
 - Settings & Connections: local workspace identity, Calibration Operations, and integration-readiness status.
 - Sync Snapshots: manual local snapshots and optional Supabase hosted snapshots.
 
-The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
+The important rule is separation. Atlas records manual intent. GitHub and Dispatch provide signals. Writing can draft words for review. Optimize can organize advisory recommendations. None of those systems automatically decide status, priority, risk, roadmap, verification, readiness, or what should ship.
 
 ## Timeline Model
 
@@ -77,6 +78,22 @@ Calibration scans Workspace and Dispatch for unresolved placeholders, missing re
 Calibration field statuses are `needs-value`, `entered`, `verified`, and `deferred`. These are human-authored tracking marks only. They do not verify production access, change Workspace manual status, update Dispatch readiness/status, create deployment records, stamp Verification, modify Planning automatically, publish Reports, alter Writing drafts, or change Sync provider state.
 
 Credential references are non-secret labels only, such as `godaddy-mmh-production`. Atlas rejects secret-shaped values and must not store passwords, tokens, API keys, private keys, passphrases, raw environment variable names, production file contents, or credential values.
+
+## Optimization Model
+
+Optimize is stored separately under `jamarq-atlas.optimization.v1`.
+
+Primary concepts:
+
+- Imported optimization snapshot
+- Repo assessment
+- Scorecard
+- Priority bucket
+- Advisory recommendation
+
+Optimization snapshots are generated outside Atlas from `agentic-instructions`. They are local planning context only. They do not replace `docs/repository-registry.json`, mutate Workspace status, update Planning automatically, change Dispatch readiness, write to GitHub, deploy, retire repos, archive repos, or consolidate repos.
+
+Creating a Planning note from a recommendation is explicit user action and does not mark the recommendation accepted or complete.
 
 ## Planning Model
 
@@ -329,6 +346,7 @@ The backup envelope contains:
 - Reports store
 - Review store
 - Calibration store
+- Optimization store
 - Settings store
 - Sync store
 - Schema version
@@ -337,7 +355,7 @@ The backup envelope contains:
 
 Backups intentionally exclude GitHub tokens, environment variables, credentials, browser secrets, unknown local storage keys, build output, dependency caches, and live GitHub history beyond saved repo bindings and captured Writing context snapshots.
 
-Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Settings, and Sync normalizers, and compared against current local counts before restore. Data Center also shows store diagnostics, schema versions, repair hints, and count-diff rows before typed confirmation. Restore requires the exact typed confirmation `RESTORE ATLAS`.
+Restore is preview-first and full-replace. Imported backups are validated, normalized through the existing Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Optimization, Settings, and Sync normalizers, and compared against current local counts before restore. Data Center also shows store diagnostics, schema versions, repair hints, and count-diff rows before typed confirmation. Restore requires the exact typed confirmation `RESTORE ATLAS`.
 
 Data Center does not merge records, write to GitHub, sync to hosted storage, send external data, or change Atlas source-of-truth rules.
 
@@ -374,9 +392,9 @@ Current Sync is manual and snapshot-based. It supports:
 - Remote/local snapshot comparison by fingerprint, counts, created date, and device label.
 - Explicit remote snapshot deletion.
 
-Snapshots contain Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
+Snapshots contain Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization only. They intentionally exclude Settings, Sync, secrets, unknown local storage keys, and full live GitHub history to avoid recursive snapshots and credential leakage.
 
-Snapshot restore replaces Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
+Snapshot restore replaces Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization only. It does not merge records, alter Settings, change Sync provider configuration, or make source-of-truth decisions.
 
 Hosted sync runs through the local `/api/sync` boundary:
 

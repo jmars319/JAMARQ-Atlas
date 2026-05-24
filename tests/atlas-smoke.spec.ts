@@ -1041,7 +1041,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   )
   const restoreBackup = JSON.stringify({
     kind: 'jamarq-atlas-backup',
-    schemaVersion: 5,
+    schemaVersion: 6,
     exportedAt: '2026-05-10T12:00:00.000Z',
     appName: 'JAMARQ Atlas',
     stores: {
@@ -1079,6 +1079,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
       reports: await readAtlasLocalStorage(page, 'jamarq-atlas.reports.v1', {}),
       review: await readAtlasLocalStorage(page, 'jamarq-atlas.review.v1', {}),
       calibration: await readAtlasLocalStorage(page, 'jamarq-atlas.calibration.v1', {}),
+      optimization: await readAtlasLocalStorage(page, 'jamarq-atlas.optimization.v1', {}),
       settings: await readAtlasLocalStorage(page, 'jamarq-atlas.settings.v1', {}),
       sync: await readAtlasLocalStorage(page, 'jamarq-atlas.sync.v1', {}),
     },

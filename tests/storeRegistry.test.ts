@@ -15,6 +15,7 @@ const allStoreIds = [
   'reports',
   'review',
   'calibration',
+  'optimization',
   'settings',
   'sync',
 ]
@@ -43,6 +44,7 @@ describe('Atlas store registry', () => {
       'reports',
       'review',
       'calibration',
+      'optimization',
     ])
     expect(ATLAS_STORE_DEFINITIONS_BY_ID.settings.syncSnapshotIncluded).toBe(false)
     expect(ATLAS_STORE_DEFINITIONS_BY_ID.sync.syncSnapshotIncluded).toBe(false)

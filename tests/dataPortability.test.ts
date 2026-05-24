@@ -3,6 +3,7 @@ import { seedDispatchState } from '../src/data/seedDispatch'
 import { seedWorkspace } from '../src/data/seedWorkspace'
 import { flattenProjects } from '../src/domain/atlas'
 import { emptyCalibrationState } from '../src/services/calibration'
+import { emptyOptimizationState } from '../src/services/optimization'
 import {
   approveWritingDraft,
   createWritingDraft,
@@ -43,6 +44,7 @@ const planning = emptyPlanningStore(now)
 const reports = emptyReportsStore(now)
 const review = emptyReviewStore(now)
 const calibration = emptyCalibrationState(now)
+const optimization = emptyOptimizationState(now)
 const settings = emptySettingsState(now)
 const sync = {
   ...emptySyncState(now),
@@ -56,6 +58,7 @@ const sync = {
         reports,
         review,
         calibration,
+        optimization,
       },
       settings,
       label: 'Test snapshot',
@@ -74,6 +77,7 @@ const stores = {
   reports,
   review,
   calibration,
+  optimization,
   settings,
   sync,
 }
@@ -83,7 +87,7 @@ describe('data portability', () => {
     const envelope = createAtlasBackupEnvelope(stores, now)
 
     expect(envelope.kind).toBe('jamarq-atlas-backup')
-    expect(envelope.schemaVersion).toBe(5)
+    expect(envelope.schemaVersion).toBe(6)
     expect(envelope.stores.workspace.id).toBe('jamarq-atlas')
     expect(envelope.stores.dispatch.targets.length).toBeGreaterThan(0)
     expect(envelope.stores.writing.drafts).toHaveLength(1)
@@ -91,6 +95,7 @@ describe('data portability', () => {
     expect(envelope.stores.reports.packets).toHaveLength(0)
     expect(envelope.stores.review.sessions).toHaveLength(0)
     expect(envelope.stores.calibration.fieldProgress).toHaveLength(0)
+    expect(envelope.stores.optimization.snapshots).toHaveLength(0)
     expect(envelope.stores.settings.deviceLabel).toBe('Local Atlas workspace')
     expect(envelope.stores.sync.snapshots).toHaveLength(1)
     expect(envelope.summary.workspace.projects).toBeGreaterThan(0)
@@ -116,6 +121,7 @@ describe('data portability', () => {
     expect(report).toContain('Reports:')
     expect(report).toContain('Review:')
     expect(report).toContain('Calibration:')
+    expect(report).toContain('Optimization:')
     expect(report).toContain('Settings:')
     expect(report).toContain('Sync:')
     expect(report).toContain('Restore requires typed human confirmation.')
@@ -153,7 +159,7 @@ describe('data portability', () => {
     expect(unsupported.errors[0]).toContain('Unsupported backup schema version')
   })
 
-  it('imports older v1 backups by normalizing missing Planning, Reports, Review, Calibration, Settings, and Sync stores', () => {
+  it('imports older v1 backups by normalizing missing Planning, Reports, Review, Calibration, Optimization, Settings, and Sync stores', () => {
     const envelope = createAtlasBackupEnvelope(stores, now)
     const result = validateAtlasBackupEnvelope({
       ...envelope,
@@ -166,17 +172,19 @@ describe('data portability', () => {
     })
 
     expect(result.ok).toBe(true)
-    expect(result.envelope?.schemaVersion).toBe(5)
+    expect(result.envelope?.schemaVersion).toBe(6)
     expect(result.envelope?.stores.planning.objectives).toEqual([])
     expect(result.envelope?.stores.reports.packets).toEqual([])
     expect(result.envelope?.stores.review.sessions).toEqual([])
     expect(result.envelope?.stores.calibration.fieldProgress).toEqual([])
+    expect(result.envelope?.stores.optimization.snapshots).toEqual([])
     expect(result.envelope?.stores.settings.deviceLabel).toBe('Local Atlas workspace')
     expect(result.envelope?.stores.sync.snapshots).toEqual([])
     expect(result.warnings.map((warning) => warning.type)).toContain('missing-planning')
     expect(result.warnings.map((warning) => warning.type)).toContain('missing-reports')
     expect(result.warnings.map((warning) => warning.type)).toContain('missing-review')
     expect(result.warnings.map((warning) => warning.type)).toContain('missing-calibration')
+    expect(result.warnings.map((warning) => warning.type)).toContain('missing-optimization')
     expect(result.warnings.map((warning) => warning.type)).toContain('missing-settings')
     expect(result.warnings.map((warning) => warning.type)).toContain('missing-sync')
   })
@@ -216,8 +224,13 @@ describe('data portability', () => {
       backupIncluded: true,
       syncSnapshotIncluded: false,
     })
+    expect(diagnostics.find((item) => item.id === 'optimization')).toMatchObject({
+      localStorageKey: ['jamarq-atlas', 'optimization', 'v1'].join('.'),
+      backupIncluded: true,
+      syncSnapshotIncluded: true,
+    })
     expect(diagnostics.find((item) => item.id === 'restore-compatibility')).toMatchObject({
-      schemaVersion: 'backup v5',
+      schemaVersion: 'backup v6',
       localStorageKey: 'backup envelope',
       status: 'ok',
     })
@@ -225,6 +238,7 @@ describe('data portability', () => {
     expect(diagnostics.find((item) => item.id === 'reports')?.schemaVersion).toBe('v2')
     expect(diagnostics.find((item) => item.id === 'review')?.schemaVersion).toBe('v2')
     expect(diagnostics.find((item) => item.id === 'calibration')?.schemaVersion).toBe('v1')
+    expect(diagnostics.find((item) => item.id === 'optimization')?.schemaVersion).toBe('v1')
     expect(diagnostics.every((item) => item.repairHint.length > 0)).toBe(true)
     expect(diagnostics.every((item) => item.secretPolicy.length > 0)).toBe(true)
   })

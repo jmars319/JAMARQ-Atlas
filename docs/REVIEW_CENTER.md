@@ -78,9 +78,9 @@ Review Center may explain why an item appears, but it never decides what should 
 
 ## Backup And Sync
 
-Data Center schema v5 includes Review state in JSON backups and Markdown inventory reports. Older v1/v2/v3/v4 backups normalize missing Review state to an empty store during preview.
+Data Center schema v6 includes Review and Optimization state in JSON backups and Markdown inventory reports. Older v1/v2/v3/v4/v5 backups normalize missing Review or Optimization state to an empty store during preview.
 
-Sync snapshots include Workspace, Dispatch, Writing, Planning, Reports, Review, and Calibration stores only. They continue to exclude Settings, Sync metadata, credentials, unknown localStorage keys, and full live GitHub history.
+Sync snapshots include Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, and Optimization stores only. They continue to exclude Settings, Sync metadata, credentials, unknown localStorage keys, and full live GitHub history.
 
 ## Guardrails
 
