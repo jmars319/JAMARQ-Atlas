@@ -1,3 +1,5 @@
+import { atlasApiUrl } from './apiBase'
+
 export interface RequestClientOptions {
   signal?: AbortSignal
   timeoutMs?: number
@@ -94,7 +96,7 @@ export async function requestJsonResponse<T>(
     const request = mergeSignals(options.signal ?? init.signal ?? undefined, timeoutMs)
 
     try {
-      const response = await fetch(path, {
+      const response = await fetch(atlasApiUrl(path), {
         ...init,
         signal: request.signal,
       })

@@ -6,6 +6,7 @@ export interface LocalStorageLike {
   removeItem(key: string): void
 }
 
+export type AtlasStoreBackend = 'sqlite' | 'localStorage' | 'memory'
 export type LocalStoreReadStatus = 'stored' | 'missing' | 'parse-error' | 'storage-unavailable'
 export type LocalStoreWriteStatus = 'stored' | 'quota-exceeded' | 'storage-unavailable' | 'failed'
 
@@ -38,7 +39,33 @@ export interface LocalStoreWriteResult {
 }
 
 function browserStorage(): LocalStorageLike | null {
-  return typeof window === 'undefined' ? null : window.localStorage
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  return window.atlasDesktop?.storage ?? window.localStorage
+}
+
+export function getAtlasStoreBackend(): AtlasStoreBackend {
+  if (typeof window === 'undefined') {
+    return 'memory'
+  }
+
+  return window.atlasDesktop?.storageBackend ?? 'localStorage'
+}
+
+export function getAtlasStoreBackendLabel() {
+  const backend = getAtlasStoreBackend()
+
+  if (backend === 'sqlite') {
+    return 'SQLite desktop store'
+  }
+
+  if (backend === 'localStorage') {
+    return 'Browser localStorage'
+  }
+
+  return 'In-memory fallback'
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -73,7 +100,7 @@ export function readLocalStore<T>(
     return {
       status: 'storage-unavailable',
       value: adapter.fallback(),
-      message: `${adapter.label} local storage is unavailable; using defaults.`,
+      message: `${adapter.label} storage is unavailable; using defaults.`,
     }
   }
 
@@ -84,20 +111,20 @@ export function readLocalStore<T>(
       return {
         status: 'missing',
         value: adapter.fallback(),
-        message: `${adapter.label} local store is empty; using defaults.`,
+        message: `${adapter.label} store is empty; using defaults.`,
       }
     }
 
     return {
       status: 'stored',
       value: adapter.normalize(JSON.parse(stored)),
-      message: `${adapter.label} local store loaded.`,
+      message: `${adapter.label} store loaded.`,
     }
   } catch (error) {
     return {
       status: 'parse-error',
       value: adapter.fallback(),
-      message: `${adapter.label} local store could not be parsed: ${errorMessage(
+      message: `${adapter.label} store could not be parsed: ${errorMessage(
         error,
         'unknown parse failure',
       )}.`,
@@ -114,7 +141,7 @@ export function writeLocalStore<T>(
     return {
       status: 'storage-unavailable',
       ok: false,
-      message: `${adapter.label} local storage is unavailable; changes remain in memory only.`,
+      message: `${adapter.label} storage is unavailable; changes remain in memory only.`,
     }
   }
 
@@ -123,7 +150,7 @@ export function writeLocalStore<T>(
     return {
       status: 'stored',
       ok: true,
-      message: `${adapter.label} local store saved.`,
+      message: `${adapter.label} store saved.`,
     }
   } catch (error) {
     const quotaExceeded = isQuotaError(error)
@@ -132,8 +159,8 @@ export function writeLocalStore<T>(
       status: quotaExceeded ? 'quota-exceeded' : 'failed',
       ok: false,
       message: quotaExceeded
-        ? `${adapter.label} local store could not be saved because browser storage is full.`
-        : `${adapter.label} local store could not be saved: ${errorMessage(
+        ? `${adapter.label} store could not be saved because storage is full.`
+        : `${adapter.label} store could not be saved: ${errorMessage(
             error,
             'unknown write failure',
           )}.`,

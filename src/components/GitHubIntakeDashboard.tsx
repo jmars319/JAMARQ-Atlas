@@ -45,6 +45,7 @@ import {
   deriveVercelReadinessSignals,
   vercelDeploymentLabel,
 } from '../services/vercelIntegration'
+import { atlasApiUrl } from '../services/apiBase'
 
 type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
 
@@ -226,7 +227,7 @@ export function GitHubIntakeDashboard({
   useEffect(() => {
     const controller = new AbortController()
 
-    void fetch('/api/github/status', { signal: controller.signal })
+    void fetch(atlasApiUrl('/api/github/status'), { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : null))
       .then((status: GithubConnectionState | null) => {
         if (status) {

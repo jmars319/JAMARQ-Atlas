@@ -4,7 +4,7 @@ Atlas is a local-first operator dashboard for understanding open work across JAM
 
 ## Current Reality
 
-Atlas is a working MVP. It is intentionally simple: React, Vite, TypeScript, local storage, optional read-only GitHub data, and a clear service boundary for future AI writing assistance and deployment automation.
+Atlas is a working MVP. It is intentionally simple: Electron, React, Vite, TypeScript, SQLite-backed desktop storage, browser-harness local storage, optional read-only GitHub data, and a clear service boundary for future AI writing assistance and deployment automation.
 
 The app has these main surfaces:
 

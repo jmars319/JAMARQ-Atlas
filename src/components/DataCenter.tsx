@@ -434,6 +434,10 @@ export function DataCenter({
                   <summary>Store details</summary>
                   <dl>
                     <div>
+                      <dt>Storage backend</dt>
+                      <dd>{diagnostic.storageBackend}</dd>
+                    </div>
+                    <div>
                       <dt>Storage key</dt>
                       <dd>{diagnostic.localStorageKey}</dd>
                     </div>

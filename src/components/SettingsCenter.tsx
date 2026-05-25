@@ -46,6 +46,7 @@ import {
   fetchHostConnectionStatus,
   type HostConnectionStatusResponse,
 } from '../services/hostConnection'
+import { atlasApiUrl } from '../services/apiBase'
 import { clearGithubRequestCache } from '../services/githubIntegration'
 import { fetchVercelStatus, type VercelConnectionState } from '../services/vercelIntegration'
 import {
@@ -161,7 +162,7 @@ function splitInputList(value: string) {
 }
 
 async function requestGithubStatus(signal?: AbortSignal) {
-  const response = await fetch('/api/github/status', { signal })
+  const response = await fetch(atlasApiUrl('/api/github/status'), { signal })
 
   if (!response.ok) {
     throw new Error(`GitHub status returned ${response.status}.`)
@@ -242,6 +243,7 @@ export function SettingsCenter({
   const [calibrationImportPreview, setCalibrationImportPreview] =
     useState<CalibrationImportPreview | null>(null)
   const [calibrationImportError, setCalibrationImportError] = useState('')
+  const desktopRuntime = typeof window === 'undefined' ? null : window.atlasDesktop ?? null
 
   async function loadGithubStatus() {
     setLoadingGithub(true)
@@ -258,6 +260,11 @@ export function SettingsCenter({
   }
 
   function handleGithubLogin() {
+    if (window.atlasDesktop) {
+      void window.atlasDesktop.github.login()
+      return
+    }
+
     window.location.assign('/api/github/auth/login')
   }
 
@@ -266,7 +273,7 @@ export function SettingsCenter({
     setGithubError(null)
 
     try {
-      const response = await fetch('/api/github/auth/logout', { method: 'POST' })
+      const response = await fetch(atlasApiUrl('/api/github/auth/logout'), { method: 'POST' })
 
       if (!response.ok) {
         throw new Error(`GitHub logout returned ${response.status}.`)
@@ -1049,6 +1056,14 @@ export function SettingsCenter({
             <span>Device ID: {settings.deviceId}</span>
             <span>Updated: {new Date(settings.updatedAt).toLocaleString()}</span>
           </div>
+          {desktopRuntime ? (
+            <div className="settings-meta">
+              <span>Storage: SQLite</span>
+              <span>Database: {desktopRuntime.sqlitePath}</span>
+              <span>Config: {desktopRuntime.configPath}</span>
+              <span>Keychain encryption: {desktopRuntime.secureStorageAvailable ? 'available' : 'unavailable'}</span>
+            </div>
+          ) : null}
         </section>
 
         <section className="settings-panel">

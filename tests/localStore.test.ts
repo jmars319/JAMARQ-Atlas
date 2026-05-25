@@ -72,6 +72,6 @@ describe('localStore', () => {
 
     expect(result.ok).toBe(false)
     expect(result.status).toBe('quota-exceeded')
-    expect(result.message).toContain('browser storage is full')
+    expect(result.message).toContain('storage is full')
   })
 })

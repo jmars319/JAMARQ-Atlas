@@ -32,6 +32,7 @@ import { normalizeSettingsState } from './settings'
 import { normalizeSyncState } from './syncSnapshots'
 import { normalizeCalibrationState, summarizeCalibrationState } from './calibration'
 import { normalizeOptimizationState, summarizeOptimizationState } from './optimization'
+import { getAtlasStoreBackendLabel } from './localStore'
 
 export const RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
 const BACKUP_NORMALIZATION_FALLBACK_DATE = new Date('1970-01-01T00:00:00.000Z')
@@ -577,13 +578,14 @@ function diagnosticStatus(messages: string[], danger = false) {
   return messages.length > 0 ? ('warning' as const) : ('ok' as const)
 }
 
-function storeDiagnosticMetadata(id: AtlasStoreId) {
+function storeDiagnosticMetadata(id: AtlasStoreId, storageBackend: string) {
   const definition = getAtlasStoreDefinition(id)
 
   return {
     id: definition.id,
     label: definition.label,
     schemaVersion: definition.schemaVersionLabel,
+    storageBackend,
     localStorageKey: definition.localStorageKey,
     backupIncluded: definition.backupIncluded,
     syncSnapshotIncluded: definition.syncSnapshotIncluded,
@@ -596,6 +598,7 @@ export function createAtlasStoreDiagnostics(
   stores: AtlasBackupStores,
 ): AtlasStoreDiagnostic[] {
   const summary = summarizeAtlasStores(stores)
+  const storageBackend = getAtlasStoreBackendLabel()
   const planningRecords = planningTotal(summary)
   const dispatchEvidence =
     summary.dispatch.preflightRuns +
@@ -610,7 +613,7 @@ export function createAtlasStoreDiagnostics(
       : []),
   ]
   diagnostics.push({
-    ...storeDiagnosticMetadata('workspace'),
+    ...storeDiagnosticMetadata('workspace', storageBackend),
     status: diagnosticStatus(workspaceMessages, summary.workspace.projects === 0),
     countSummary: `${summary.workspace.projects} projects / ${summary.workspace.repositoryBindings} repo bindings`,
     messages: workspaceMessages,
@@ -623,7 +626,7 @@ export function createAtlasStoreDiagnostics(
     ...(dispatchEvidence === 0 ? ['No Dispatch evidence has been captured yet.'] : []),
   ]
   diagnostics.push({
-    ...storeDiagnosticMetadata('dispatch'),
+    ...storeDiagnosticMetadata('dispatch', storageBackend),
     status: diagnosticStatus(dispatchMessages, summary.dispatch.targets === 0),
     countSummary: `${summary.dispatch.targets} targets / ${dispatchEvidence} evidence runs / ${summary.dispatch.recoveryPlans} recovery plans`,
     messages: dispatchMessages,
@@ -632,7 +635,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    ...storeDiagnosticMetadata('writing'),
+    ...storeDiagnosticMetadata('writing', storageBackend),
     status: 'ok',
     countSummary: `${summary.writing.drafts} drafts / ${summary.writing.reviewEvents} audit events`,
     messages:
@@ -643,7 +646,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    ...storeDiagnosticMetadata('planning'),
+    ...storeDiagnosticMetadata('planning', storageBackend),
     status: 'ok',
     countSummary: `${planningRecords} planning records`,
     messages:
@@ -654,7 +657,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    ...storeDiagnosticMetadata('reports'),
+    ...storeDiagnosticMetadata('reports', storageBackend),
     status: 'ok',
     countSummary: `${summary.reports.packets} packets / ${summary.reports.auditEvents} audit events`,
     messages:
@@ -665,7 +668,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    ...storeDiagnosticMetadata('review'),
+    ...storeDiagnosticMetadata('review', storageBackend),
     status: 'ok',
     countSummary: `${summary.review.sessions} sessions / ${summary.review.notes} notes`,
     messages:
@@ -676,7 +679,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    ...storeDiagnosticMetadata('calibration'),
+    ...storeDiagnosticMetadata('calibration', storageBackend),
     status: 'ok',
     countSummary: `${summary.calibration.progressRecords} progress records / ${summary.calibration.credentialReferences} credential references`,
     messages:
@@ -688,7 +691,7 @@ export function createAtlasStoreDiagnostics(
   })
 
   diagnostics.push({
-    ...storeDiagnosticMetadata('optimization'),
+    ...storeDiagnosticMetadata('optimization', storageBackend),
     status: 'ok',
     countSummary: `${summary.optimization.snapshots} snapshots / ${summary.optimization.assessments} assessments`,
     messages:
@@ -704,7 +707,7 @@ export function createAtlasStoreDiagnostics(
     ...(stores.settings.deviceLabel ? [] : ['Device label is not set.']),
   ]
   diagnostics.push({
-    ...storeDiagnosticMetadata('settings'),
+    ...storeDiagnosticMetadata('settings', storageBackend),
     status: diagnosticStatus(settingsMessages),
     countSummary: `${summary.settings.configured} device label / ${summary.settings.hasOperatorLabel} operator label`,
     messages: settingsMessages,
@@ -718,7 +721,7 @@ export function createAtlasStoreDiagnostics(
       : []),
   ]
   diagnostics.push({
-    ...storeDiagnosticMetadata('sync'),
+    ...storeDiagnosticMetadata('sync', storageBackend),
     status: diagnosticStatus(syncMessages, stores.sync.provider.status === 'error'),
     countSummary: `${summary.sync.snapshots} local snapshots / provider ${stores.sync.provider.status}`,
     messages: syncMessages,
@@ -730,6 +733,7 @@ export function createAtlasStoreDiagnostics(
     id: 'restore-compatibility',
     label: 'Restore Compatibility',
     schemaVersion: `backup v${ATLAS_BACKUP_SCHEMA_VERSION}`,
+    storageBackend,
     localStorageKey: 'backup envelope',
     backupIncluded: false,
     syncSnapshotIncluded: false,

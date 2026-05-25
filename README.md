@@ -8,7 +8,7 @@ Atlas Dispatch extends that model for deployment readiness. Atlas maps work. Dis
 
 ## Current Reality
 
-This is a working local-first MVP, not a placeholder. It runs as a React/Vite app, stores manual workspace state in browser local storage, and keeps GitHub access behind the local Vite server so tokens stay out of browser code.
+This is a working local-first MVP, not a placeholder. It now runs primarily as a local macOS desktop app, with the existing React/Vite browser app retained as a development and CI harness. Desktop state is stored in a local SQLite database, while browser harness state still uses browser local storage. GitHub and other optional integrations stay behind a local server boundary so tokens stay out of browser code.
 
 The dashboard currently supports:
 
@@ -44,7 +44,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 
 - React dashboard and project detail surfaces.
 - Local seed data for the initial Atlas sections and Dispatch targets.
-- Separate local storage hooks for workspace state and Dispatch state.
+- Separate desktop SQLite/browser harness storage hooks for workspace state and Dispatch state.
 - Optional GitHub REST integration through `/api/github`.
 - Repository binding/import helpers that persist repo links only.
 - Separate Planning storage for human-authored objectives, milestones, work sessions, and notes.
@@ -138,9 +138,11 @@ Review includes reusable session presets for daily sweep, weekly ops review, dep
 ## Tech Stack
 
 - React + TypeScript for the dashboard and detail surfaces.
-- Vite for the local app and local `/api/github`, `/api/dispatch`, and `/api/sync` boundaries.
-- Local storage for manual workspace edits and separate Dispatch state.
-- Local storage for Settings and manual Sync snapshots.
+- Electron for the primary local macOS desktop app.
+- Vite for the browser harness and renderer build.
+- A shared local `/api/github`, `/api/dispatch`, `/api/sync`, `/api/vercel`, and `/api/writing` boundary.
+- SQLite for desktop manual workspace edits, Dispatch state, Settings, Sync metadata, and Atlas document stores.
+- Browser local storage for the Vite harness.
 - Server-side environment variables for GitHub tokens, optional Supabase sync credentials, and optional OpenAI provider credentials.
 - Optional server-side `ATLAS_HOST_PREFLIGHT_CONFIG` for read-only TCP/local-mirror/SFTP host boundary checks with credential reference labels only.
 - JAMARQ Digital brand system: JAMARQ Black `#0D0D0F`, Accent Cyan `#09A6D6`, steel/slate/mist neutrals, Montserrat headings, Inter body.
@@ -150,7 +152,7 @@ Review includes reusable session presets for daily sweep, weekly ops review, dep
 ```sh
 npm install
 cp .env.example .env
-npm run dev
+npm run desktop:dev
 ```
 
 Checks:
@@ -160,6 +162,7 @@ npm run lint
 npm run build
 npm run test:unit
 npm run test:e2e
+npm run test:desktop
 ```
 
 The app runs without GitHub credentials. Repo panels show a clear missing-token state instead of failing the dashboard.
@@ -186,14 +189,14 @@ Atlas should be treated as a calm operator console: it helps organize evidence a
 
 CI is configured in `.github/workflows/ci.yml` for lint, build, unit tests, and Playwright smoke tests on `main` and pull requests.
 
-Deployment guidance lives in [docs/ATLAS_DEPLOYMENT.md](docs/ATLAS_DEPLOYMENT.md). The short version: static hosting can serve the built UI, but optional GitHub, Dispatch host checks, Supabase sync, and OpenAI Writing require a Node/Vite-compatible server boundary that keeps credentials server-side.
+Deployment guidance lives in [docs/ATLAS_DEPLOYMENT.md](docs/ATLAS_DEPLOYMENT.md). The short version: the desktop app is the primary local package, and optional GitHub, Dispatch host checks, Supabase sync, Vercel, and OpenAI Writing require the local API boundary that keeps credentials server-side.
 
 ## GitHub Connection
 
-GitHub data is fetched through the local Vite server. The token is never placed in browser code.
+GitHub data is fetched through the local Atlas API boundary. Tokens are never placed in renderer code.
 
 ```sh
-GITHUB_TOKEN=ghp_your_read_only_token GITHUB_REPOS=jmars319/JAMARQ-Atlas npm run dev
+GITHUB_TOKEN=ghp_your_read_only_token GITHUB_REPOS=jmars319/JAMARQ-Atlas npm run desktop:dev
 ```
 
 Supported env vars:
@@ -242,10 +245,10 @@ Hosted sync is optional and Supabase-backed. It stores manual remote snapshots, 
 SUPABASE_URL=https://your-project.supabase.co \
 SUPABASE_SERVICE_ROLE_KEY=your_server_side_service_role_key \
 ATLAS_SYNC_WORKSPACE_ID=jamarq-atlas-local \
-npm run dev
+npm run desktop:dev
 ```
 
-The browser can push, list, preview, and restore remote snapshots through `/api/sync`. The service role key remains server-side. Atlas still runs normally when these values are missing.
+Atlas can push, list, preview, and restore remote snapshots through `/api/sync`. The service role key remains server-side. Atlas still runs normally when these values are missing.
 
 Settings compares selected remote snapshots with current local stores by fingerprint, counts, created date, and device label before restore. Remote snapshot lists are capped at the latest 50 and can be deleted one at a time after explicit confirmation. There is still no automatic merge or background sync.
 
@@ -502,6 +505,7 @@ The Supabase service role key is read server-side only by the local Vite middlew
 Start here:
 
 - `docs/SYSTEM_OVERVIEW.md`
+- `docs/DESKTOP.md`
 
 Focused references:
 

@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { access } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import net from 'node:net'
 import path from 'node:path'
+import SftpClient from 'ssh2-sftp-client'
 import type {
   HealthCheckResult,
   HostConnectionAuthMethod,
@@ -22,8 +22,6 @@ const ALLOWED_SECRET_REFERENCE_KEYS = new Set([
   'privateKeyPathEnvVar',
   'passphraseEnvVar',
 ])
-
-const require = createRequire(import.meta.url)
 
 type EnvRecord = Record<string, string | undefined>
 
@@ -93,7 +91,7 @@ interface SftpPathProbeResult {
   symlinkCount?: number
 }
 
-const SftpClientConstructor = require('ssh2-sftp-client') as new (
+const SftpClientConstructor = SftpClient as unknown as new (
   name?: string,
 ) => SftpReadOnlyClient
 

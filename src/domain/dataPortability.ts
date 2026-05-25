@@ -111,6 +111,7 @@ export interface AtlasStoreDiagnostic {
   id: string
   label: string
   schemaVersion: string
+  storageBackend: string
   localStorageKey: string
   backupIncluded: boolean
   syncSnapshotIncluded: boolean

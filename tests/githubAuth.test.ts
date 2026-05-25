@@ -1,12 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createHmac } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { githubApiMiddleware } from '../server/githubApi'
 import {
   createGithubAuthStatus,
   getGithubAppConfig,
   resolveGithubAuthForRequest,
+  setGithubDesktopAuthStore,
   verifySignedState,
+  type GithubTokenState,
 } from '../server/githubAuth'
 
 function request(
@@ -47,6 +49,11 @@ function signedState(sessionId: string, nonce: string, secret: string) {
 }
 
 describe('GitHub App auth status', () => {
+  afterEach(() => {
+    setGithubDesktopAuthStore(null)
+    vi.restoreAllMocks()
+  })
+
   it('reports missing app config without exposing write controls', async () => {
     const status = await createGithubAuthStatus(request(), {})
 
@@ -88,6 +95,61 @@ describe('GitHub App auth status', () => {
 
     expect(config.configured).toBe(true)
     expect(config.missing).toEqual([])
+  })
+
+  it('uses a desktop secure token provider before falling back to env tokens', async () => {
+    const token: GithubTokenState = {
+      accessToken: 'desktop-token',
+      tokenType: 'bearer',
+      scope: '',
+      expiresAt: null,
+      refreshToken: null,
+      refreshTokenExpiresAt: null,
+    }
+
+    setGithubDesktopAuthStore({
+      getTokenState: async () => token,
+      setTokenState: async () => undefined,
+      clearTokenState: async () => undefined,
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const value = String(url)
+
+      if (value.endsWith('/user')) {
+        return new Response(
+          JSON.stringify({
+            login: 'desktop-user',
+            id: 1,
+            name: 'Desktop User',
+            avatar_url: 'https://example.test/avatar.png',
+            html_url: 'https://github.com/desktop-user',
+          }),
+          { status: 200 },
+        )
+      }
+
+      if (value.endsWith('/user/installations?per_page=100&page=1')) {
+        return new Response(JSON.stringify({ installations: [] }), { status: 200 })
+      }
+
+      return new Response(JSON.stringify({ message: 'unexpected' }), { status: 404 })
+    })
+
+    const env = {
+      GITHUB_APP_CLIENT_ID: 'client-id',
+      GITHUB_APP_CLIENT_SECRET: 'client-secret',
+      GITHUB_APP_SLUG: 'atlas-local',
+      GITHUB_APP_CALLBACK_URL: 'http://127.0.0.1:52173/api/github/auth/callback',
+      ATLAS_SESSION_SECRET: 'session-secret',
+      GITHUB_TOKEN: 'env-token',
+    }
+    const status = await createGithubAuthStatus(request(), env)
+    const auth = await resolveGithubAuthForRequest(request(), env)
+
+    expect(status.authenticated).toBe(true)
+    expect(status.authMode).toBe('github-app-user')
+    expect(status.user?.login).toBe('desktop-user')
+    expect(auth).toMatchObject({ mode: 'github-app-user', token: 'desktop-token' })
   })
 
   it('does not expose mutating GitHub resource routes', async () => {

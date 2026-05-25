@@ -61,7 +61,7 @@ export interface GithubAuthStatus {
   message: string
 }
 
-interface GithubTokenState {
+export interface GithubTokenState {
   accessToken: string
   tokenType: string
   scope: string
@@ -97,6 +97,12 @@ export interface GithubAuthResolution {
   error: string | null
 }
 
+export interface GithubDesktopAuthStore {
+  getTokenState: () => Promise<GithubTokenState | null>
+  setTokenState: (token: GithubTokenState) => Promise<void>
+  clearTokenState: () => Promise<void>
+}
+
 const API_VERSION = '2022-11-28'
 const API_BASE = 'https://api.github.com'
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize'
@@ -119,6 +125,13 @@ export const GITHUB_APP_OPERATOR_PERMISSION_PLAN: GithubAppPermissionPlan[] = [
 ]
 
 const sessions = new Map<string, GithubSession>()
+let desktopAuthStore: GithubDesktopAuthStore | null = null
+let desktopSession: GithubSession | null = null
+
+export function setGithubDesktopAuthStore(store: GithubDesktopAuthStore | null) {
+  desktopAuthStore = store
+  desktopSession = null
+}
 
 function json(response: ServerResponse, status: number, body: unknown) {
   response.statusCode = status
@@ -320,6 +333,23 @@ function createSession() {
   return session
 }
 
+function createDesktopSession() {
+  const now = Date.now()
+
+  return {
+    id: 'desktop-keychain',
+    createdAt: now,
+    updatedAt: now,
+    login: null,
+    token: null,
+    user: null,
+    installations: [],
+    repoCount: 0,
+    installationsCheckedAt: 0,
+    tokenError: null,
+  } satisfies GithubSession
+}
+
 function getSessionByRequest(request: IncomingMessage, config: GithubAppConfig) {
   if (!config.sessionSecret) {
     return null
@@ -500,6 +530,39 @@ async function ensureFreshSessionToken(session: GithubSession, config: GithubApp
   }
 }
 
+async function getDesktopSession(config: GithubAppConfig) {
+  if (!desktopAuthStore) {
+    return null
+  }
+
+  const token = await desktopAuthStore.getTokenState()
+
+  if (!token) {
+    desktopSession = null
+    return null
+  }
+
+  desktopSession ??= createDesktopSession()
+  desktopSession.token = token
+  const freshToken = await ensureFreshSessionToken(desktopSession, config)
+
+  if (!freshToken) {
+    await desktopAuthStore.clearTokenState()
+    return null
+  }
+
+  await desktopAuthStore.setTokenState(freshToken)
+
+  try {
+    await hydrateGithubSession(desktopSession, freshToken)
+  } catch (error) {
+    desktopSession.tokenError =
+      error instanceof Error ? error.message : 'GitHub App session status refresh failed.'
+  }
+
+  return desktopSession
+}
+
 async function hydrateGithubSession(session: GithubSession, token: GithubTokenState) {
   if (Date.now() - session.installationsCheckedAt < INSTALLATION_STATUS_TTL_MS) {
     return
@@ -560,7 +623,8 @@ export async function createGithubAuthStatus(
 ): Promise<GithubAuthStatus> {
   const config = getGithubAppConfig(env)
   const envTokenConfigured = Boolean(getGithubEnvToken(env))
-  const session = getSessionByRequest(request, config)
+  const cookieSession = getSessionByRequest(request, config)
+  const session = cookieSession?.token ? cookieSession : await getDesktopSession(config)
   const token = session ? await ensureFreshSessionToken(session, config) : null
 
   if (session && token) {
@@ -614,10 +678,13 @@ export async function resolveGithubAuthForRequest(
   env: EnvRecord = process.env,
 ): Promise<GithubAuthResolution> {
   const config = getGithubAppConfig(env)
-  const session = getSessionByRequest(request, config)
+  const cookieSession = getSessionByRequest(request, config)
+  const session = cookieSession?.token ? cookieSession : await getDesktopSession(config)
   const token = session ? await ensureFreshSessionToken(session, config) : null
 
   if (session && token) {
+    await desktopAuthStore?.setTokenState(token)
+
     return {
       mode: 'github-app-user',
       token: token.accessToken,
@@ -722,6 +789,7 @@ async function handleCallback(request: IncomingMessage, response: ServerResponse
 
   try {
     session.token = await exchangeCodeForToken(code, login.codeVerifier, config)
+    await desktopAuthStore?.setTokenState(session.token)
     session.login = null
     session.tokenError = null
     await hydrateGithubSession(session, session.token)
@@ -745,6 +813,8 @@ async function handleLogout(request: IncomingMessage, response: ServerResponse) 
   if (session) {
     sessions.delete(session.id)
   }
+  desktopSession = null
+  await desktopAuthStore?.clearTokenState()
 
   appendSetCookie(response, clearSessionCookie(isSecureRequest(request)))
   json(response, 200, {
