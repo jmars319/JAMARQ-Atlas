@@ -31,5 +31,26 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+              return 'react-vendor'
+            }
+
+            if (id.includes('node_modules/lucide-react')) {
+              return 'icons-vendor'
+            }
+
+            if (id.includes('node_modules/@fontsource')) {
+              return 'font-vendor'
+            }
+
+            return undefined
+          },
+        },
+      },
+    },
   }
 })

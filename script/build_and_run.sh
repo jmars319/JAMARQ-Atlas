@@ -19,23 +19,25 @@ npm run desktop:build
 
 case "$MODE" in
 run)
-	/usr/bin/open -n "$APP_BUNDLE"
+	env -u ELECTRON_RUN_AS_NODE -u NO_COLOR -u FORCE_COLOR /usr/bin/open -n "$APP_BUNDLE"
 	;;
 --debug | debug)
-	lldb -- "$APP_BINARY"
+	env -u ELECTRON_RUN_AS_NODE -u NO_COLOR -u FORCE_COLOR lldb -- "$APP_BINARY"
 	;;
 --logs | logs)
-	/usr/bin/open -n "$APP_BUNDLE"
+	env -u ELECTRON_RUN_AS_NODE -u NO_COLOR -u FORCE_COLOR /usr/bin/open -n "$APP_BUNDLE"
 	/usr/bin/log stream --info --style compact --predicate "process == \"$APP_NAME\""
 	;;
 --telemetry | telemetry)
-	/usr/bin/open -n "$APP_BUNDLE"
+	env -u ELECTRON_RUN_AS_NODE -u NO_COLOR -u FORCE_COLOR /usr/bin/open -n "$APP_BUNDLE"
 	/usr/bin/log stream --info --style compact --predicate "process == \"$APP_NAME\""
 	;;
 --verify | verify)
-	/usr/bin/open -n "$APP_BUNDLE"
+	env -u ELECTRON_RUN_AS_NODE -u NO_COLOR -u FORCE_COLOR /usr/bin/open -n "$APP_BUNDLE"
 	for _ in {1..10}; do
 		if pgrep -f "$APP_BUNDLE/Contents/MacOS/$APP_NAME" >/dev/null 2>&1; then
+			sleep 2
+			pgrep -f "$APP_BUNDLE/Contents/MacOS/$APP_NAME" >/dev/null 2>&1
 			exit 0
 		fi
 		sleep 1

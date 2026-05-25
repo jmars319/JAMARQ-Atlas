@@ -167,6 +167,8 @@ npm run test:desktop
 
 The app runs without GitHub credentials. Repo panels show a clear missing-token state instead of failing the dashboard.
 
+Desktop first launch imports existing Atlas browser harness data when it finds a valid Chromium localStorage profile. The importer only reads known `jamarq-atlas.*.v1` operational stores, writes missing SQLite rows, and does not migrate browser secrets or overwrite existing desktop data.
+
 ## Local Tooling
 
 - Use `actionlint` after editing GitHub Actions workflows.
@@ -190,6 +192,8 @@ Atlas should be treated as a calm operator console: it helps organize evidence a
 CI is configured in `.github/workflows/ci.yml` for lint, build, unit tests, and Playwright smoke tests on `main` and pull requests.
 
 Deployment guidance lives in [docs/ATLAS_DEPLOYMENT.md](docs/ATLAS_DEPLOYMENT.md). The short version: the desktop app is the primary local package, and optional GitHub, Dispatch host checks, Supabase sync, Vercel, and OpenAI Writing require the local API boundary that keeps credentials server-side.
+
+macOS packaging is verified with `npm run verify:desktop`, including an ad-hoc signed bundle check. Forge makers and scripts for Windows and Linux are scaffolded as `npm run desktop:make:windows` and `npm run desktop:make:linux`, but those targets still need verification on their native platforms.
 
 ## GitHub Connection
 

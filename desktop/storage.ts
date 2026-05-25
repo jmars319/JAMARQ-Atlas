@@ -53,6 +53,33 @@ export class DesktopSqliteStore {
     `)
   }
 
+  hasMigration(id: string) {
+    const row = this.database
+      .prepare('SELECT id FROM atlas_schema_migrations WHERE id = ?')
+      .get(id) as { id?: string } | undefined
+
+    return Boolean(row?.id)
+  }
+
+  recordMigration(id: string) {
+    this.database
+      .prepare(
+        `
+          INSERT OR IGNORE INTO atlas_schema_migrations (id, applied_at)
+          VALUES (?, datetime('now'))
+        `,
+      )
+      .run(id)
+  }
+
+  countStores() {
+    const row = this.database.prepare('SELECT COUNT(*) AS count FROM atlas_stores').get() as {
+      count?: number
+    }
+
+    return row.count ?? 0
+  }
+
   close() {
     this.database.close()
   }

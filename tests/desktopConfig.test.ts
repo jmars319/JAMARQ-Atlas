@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadDesktopEnv, parseDesktopEnvFile, type EnvRecord } from '../desktop/config'
+import { DEFAULT_DESKTOP_PORT, requestedDesktopPort } from '../desktop/runtimeConfig'
 
 describe('desktop config loading', () => {
   it('parses simple env files without retaining comments', () => {
@@ -50,5 +51,30 @@ describe('desktop config loading', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+
+  it('derives the desktop API port from an existing loopback GitHub callback', () => {
+    expect(
+      requestedDesktopPort({
+        GITHUB_APP_CALLBACK_URL: 'http://127.0.0.1:5173/api/github/auth/callback',
+      }),
+    ).toBe(5173)
+    expect(
+      requestedDesktopPort({
+        ATLAS_DESKTOP_API_PORT: '',
+        GITHUB_APP_CALLBACK_URL: 'http://127.0.0.1:5173/api/github/auth/callback',
+      }),
+    ).toBe(5173)
+    expect(
+      requestedDesktopPort({
+        ATLAS_DESKTOP_API_PORT: '52173',
+        GITHUB_APP_CALLBACK_URL: 'http://127.0.0.1:5173/api/github/auth/callback',
+      }),
+    ).toBe(52173)
+    expect(
+      requestedDesktopPort({
+        GITHUB_APP_CALLBACK_URL: 'https://example.com/api/github/auth/callback',
+      }),
+    ).toBe(DEFAULT_DESKTOP_PORT)
   })
 })

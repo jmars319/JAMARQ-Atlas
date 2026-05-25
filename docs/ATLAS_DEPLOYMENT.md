@@ -41,7 +41,7 @@ npm run desktop:dev
 npm run desktop:make
 ```
 
-The macOS package is local and unsigned. Desktop Atlas stores operational state at `~/Library/Application Support/JAMARQ Atlas/atlas.sqlite` and reads optional desktop config from `~/Library/Application Support/JAMARQ Atlas/atlas.env`. Data Center backups remain JSON exports and do not include encrypted GitHub OAuth tokens or env/config secrets.
+The macOS package is local and ad-hoc signed for bundle validation. It is not Developer ID signed or notarized. Desktop Atlas stores operational state at `~/Library/Application Support/jamarq-atlas/atlas.sqlite` and reads optional desktop config from `~/Library/Application Support/jamarq-atlas/atlas.env`. Data Center backups remain JSON exports and do not include encrypted GitHub OAuth tokens or env/config secrets.
 
 ## Environment Variables
 

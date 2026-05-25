@@ -10,6 +10,7 @@ async function launchAtlas(userDataDir: string) {
       ...process.env,
       ELECTRON_RUN_AS_NODE: undefined,
       ATLAS_DESKTOP_USER_DATA_DIR: userDataDir,
+      ATLAS_DESKTOP_DISABLE_BROWSER_MIGRATION: '1',
       ATLAS_DESKTOP_API_PORT: '0',
       GITHUB_TOKEN: '',
       GH_TOKEN: '',

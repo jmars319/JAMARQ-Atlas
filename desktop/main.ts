@@ -3,8 +3,13 @@ import path from 'node:path'
 import { startAtlasApiServer, type AtlasApiServer } from '../server/apiServer'
 import { setGithubDesktopAuthStore } from '../server/githubAuth'
 import type { AtlasDesktopRuntimeInfo } from '../src/domain/desktopRuntime'
+import {
+  discoverAtlasBrowserLocalStorageDirs,
+  migrateBrowserLocalStorageToSqlite,
+} from './browserLocalStorageMigration'
 import { loadDesktopEnv } from './config'
 import { createGithubSafeStorageAuthStore } from './githubSecureAuth'
+import { requestedDesktopPort } from './runtimeConfig'
 import { DesktopSqliteStore } from './storage'
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined
@@ -14,14 +19,6 @@ let mainWindow: BrowserWindow | null = null
 let apiServer: AtlasApiServer | null = null
 let sqliteStore: DesktopSqliteStore | null = null
 let runtimeInfo: AtlasDesktopRuntimeInfo | null = null
-
-const DEFAULT_DESKTOP_PORT = 52173
-
-function requestedDesktopPort() {
-  const configured = Number(process.env.ATLAS_DESKTOP_API_PORT)
-
-  return Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_DESKTOP_PORT
-}
 
 function rendererStaticDir() {
   return path.join(__dirname, '..', 'renderer', MAIN_WINDOW_VITE_NAME)
@@ -168,6 +165,18 @@ async function bootstrap() {
   sqliteStore = new DesktopSqliteStore({
     databasePath: path.join(userDataPath, 'atlas.sqlite'),
   })
+  const migrationResult = migrateBrowserLocalStorageToSqlite({
+    sqliteStore,
+    sourceDirectories: discoverAtlasBrowserLocalStorageDirs(app.getPath('home')),
+    disabled: process.env.ATLAS_DESKTOP_DISABLE_BROWSER_MIGRATION === '1',
+  })
+
+  if (migrationResult.status === 'imported') {
+    console.info(
+      `[atlas] ${migrationResult.message} Source: ${migrationResult.sourceDirectory}.`,
+    )
+  }
+
   setGithubDesktopAuthStore(createGithubSafeStorageAuthStore(sqliteStore))
 
   const serverOptions = {
