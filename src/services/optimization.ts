@@ -7,6 +7,7 @@ import {
   type OptimizationRecommendationCategory,
   type OptimizationSnapshot,
 } from '../domain/optimization'
+import type { PlanningSourceLink } from '../domain/planning'
 
 const PRIORITY_BUCKETS: OptimizationPriorityBucket[] = [
   'active-now',
@@ -364,5 +365,16 @@ export function createOptimizationPlanningNote(
     detail: `${categoryLabel(recommendation.category)} recommendation from ${
       isBoundaryAudit ? 'boundary audit packet' : 'optimization snapshot'
     }.\n\n${recommendation.detail}`,
+  }
+}
+
+export function createOptimizationRecommendationSourceLink(
+  recommendation: OptimizationRecommendation,
+  snapshotKind: OptimizationSnapshotKind = 'portfolio-optimization',
+): PlanningSourceLink {
+  return {
+    type: 'optimization-recommendation',
+    id: recommendation.id,
+    label: `${snapshotKindLabel(snapshotKind)}: ${recommendation.title}`,
   }
 }

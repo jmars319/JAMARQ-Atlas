@@ -3,6 +3,7 @@ import type { OptimizationSnapshot } from '../src/domain/optimization'
 import {
   addOptimizationSnapshot,
   bucketLabel,
+  createOptimizationRecommendationSourceLink,
   createOptimizationPlanningNote,
   emptyOptimizationState,
   getOptimizationSnapshotKind,
@@ -136,10 +137,16 @@ describe('optimization snapshots', () => {
 
   it('creates Planning note payloads from recommendations without mutating projects', () => {
     const note = createOptimizationPlanningNote(snapshot.recommendations[0])
+    const sourceLink = createOptimizationRecommendationSourceLink(snapshot.recommendations[0])
 
     expect(note.title).toBe('Optimization: Review optimization snapshot in Atlas')
     expect(note.detail).toContain('Critical path recommendation')
     expect(note.detail).toContain('Import the generated packet')
+    expect(sourceLink).toEqual({
+      type: 'optimization-recommendation',
+      id: 'atlas-plan-note',
+      label: 'Portfolio optimization: Review optimization snapshot in Atlas',
+    })
   })
 
   it('recognizes boundary audit packets and labels their planning notes', () => {

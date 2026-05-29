@@ -9,6 +9,8 @@ export type PlanningSourceLinkType =
   | 'dispatch-session'
   | 'report-packet'
   | 'timeline-event'
+  | 'optimization-recommendation'
+  | 'planning-note'
 
 export interface PlanningSourceLink {
   type: PlanningSourceLinkType

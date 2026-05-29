@@ -66,11 +66,13 @@ Recommendations can create Planning notes for mapped Atlas projects. This is exp
 
 Creating a Planning note:
 
-- Adds a normal Planning note.
+- Adds a normal Planning note with a source link to the recommendation.
 - Opens the mapped project in Planning.
 - Does not change the project status.
 - Does not mark a recommendation accepted, completed, or verified.
 - Does not change the imported optimization snapshot.
+
+Planning can later promote that note into an objective or work session. Promotion is still manual and keeps links back to both the original note and recommendation.
 
 ## Guardrails
 

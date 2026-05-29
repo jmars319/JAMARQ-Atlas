@@ -13,7 +13,7 @@ Planning records include:
 - Manual planning status: idea, planned, active, waiting, done, or deferred.
 - Human-authored title and detail.
 - Optional target, due, scheduled, or completed dates.
-- Optional source links back to Review notes, Dispatch sessions, Report packets, or Timeline events that a human explicitly used as context.
+- Optional source links back to Review notes, Dispatch sessions, Report packets, Timeline events, Optimization recommendations, or source Planning notes that a human explicitly used as context.
 - Created and updated timestamps.
 
 ## Source Of Truth
@@ -40,7 +40,9 @@ The top-level Planning tab provides:
 
 Project detail pages include a compact Planning panel with per-project counts and the most recent planning records.
 
-Planning cards show source-link labels when a record was created from Review or another operator surface that passes a source link. Optimize-created Planning notes are normal notes and do not synchronize state back to the imported snapshot.
+Planning cards show source-link labels when a record was created from Review or another operator surface that passes a source link. Optimize-created Planning notes link back to their recommendation and do not synchronize state back to the imported snapshot.
+
+Planning notes can be promoted into one objective and one work session. Promotion preserves the project, section, group, note detail, and source links, adds a source link back to the original Planning note, and does not change Workspace status or imported snapshots.
 
 ## Future Work
 

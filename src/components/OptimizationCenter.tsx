@@ -8,9 +8,11 @@ import type {
   OptimizationRecommendation,
   OptimizationSnapshot,
 } from '../domain/optimization'
+import type { PlanningSourceLink } from '../domain/planning'
 import {
   bucketLabel,
   categoryLabel,
+  createOptimizationRecommendationSourceLink,
   createOptimizationPlanningNote,
   getOptimizationSnapshotKind,
   groupAssessmentsByBucket,
@@ -27,7 +29,12 @@ interface OptimizationCenterProps {
   projectRecords: ProjectRecord[]
   onImportSnapshot: (snapshot: OptimizationSnapshot) => void
   onSelectProject: (projectId: string) => void
-  onCreatePlanningNote: (projectId: string, title: string, detail: string) => void
+  onCreatePlanningNote: (
+    projectId: string,
+    title: string,
+    detail: string,
+    sourceLinks?: PlanningSourceLink[],
+  ) => void
 }
 
 function downloadJson(filename: string, value: unknown) {
@@ -165,9 +172,10 @@ function RecommendationCard({
   recommendation: OptimizationRecommendation
   projectRecord: ProjectRecord | undefined
   snapshotKind: OptimizationSnapshotKind
-  onCreatePlanningNote: (projectId: string, title: string, detail: string) => void
+  onCreatePlanningNote: OptimizationCenterProps['onCreatePlanningNote']
 }) {
   const planningNote = createOptimizationPlanningNote(recommendation, snapshotKind)
+  const sourceLink = createOptimizationRecommendationSourceLink(recommendation, snapshotKind)
 
   return (
     <article className="optimization-recommendation-card">
@@ -185,6 +193,7 @@ function RecommendationCard({
                 projectRecord.project.id,
                 planningNote.title,
                 planningNote.detail,
+                [sourceLink],
               )
             : undefined
         }

@@ -7,7 +7,9 @@ import {
   deletePlanningItem,
   emptyPlanningStore,
   getPlanningForProject,
+  hasPromotedPlanningNote,
   normalizePlanningState,
+  promotePlanningNote,
   summarizePlanningState,
   updatePlanningItem,
 } from '../src/services/planning'
@@ -59,6 +61,54 @@ describe('planning center', () => {
       },
     ])
     expect(vaexcoreStudio.project.manual.status).toBe('Active')
+  })
+
+  it('promotes Planning notes into objective and work-session records once', () => {
+    const note = createPlanningItem({
+      id: 'planning-note-promote',
+      kind: 'note',
+      projectId: vaexcoreStudio.project.id,
+      sectionId: vaexcoreStudio.section.id,
+      groupId: vaexcoreStudio.group.id,
+      title: 'Boundary: Studio marker rehearsal',
+      detail: 'Turn the boundary note into active work.',
+      sourceLinks: [
+        {
+          type: 'optimization-recommendation',
+          id: 'boundary-rec-1',
+          label: 'Boundary audit: Studio marker rehearsal',
+        },
+      ],
+      now,
+    })
+    const withNote = addPlanningItem(emptyPlanningStore(now), note, now)
+    const withObjective = promotePlanningNote(withNote, note.id, 'objective', now)
+    const promotedTwice = promotePlanningNote(withObjective, note.id, 'objective', now)
+    const withWorkSession = promotePlanningNote(promotedTwice, note.id, 'work-session', now)
+
+    expect(withWorkSession.objectives).toHaveLength(1)
+    expect(withWorkSession.objectives[0]).toMatchObject({
+      projectId: vaexcoreStudio.project.id,
+      sectionId: vaexcoreStudio.section.id,
+      groupId: vaexcoreStudio.group.id,
+      title: 'Objective: Boundary: Studio marker rehearsal',
+      status: 'active',
+    })
+    expect(withWorkSession.objectives[0].sourceLinks).toEqual([
+      {
+        type: 'optimization-recommendation',
+        id: 'boundary-rec-1',
+        label: 'Boundary audit: Studio marker rehearsal',
+      },
+      {
+        type: 'planning-note',
+        id: 'planning-note-promote',
+        label: 'Boundary: Studio marker rehearsal',
+      },
+    ])
+    expect(withWorkSession.workSessions).toHaveLength(1)
+    expect(hasPromotedPlanningNote(withWorkSession, note.id, 'objective')).toBe(true)
+    expect(hasPromotedPlanningNote(withWorkSession, note.id, 'work-session')).toBe(true)
   })
 
   it('normalizes older records while preserving manual fields', () => {

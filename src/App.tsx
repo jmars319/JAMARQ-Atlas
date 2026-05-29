@@ -185,6 +185,7 @@ function App() {
     createItem: createPlanningItem,
     updateItem: updatePlanningItem,
     deleteItem: deletePlanningItem,
+    promoteNote: promotePlanningNote,
   } = useLocalPlanning()
   const {
     optimization,
@@ -447,7 +448,7 @@ function App() {
             projectRecords={projectRecords}
             onImportSnapshot={importOptimizationSnapshot}
             onSelectProject={atlasActions.selectProject}
-            onCreatePlanningNote={(projectId, title, detail) => {
+            onCreatePlanningNote={(projectId, title, detail, sourceLinks) => {
               const record = findProjectRecord(workspace, projectId)
 
               if (!record) {
@@ -460,6 +461,7 @@ function App() {
                 title,
                 detail,
                 status: 'planned',
+                sourceLinks,
               })
               atlasActions.selectProject(projectId)
               setAppView('planning')
@@ -484,6 +486,7 @@ function App() {
             onCreateItem={createPlanningItem}
             onUpdateItem={updatePlanningItem}
             onDeleteItem={deletePlanningItem}
+            onPromoteNote={promotePlanningNote}
           />
         ) : appView === 'reports' ? (
           <ReportsCenter

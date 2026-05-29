@@ -71,6 +71,8 @@ function readSourceLinkType(value: unknown): PlanningSourceLinkType {
     'dispatch-session',
     'report-packet',
     'timeline-event',
+    'optimization-recommendation',
+    'planning-note',
   ].includes(readString(value))
     ? (value as PlanningSourceLinkType)
     : 'timeline-event'
@@ -371,6 +373,69 @@ export function addPlanningItem(
     ],
     updatedAt: now.toISOString(),
   } as PlanningState
+}
+
+export type PlanningNotePromotionKind = 'objective' | 'work-session'
+
+function sourceLinksWithPlanningNote(note: PlanningNote): PlanningSourceLink[] {
+  const links = [
+    ...note.sourceLinks,
+    {
+      type: 'planning-note' as const,
+      id: note.id,
+      label: note.title,
+    },
+  ]
+
+  return links.filter(
+    (link, index) =>
+      links.findIndex(
+        (candidate) => candidate.type === link.type && candidate.id === link.id,
+      ) === index,
+  )
+}
+
+export function hasPromotedPlanningNote(
+  state: PlanningState,
+  noteId: string,
+  kind: PlanningNotePromotionKind,
+): boolean {
+  const collection = kind === 'objective' ? state.objectives : state.workSessions
+
+  return collection.some((item) =>
+    item.sourceLinks.some((link) => link.type === 'planning-note' && link.id === noteId),
+  )
+}
+
+export function promotePlanningNote(
+  state: PlanningState,
+  noteId: string,
+  kind: PlanningNotePromotionKind,
+  now = new Date(),
+): PlanningState {
+  if (hasPromotedPlanningNote(state, noteId, kind)) {
+    return state
+  }
+
+  const note = state.notes.find((item) => item.id === noteId)
+
+  if (!note) {
+    return state
+  }
+
+  const item = createPlanningItem({
+    kind,
+    projectId: note.projectId,
+    sectionId: note.sectionId,
+    groupId: note.groupId,
+    title: `${kind === 'objective' ? 'Objective' : 'Work session'}: ${note.title}`,
+    detail: note.body || note.detail,
+    status: kind === 'objective' ? 'active' : 'planned',
+    sourceLinks: sourceLinksWithPlanningNote(note),
+    now,
+  })
+
+  return addPlanningItem(state, item, now)
 }
 
 function applyUpdate<T extends PlanningItem>(

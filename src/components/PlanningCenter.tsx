@@ -8,8 +8,14 @@ import {
   type PlanningItemKind,
   type PlanningState,
   type PlanningStatus,
+  type PlanningSourceLink,
 } from '../domain/planning'
-import { summarizePlanningState, type PlanningItemUpdate } from '../services/planning'
+import {
+  hasPromotedPlanningNote,
+  summarizePlanningState,
+  type PlanningItemUpdate,
+  type PlanningNotePromotionKind,
+} from '../services/planning'
 
 type PlanningFilter = PlanningItemKind | 'all'
 type PlanningStatusFilter = PlanningStatus | 'all'
@@ -27,9 +33,11 @@ interface PlanningCenterProps {
     detail: string
     date?: string
     status?: PlanningStatus
+    sourceLinks?: PlanningSourceLink[]
   }) => void
   onUpdateItem: (kind: PlanningItemKind, itemId: string, update: PlanningItemUpdate) => void
   onDeleteItem: (kind: PlanningItemKind, itemId: string) => void
+  onPromoteNote: (noteId: string, kind: PlanningNotePromotionKind) => void
 }
 
 interface PlanningRecordRow {
@@ -52,6 +60,8 @@ function sourceLinkLabel(type: PlanningItem['sourceLinks'][number]['type']) {
     'dispatch-session': 'Dispatch session',
     'report-packet': 'Report packet',
     'timeline-event': 'Timeline event',
+    'optimization-recommendation': 'Optimization recommendation',
+    'planning-note': 'Planning note',
   }
 
   return labels[type]
@@ -146,12 +156,18 @@ function buildPlanningRows(
 
 function PlanningItemCard({
   row,
+  promotedToObjective,
+  promotedToWorkSession,
   onUpdateItem,
   onDeleteItem,
+  onPromoteNote,
 }: {
   row: PlanningRecordRow
+  promotedToObjective: boolean
+  promotedToWorkSession: boolean
   onUpdateItem: PlanningCenterProps['onUpdateItem']
   onDeleteItem: PlanningCenterProps['onDeleteItem']
+  onPromoteNote: PlanningCenterProps['onPromoteNote']
 }) {
   const { item, record } = row
   const dateValue = getItemDateValue(item)
@@ -187,6 +203,26 @@ function PlanningItemCard({
               </span>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {item.kind === 'note' ? (
+        <div className="planning-note-actions" aria-label={`Promote ${item.title}`}>
+          <span>Promote note</span>
+          <button
+            type="button"
+            disabled={promotedToObjective}
+            onClick={() => onPromoteNote(item.id, 'objective')}
+          >
+            {promotedToObjective ? 'Objective exists' : 'Create objective'}
+          </button>
+          <button
+            type="button"
+            disabled={promotedToWorkSession}
+            onClick={() => onPromoteNote(item.id, 'work-session')}
+          >
+            {promotedToWorkSession ? 'Work session exists' : 'Create work session'}
+          </button>
         </div>
       ) : null}
 
@@ -278,6 +314,7 @@ export function PlanningCenter({
   onCreateItem,
   onUpdateItem,
   onDeleteItem,
+  onPromoteNote,
 }: PlanningCenterProps) {
   const [query, setQuery] = useState('')
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>('all')
@@ -539,8 +576,19 @@ export function PlanningCenter({
               <PlanningItemCard
                 key={row.item.id}
                 row={row}
+                promotedToObjective={
+                  row.item.kind === 'note'
+                    ? hasPromotedPlanningNote(planning, row.item.id, 'objective')
+                    : false
+                }
+                promotedToWorkSession={
+                  row.item.kind === 'note'
+                    ? hasPromotedPlanningNote(planning, row.item.id, 'work-session')
+                    : false
+                }
                 onUpdateItem={onUpdateItem}
                 onDeleteItem={onDeleteItem}
+                onPromoteNote={onPromoteNote}
               />
             ))}
           </div>

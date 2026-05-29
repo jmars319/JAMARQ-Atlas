@@ -12,7 +12,9 @@ import {
   deletePlanningItem,
   emptyPlanningStore,
   normalizePlanningState,
+  promotePlanningNote,
   type PlanningItemUpdate,
+  type PlanningNotePromotionKind,
   updatePlanningItem,
 } from '../services/planning'
 import { useLocalStoreState } from './useLocalStore'
@@ -71,12 +73,17 @@ export function useLocalPlanning() {
     setPlanning((current) => deletePlanningItem(current, kind, itemId))
   }
 
+  function promoteNote(noteId: string, kind: PlanningNotePromotionKind) {
+    setPlanning((current) => promotePlanningNote(current, noteId, kind))
+  }
+
   return {
     planning,
     setPlanning,
     createItem,
     updateItem,
     deleteItem,
+    promoteNote,
     resetPlanning,
   }
 }
