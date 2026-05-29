@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react'
 import { formatDateTimeLabel, type ProjectRecord } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState } from '../domain/planning'
+import type { RepoOperationsState } from '../domain/repoOperations'
 import {
   type ReviewNote,
   type ReviewOutcome,
@@ -30,6 +31,7 @@ import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import { useVercelCommandSummaries } from '../hooks/useVercelCommandSummaries'
 import type { GithubRepositorySource, GithubRepositorySummary } from '../services/githubIntegration'
+import { deriveRepoOperationsRows } from '../services/repoOperations'
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import {
   createReviewNote,
@@ -71,6 +73,7 @@ interface ReviewCenterProps {
   reports: ReportsState
   writing: WritingWorkbenchState
   sync: AtlasSyncState
+  repoOperations?: RepoOperationsState
   timelineEvents: TimelineEvent[]
   onSelectProject: (projectId: string) => void
   onAddReviewSession: (session: ReviewSession) => void
@@ -218,6 +221,7 @@ export function ReviewCenter({
   reports,
   writing,
   sync,
+  repoOperations,
   timelineEvents,
   onSelectProject,
   onAddReviewSession,
@@ -256,19 +260,39 @@ export function ReviewCenter({
   )
   const boundRepoKeys = useMemo(
     () =>
-      projectRecords
+      [
+        ...projectRecords
         .flatMap((record) =>
           record.project.repositories.map((repository) => `${repository.owner}/${repository.name}`),
-        )
+        ),
+        ...(repoOperations?.snapshots
+          .find((snapshot) => snapshot.id === repoOperations.selectedSnapshotId)
+          ?.repositories.map((repository) =>
+            repository.githubOwner && repository.githubRepo
+              ? `${repository.githubOwner}/${repository.githubRepo}`
+              : '',
+          ) ?? []),
+      ]
         .filter(
           (repoKey, index, repoKeys) =>
             repoKeys.findIndex(
               (candidate) => candidate.toLowerCase() === repoKey.toLowerCase(),
             ) === index,
         ),
-    [projectRecords],
+    [projectRecords, repoOperations],
   )
   const githubCommandSummaries = useGithubCommandSummaries(boundRepoKeys)
+  const repoOperationsRows = useMemo(
+    () =>
+      repoOperations
+        ? deriveRepoOperationsRows({
+            state: repoOperations,
+            projectRecords,
+            commandSummaries: githubCommandSummaries.data,
+          })
+        : [],
+    [githubCommandSummaries.data, projectRecords, repoOperations],
+  )
   const vercelTargetIds = useMemo(
     () => dispatch.targets.filter((target) => target.hostType === 'vercel').map((target) => target.id),
     [dispatch.targets],
@@ -287,6 +311,7 @@ export function ReviewCenter({
         repoSuggestions,
         githubCommandSummaries: githubCommandSummaries.data,
         vercelCommandSummaries: vercelCommandSummaries.data,
+        repoOperationsRows,
       }),
     [
       dispatch,
@@ -294,6 +319,7 @@ export function ReviewCenter({
       planning,
       projectRecords,
       repoSuggestions,
+      repoOperationsRows,
       reports,
       sync,
       timelineEvents,

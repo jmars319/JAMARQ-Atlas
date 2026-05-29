@@ -1403,6 +1403,116 @@ h3 {
   margin-top: 12px;
 }
 
+.repo-ops-center .dashboard-header {
+  align-items: center;
+}
+
+.repo-ops-import {
+  display: inline-flex;
+  min-height: 36px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+  padding: 8px 11px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.repo-ops-import input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.repo-ops-controls {
+  grid-template-columns: minmax(240px, 1fr) minmax(420px, auto);
+}
+
+.repo-ops-controls .repo-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.repo-ops-controls select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 7px 9px;
+}
+
+.repo-ops-card {
+  display: grid;
+  gap: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.repo-ops-card-warning {
+  border-color: rgba(244, 199, 107, 0.28);
+}
+
+.repo-ops-card-danger {
+  border-color: rgba(241, 113, 113, 0.32);
+}
+
+.repo-ops-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.repo-ops-card-heading h2 {
+  margin: 0 0 4px;
+  color: var(--paper-white);
+  font-size: 0.98rem;
+}
+
+.repo-ops-card-heading span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.repo-ops-gap-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repo-ops-gap-list li {
+  border: 1px solid rgba(244, 199, 107, 0.28);
+  background: rgba(244, 199, 107, 0.08);
+  color: var(--warning);
+  padding: 4px 7px;
+  font-size: 0.72rem;
+}
+
+.repo-ops-command-list {
+  display: grid;
+  gap: 6px;
+}
+
+.repo-ops-command-list code {
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.03);
+  color: var(--text-soft);
+  padding: 6px 8px;
+  font-size: 0.73rem;
+}
+
 .verification-center {
   min-width: 0;
 }

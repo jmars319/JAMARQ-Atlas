@@ -24,6 +24,7 @@ import type { AtlasSyncState } from '../domain/sync'
 import type { TimelineEvent } from '../domain/timeline'
 import type { WritingWorkbenchState } from '../domain/writing'
 import type { GithubRepoCommandSummary } from './githubCommand'
+import type { RepoOperationsRow } from './repoOperations'
 import type { RepoPlacementSuggestion } from './repoSuggestions'
 import type { VercelDeploymentCommandSummary } from './vercelIntegration'
 import { deriveAtlasActionIntents } from './actionPlanner'
@@ -904,6 +905,49 @@ function githubCommandItems(
     })
 }
 
+function repoOperationsItems(rows: RepoOperationsRow[]): ReviewQueueItem[] {
+  return rows.flatMap((row): ReviewQueueItem[] => {
+    const reviewableGaps = row.gaps.filter((gap) =>
+      [
+        'dirty-local-clone',
+        'behind-upstream',
+        'missing-local-clone',
+        'missing-github-binding',
+        'missing-verification-command',
+        'missing-planning-follow-up',
+      ].includes(gap),
+    )
+
+    if (reviewableGaps.length === 0) {
+      return []
+    }
+
+    return [
+      {
+        id: `repo-ops-${row.repository.id}`,
+        source: 'github',
+        severity: reviewableGaps.some((gap) =>
+          ['dirty-local-clone', 'behind-upstream'].includes(gap),
+        )
+          ? 'high'
+          : 'medium',
+        dueState: reviewableGaps.some((gap) =>
+          ['dirty-local-clone', 'behind-upstream'].includes(gap),
+        )
+          ? 'blocked'
+          : 'attention',
+        title: `${row.repository.name} has repo workflow gaps`,
+        detail: reviewableGaps.join(', '),
+        reason:
+          'Repo Operations snapshot or local Git evidence indicates workflow follow-up is needed.',
+        ...projectFields(row.boundProject ?? undefined, row.boundProject?.project.id ?? null),
+        repositoryKey: `${row.repository.githubOwner}/${row.repository.githubRepo}`,
+        meta: [row.repository.lifecycle, row.repository.deployCategory, ...reviewableGaps],
+      },
+    ]
+  })
+}
+
 function timelineItems(timelineEvents: TimelineEvent[], now: Date): ReviewQueueItem[] {
   const cutoff = new Date(now)
   cutoff.setUTCDate(cutoff.getUTCDate() - 7)
@@ -984,6 +1028,7 @@ export function deriveReviewQueue({
   repoSuggestions = [],
   githubCommandSummaries = [],
   vercelCommandSummaries = [],
+  repoOperationsRows = [],
   now = new Date(),
 }: {
   projectRecords: ProjectRecord[]
@@ -996,6 +1041,7 @@ export function deriveReviewQueue({
   repoSuggestions?: RepoPlacementSuggestion[]
   githubCommandSummaries?: GithubRepoCommandSummary[]
   vercelCommandSummaries?: VercelDeploymentCommandSummary[]
+  repoOperationsRows?: RepoOperationsRow[]
   now?: Date
 }): ReviewQueueItem[] {
   return [
@@ -1008,6 +1054,7 @@ export function deriveReviewQueue({
     ...reportItems(projectRecords, reports),
     ...githubItems(repoSuggestions),
     ...githubCommandItems(projectRecords, githubCommandSummaries),
+    ...repoOperationsItems(repoOperationsRows),
     ...timelineItems(timelineEvents, now),
     ...syncItems(sync, now),
   ].sort((left, right) => {

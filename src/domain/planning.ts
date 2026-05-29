@@ -11,6 +11,7 @@ export type PlanningSourceLinkType =
   | 'timeline-event'
   | 'optimization-recommendation'
   | 'planning-note'
+  | 'repo-operations'
 
 export interface PlanningSourceLink {
   type: PlanningSourceLinkType

@@ -73,6 +73,7 @@ function readSourceLinkType(value: unknown): PlanningSourceLinkType {
     'timeline-event',
     'optimization-recommendation',
     'planning-note',
+    'repo-operations',
   ].includes(readString(value))
     ? (value as PlanningSourceLinkType)
     : 'timeline-event'

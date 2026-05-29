@@ -63,6 +63,7 @@ export function useLocalPlanning() {
     )
 
     setPlanning((current) => addPlanningItem(current, item))
+    return item.id
   }
 
   function updateItem(kind: PlanningItemKind, itemId: string, update: PlanningItemUpdate) {

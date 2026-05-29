@@ -1,6 +1,7 @@
 import { ATLAS_CALIBRATION_SCHEMA_VERSION } from './calibration'
 import { ATLAS_OPTIMIZATION_SCHEMA_VERSION } from './optimization'
 import { ATLAS_PLANNING_SCHEMA_VERSION } from './planning'
+import { ATLAS_REPO_OPERATIONS_SCHEMA_VERSION } from './repoOperations'
 import { ATLAS_REPORTS_SCHEMA_VERSION } from './reports'
 import { ATLAS_REVIEW_SCHEMA_VERSION } from './review'
 import { ATLAS_SETTINGS_SCHEMA_VERSION } from './settings'
@@ -15,6 +16,7 @@ export type AtlasStoreId =
   | 'review'
   | 'calibration'
   | 'optimization'
+  | 'repo-ops'
   | 'settings'
   | 'sync'
 
@@ -132,6 +134,19 @@ export const ATLAS_STORE_REGISTRY = [
     restoreBehaviorLabel: 'Full replace through Data restore and Sync snapshot restore.',
     secretPolicy:
       'Stores imported portfolio optimization snapshots only. No secrets, repo files, tokens, or registry source-of-truth data are stored.',
+  },
+  {
+    id: 'repo-ops',
+    label: 'Repo Operations',
+    localStorageKey: 'jamarq-atlas.repo-ops.v1',
+    schemaVersionLabel: `v${ATLAS_REPO_OPERATIONS_SCHEMA_VERSION}`,
+    backupIncluded: false,
+    syncSnapshotIncluded: false,
+    restoreBehavior: 'data-full-replace-only',
+    restoreBehaviorLabel:
+      'Local imported registry snapshots only. Re-import from agentic-instructions when needed.',
+    secretPolicy:
+      'Stores imported registry metadata, local path hints, command labels, manual notes, and Planning links only. No secrets, tokens, env vars, command output, or repo file contents are stored.',
   },
   {
     id: 'settings',

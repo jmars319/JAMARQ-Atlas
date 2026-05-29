@@ -15,6 +15,7 @@ import type { AtlasSyncState } from '../domain/sync'
 import { createCalibrationWorkflow } from './calibrationWorkflow'
 import type { CalibrationIssue } from './calibration'
 import { deriveDispatchQueueItems } from './dispatchQueue'
+import type { RepoOperationsRow } from './repoOperations'
 import { evaluateVerification } from './verification'
 
 export const DEFAULT_OPERATIONS_STALE_EVIDENCE_DAYS = 7
@@ -30,6 +31,7 @@ export interface CreateOperationsCockpitSummaryInput {
   calibration: AtlasCalibrationState
   calibrationIssues: CalibrationIssue[]
   dataIntegrityDiagnostics: DataIntegrityDiagnostic[]
+  repoOperationsRows?: RepoOperationsRow[]
   now?: Date
   staleEvidenceDays?: number
   staleSnapshotDays?: number
@@ -563,6 +565,53 @@ function buildSnapshotItem({
   return null
 }
 
+function buildRepoOperationsItems(
+  rows: RepoOperationsRow[],
+  generatedAt: string,
+): OperationsQueueItem[] {
+  return rows.flatMap((row): OperationsQueueItem[] => {
+    if (row.gaps.length === 0) {
+      return []
+    }
+
+    const blocked = row.gaps.some((gap) =>
+      ['dirty-local-clone', 'behind-upstream'].includes(gap),
+    )
+
+    return [
+      queueItem({
+        id: `repo-ops:${row.repository.id}`,
+        label: row.repository.name,
+        projectId: row.boundProject?.project.id,
+        projectName: row.boundProject?.project.name,
+        reasons: [
+          reason({
+            id: 'repo-operations',
+            label: 'Repo workflow',
+            grade: blocked ? 'blocked' : 'attention',
+            priority: row.gaps.includes('missing-planning-follow-up') ? 720 : 680,
+            affectedCount: row.gaps.length,
+            detail: row.gaps.join(', '),
+          }),
+        ],
+        actions: [
+          { id: 'open-repos', label: 'Open Repos' },
+          ...(row.boundProject
+            ? [
+                {
+                  id: 'create-planning-follow-up' as const,
+                  label: 'Create planning follow-up',
+                  projectId: row.boundProject.project.id,
+                },
+              ]
+            : []),
+        ],
+        updatedAt: generatedAt,
+      }),
+    ]
+  })
+}
+
 function sortQueue(items: OperationsQueueItem[]) {
   return [...items].sort((left, right) => {
     const scoreDiff = right.score - left.score
@@ -613,6 +662,7 @@ export function createOperationsCockpitSummary({
   calibration,
   calibrationIssues,
   dataIntegrityDiagnostics,
+  repoOperationsRows = [],
   now = new Date(),
   staleEvidenceDays = DEFAULT_OPERATIONS_STALE_EVIDENCE_DAYS,
   staleSnapshotDays = DEFAULT_OPERATIONS_STALE_SNAPSHOT_DAYS,
@@ -648,10 +698,12 @@ export function createOperationsCockpitSummary({
     generatedAt,
     staleSnapshotDays,
   })
+  const repoOperationsItems = buildRepoOperationsItems(repoOperationsRows, generatedAt)
   const queue = sortQueue([
     ...buildDataIntegrityItems(dataIntegrityDiagnostics, generatedAt),
     ...(calibrationItem ? [calibrationItem] : []),
     ...(snapshotItem ? [snapshotItem] : []),
+    ...repoOperationsItems,
     ...targetItems,
     ...projectVerificationItems,
   ])
@@ -700,6 +752,7 @@ export function createOperationsCockpitSummary({
       missingSnapshots: snapshotItem?.id === 'sync:snapshot-missing' ? 1 : 0,
       staleSnapshots: snapshotItem?.id === 'sync:snapshot-stale' ? 1 : 0,
       syncWarnings: warnings.length,
+      repoWorkflowGaps: repoOperationsItems.length,
     },
     queue,
     warnings,

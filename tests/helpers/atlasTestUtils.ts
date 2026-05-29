@@ -3,6 +3,7 @@ import { expect, type Locator, type Page } from '@playwright/test'
 export type AtlasNavLabel =
   | 'Board'
   | 'Optimize'
+  | 'Repos'
   | 'Timeline'
   | 'GitHub'
   | 'Planning'

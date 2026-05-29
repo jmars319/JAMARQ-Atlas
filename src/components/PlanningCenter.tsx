@@ -72,6 +72,7 @@ function sourceLinkLabel(type: PlanningItem['sourceLinks'][number]['type']) {
     'timeline-event': 'Timeline event',
     'optimization-recommendation': 'Optimization recommendation',
     'planning-note': 'Planning note',
+    'repo-operations': 'Repo operations',
   }
 
   return labels[type]

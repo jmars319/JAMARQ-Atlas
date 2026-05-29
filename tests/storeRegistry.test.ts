@@ -16,6 +16,7 @@ const allStoreIds = [
   'review',
   'calibration',
   'optimization',
+  'repo-ops',
   'settings',
   'sync',
 ]
@@ -35,7 +36,7 @@ describe('Atlas store registry', () => {
   })
 
   it('marks backup and sync snapshot inclusion from one policy surface', () => {
-    expect(ATLAS_BACKUP_STORE_IDS).toEqual(allStoreIds)
+    expect(ATLAS_BACKUP_STORE_IDS).toEqual(allStoreIds.filter((id) => id !== 'repo-ops'))
     expect(ATLAS_SYNC_SNAPSHOT_STORE_IDS).toEqual([
       'workspace',
       'dispatch',
@@ -48,6 +49,7 @@ describe('Atlas store registry', () => {
     ])
     expect(ATLAS_STORE_DEFINITIONS_BY_ID.settings.syncSnapshotIncluded).toBe(false)
     expect(ATLAS_STORE_DEFINITIONS_BY_ID.sync.syncSnapshotIncluded).toBe(false)
+    expect(ATLAS_STORE_DEFINITIONS_BY_ID['repo-ops'].backupIncluded).toBe(false)
   })
 
   it('exposes Sync snapshot store metadata from the registry', () => {

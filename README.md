@@ -15,6 +15,7 @@ The dashboard currently supports:
 - Board-level review of sections, project groups, and projects.
 - Project detail pages for status, next action, blockers, deferred work, not-doing items, notes, decisions, and last verification.
 - Timeline evidence ledger derived from Workspace, Dispatch, Writing, Review, Planning, Reports, Calibration, Sync, and existing activity events.
+- Repos view for importing registry-derived Repo Operations Snapshot v1 packets, reconciling repo universe, GitHub bindings, local Git status, verification commands, and Planning follow-up.
 - Optimize view for importing registry-generated portfolio optimization snapshots, reviewing scorecards and buckets, exporting snapshots, and creating explicit Planning notes from chosen recommendations.
 - GitHub Intake for discovering repositories, reviewing placement suggestions, binding them to Atlas projects, and creating explicit Inbox records from unbound repos.
 - Optional read-only GitHub panels for bound repository activity.
@@ -61,6 +62,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Local settings storage for device/operator labels and connection-readiness surfaces.
 - Local Calibration storage for progress, audit events, and non-secret credential reference labels.
 - Local Optimization storage for imported advisory scorecards and recommendations.
+- Local Repo Operations storage for imported advisory repo snapshots, filters, and Planning evidence links.
 - Local sync snapshot storage and optional Supabase hosted sync bridge.
 - Unit and Playwright smoke tests for the main operator flows.
 

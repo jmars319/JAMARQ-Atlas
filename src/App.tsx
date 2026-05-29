@@ -30,6 +30,7 @@ import { useLocalDispatch } from './hooks/useLocalDispatch'
 import { useLocalCalibration } from './hooks/useLocalCalibration'
 import { useLocalOptimization } from './hooks/useLocalOptimization'
 import { useLocalPlanning } from './hooks/useLocalPlanning'
+import { useLocalRepoOperations } from './hooks/useLocalRepoOperations'
 import { useLocalReports } from './hooks/useLocalReports'
 import { useLocalReview } from './hooks/useLocalReview'
 import { useLocalSettings } from './hooks/useLocalSettings'
@@ -37,6 +38,7 @@ import { useLocalSync } from './hooks/useLocalSync'
 import { useLocalWriting } from './hooks/useLocalWriting'
 import { useLocalWorkspace } from './hooks/useLocalWorkspace'
 import { githubIngestionContract } from './services/githubIntegration'
+import { deriveRepoOperationsRows } from './services/repoOperations'
 import { deriveTimelineEvents } from './services/timeline'
 import { scanAtlasCalibration } from './services/calibration'
 import { createAtlasActions, type AtlasActionView } from './services/atlasActions'
@@ -50,6 +52,11 @@ const TimelineDashboard = lazy(() =>
 const GitHubIntakeDashboard = lazy(() =>
   import('./components/GitHubIntakeDashboard').then((module) => ({
     default: module.GitHubIntakeDashboard,
+  })),
+)
+const RepoCommandCenter = lazy(() =>
+  import('./components/RepoCommandCenter').then((module) => ({
+    default: module.RepoCommandCenter,
   })),
 )
 const PlanningCenter = lazy(() =>
@@ -93,7 +100,15 @@ type StatusFilter = WorkStatus | 'All'
 type SectionFilter = string | 'All'
 type AppView = AtlasActionView
 
-const PRIMARY_VIEWS: AppView[] = ['board', 'optimize', 'github', 'planning', 'review', 'dispatch']
+const PRIMARY_VIEWS: AppView[] = [
+  'board',
+  'repos',
+  'optimize',
+  'github',
+  'planning',
+  'review',
+  'dispatch',
+]
 const SUPPORT_VIEWS: AppView[] = [
   'timeline',
   'ops',
@@ -110,6 +125,7 @@ function appViewLabel(view: AppView) {
     board: 'Board',
     optimize: 'Optimize',
     timeline: 'Timeline',
+    repos: 'Repos',
     github: 'GitHub',
     planning: 'Planning',
     reports: 'Reports',
@@ -193,6 +209,12 @@ function App() {
     importSnapshot: importOptimizationSnapshot,
   } = useLocalOptimization()
   const {
+    repoOperations,
+    importSnapshot: importRepoOperationsSnapshot,
+    updateFilters: updateRepoOperationsFilters,
+    recordPlanningLink: recordRepoOperationsPlanningLink,
+  } = useLocalRepoOperations()
+  const {
     reports,
     setReports,
     addPacket: addReportPacket,
@@ -246,6 +268,15 @@ function App() {
         calibration,
       }),
     [calibration, dispatch, planning, reports, review, workspace, writing],
+  )
+  const repoOperationsRows = useMemo(
+    () =>
+      deriveRepoOperationsRows({
+        state: repoOperations,
+        projectRecords,
+        commandSummaries: [],
+      }),
+    [projectRecords, repoOperations],
   )
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -467,6 +498,20 @@ function App() {
               setAppView('planning')
             }}
           />
+        ) : appView === 'repos' ? (
+          <RepoCommandCenter
+            repoOperations={repoOperations}
+            projectRecords={projectRecords}
+            onImportSnapshot={importRepoOperationsSnapshot}
+            onUpdateFilters={updateRepoOperationsFilters}
+            onCreatePlanningItem={createPlanningItem}
+            onRecordPlanningLink={recordRepoOperationsPlanningLink}
+            onSelectProject={atlasActions.selectProject}
+            onOpenPlanning={(projectId) => {
+              atlasActions.selectProject(projectId)
+              setAppView('planning')
+            }}
+          />
         ) : appView === 'github' ? (
           <GitHubIntakeDashboard
             projectRecords={projectRecords}
@@ -515,6 +560,7 @@ function App() {
             reports={reports}
             writing={writing}
             sync={sync}
+            repoOperations={repoOperations}
             timelineEvents={timelineEvents}
             onSelectProject={atlasActions.selectProject}
             onAddReviewSession={addReviewSession}
@@ -534,6 +580,7 @@ function App() {
             calibration={calibration}
             calibrationIssues={calibrationIssues}
             dataIntegrityDiagnostics={dataIntegrityDiagnostics}
+            repoOperationsRows={repoOperationsRows}
             onOpenProject={(projectId) => {
               atlasActions.selectProject(projectId)
               setAppView('board')
@@ -547,6 +594,7 @@ function App() {
             onOpenDispatch={() => setAppView('dispatch')}
             onOpenCalibration={() => setAppView('settings')}
             onOpenDataCenter={() => setAppView('data')}
+            onOpenRepos={() => setAppView('repos')}
             onRunEvidenceSweep={(targetIds) => atlasActions.runQueueEvidenceSweep(targetIds)}
             evidenceSweepRunning={queueEvidenceSweepRunning}
             onStartManualDeploySession={(targetId) => {

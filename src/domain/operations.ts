@@ -4,6 +4,7 @@ export type OperationsReadinessGrade = 'ready' | 'attention' | 'blocked'
 
 export type OperationsActionId =
   | 'open-project'
+  | 'open-repos'
   | 'open-dispatch-target'
   | 'open-calibration'
   | 'open-data-center'
@@ -32,6 +33,7 @@ export type OperationsQueueReasonId =
   | 'closeout'
   | 'recovery'
   | 'artifacts'
+  | 'repo-operations'
 
 export interface OperationsQueueReason {
   id: OperationsQueueReasonId
@@ -78,6 +80,7 @@ export interface OperationsCockpitCounts {
   missingSnapshots: number
   staleSnapshots: number
   syncWarnings: number
+  repoWorkflowGaps: number
 }
 
 export interface OperationsCockpitSummary {

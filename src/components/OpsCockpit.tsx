@@ -2,6 +2,7 @@ import {
   ArchiveRestore,
   ClipboardCheck,
   DatabaseZap,
+  GitBranch,
   ListChecks,
   RefreshCw,
   Rocket,
@@ -23,6 +24,7 @@ import type { ReportsState } from '../domain/reports'
 import type { AtlasSyncState } from '../domain/sync'
 import type { CalibrationIssue } from '../services/calibration'
 import { createOperationsCockpitSummary } from '../services/operations'
+import type { RepoOperationsRow } from '../services/repoOperations'
 
 interface OpsCockpitProps {
   workspace: Workspace
@@ -32,6 +34,7 @@ interface OpsCockpitProps {
   calibration: AtlasCalibrationState
   calibrationIssues: CalibrationIssue[]
   dataIntegrityDiagnostics: DataIntegrityDiagnostic[]
+  repoOperationsRows?: RepoOperationsRow[]
   onOpenProject: (projectId: string) => void
   onOpenDispatchTarget: (projectId: string, targetId: string) => void
   onOpenReview: () => void
@@ -39,6 +42,7 @@ interface OpsCockpitProps {
   onOpenDispatch: () => void
   onOpenCalibration: () => void
   onOpenDataCenter: () => void
+  onOpenRepos: () => void
   onRunEvidenceSweep: (targetIds: string[]) => Promise<void>
   evidenceSweepRunning: boolean
   onStartManualDeploySession: (targetId: string) => void
@@ -85,6 +89,7 @@ export function OpsCockpit({
   calibration,
   calibrationIssues,
   dataIntegrityDiagnostics,
+  repoOperationsRows = [],
   onOpenProject,
   onOpenDispatchTarget,
   onOpenReview,
@@ -92,6 +97,7 @@ export function OpsCockpit({
   onOpenDispatch,
   onOpenCalibration,
   onOpenDataCenter,
+  onOpenRepos,
   onRunEvidenceSweep,
   evidenceSweepRunning,
   onStartManualDeploySession,
@@ -109,8 +115,18 @@ export function OpsCockpit({
         calibration,
         calibrationIssues,
         dataIntegrityDiagnostics,
+        repoOperationsRows,
       }),
-    [calibration, calibrationIssues, dataIntegrityDiagnostics, dispatch, reports, sync, workspace],
+    [
+      calibration,
+      calibrationIssues,
+      dataIntegrityDiagnostics,
+      dispatch,
+      repoOperationsRows,
+      reports,
+      sync,
+      workspace,
+    ],
   )
   const queueTargetIds = summary.queue
     .map((item) => item.targetId)
@@ -135,6 +151,11 @@ export function OpsCockpit({
 
     if (action.id === 'open-data-center') {
       onOpenDataCenter()
+      return
+    }
+
+    if (action.id === 'open-repos') {
+      onOpenRepos()
       return
     }
 
@@ -180,6 +201,7 @@ export function OpsCockpit({
           <Stat icon={<ArchiveRestore size={16} />} value={summary.counts.recoveryGaps} label="Recovery gaps" />
           <Stat icon={<DatabaseZap size={16} />} value={summary.counts.missingSnapshots + summary.counts.staleSnapshots} label="Snapshot gaps" />
           <Stat icon={<ClipboardCheck size={16} />} value={summary.counts.closeoutGaps} label="Closeout gaps" />
+          <Stat icon={<GitBranch size={16} />} value={summary.counts.repoWorkflowGaps} label="Repo gaps" />
         </div>
       </div>
 

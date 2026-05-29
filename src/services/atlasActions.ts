@@ -58,6 +58,7 @@ export type AtlasActionView =
   | 'board'
   | 'optimize'
   | 'timeline'
+  | 'repos'
   | 'github'
   | 'planning'
   | 'reports'
