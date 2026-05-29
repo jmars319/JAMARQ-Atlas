@@ -474,6 +474,69 @@ export function updatePlanningItem(
   } as PlanningState
 }
 
+function dateOnly(now: Date) {
+  return now.toISOString().slice(0, 10)
+}
+
+export function startPlanningWorkSession(
+  state: PlanningState,
+  itemId: string,
+  now = new Date(),
+): PlanningState {
+  const session = state.workSessions.find((item) => item.id === itemId)
+
+  if (!session) {
+    return state
+  }
+
+  return updatePlanningItem(
+    state,
+    'work-session',
+    itemId,
+    {
+      status: 'active',
+      scheduledFor: session.scheduledFor || dateOnly(now),
+      completedAt: '',
+    },
+    now,
+  )
+}
+
+export function completePlanningWorkSession(
+  state: PlanningState,
+  itemId: string,
+  now = new Date(),
+): PlanningState {
+  return updatePlanningItem(
+    state,
+    'work-session',
+    itemId,
+    {
+      status: 'done',
+      completedAt: dateOnly(now),
+    },
+    now,
+  )
+}
+
+export function setPlanningExecutionStatus(
+  state: PlanningState,
+  kind: PlanningItemKind,
+  itemId: string,
+  status: Extract<PlanningStatus, 'active' | 'waiting' | 'done' | 'deferred'>,
+  now = new Date(),
+): PlanningState {
+  if (kind === 'work-session' && status === 'active') {
+    return startPlanningWorkSession(state, itemId, now)
+  }
+
+  if (kind === 'work-session' && status === 'done') {
+    return completePlanningWorkSession(state, itemId, now)
+  }
+
+  return updatePlanningItem(state, kind, itemId, { status }, now)
+}
+
 export function deletePlanningItem(
   state: PlanningState,
   kind: PlanningItemKind,

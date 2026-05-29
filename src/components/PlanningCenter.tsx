@@ -1,4 +1,14 @@
-import { CalendarDays, ClipboardList, Filter, NotebookPen, Search, Trash2 } from 'lucide-react'
+import {
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Filter,
+  NotebookPen,
+  PauseCircle,
+  Play,
+  Search,
+  Trash2,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatDateLabel, type ProjectRecord } from '../domain/atlas'
 import {
@@ -115,6 +125,10 @@ function getDateUpdate(kind: PlanningItemKind, value: string): PlanningItemUpdat
   return {}
 }
 
+function todayDate() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 function itemMatchesQuery(row: PlanningRecordRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase()
 
@@ -134,6 +148,21 @@ function itemMatchesQuery(row: PlanningRecordRow, query: string) {
     .join(' ')
     .toLowerCase()
     .includes(normalizedQuery)
+}
+
+function buildExecutionRows(rows: PlanningRecordRow[]) {
+  return rows
+    .filter((row) => row.item.kind === 'objective' || row.item.kind === 'work-session')
+    .filter((row) => ['planned', 'active', 'waiting'].includes(row.item.status))
+    .sort((left, right) => {
+      if (left.item.status === 'active' && right.item.status !== 'active') {
+        return -1
+      }
+      if (right.item.status === 'active' && left.item.status !== 'active') {
+        return 1
+      }
+      return right.item.updatedAt.localeCompare(left.item.updatedAt)
+    })
 }
 
 function buildPlanningRows(
@@ -306,6 +335,81 @@ function PlanningItemCard({
   )
 }
 
+function PlanningExecutionPanel({
+  rows,
+  onUpdateItem,
+}: {
+  rows: PlanningRecordRow[]
+  onUpdateItem: PlanningCenterProps['onUpdateItem']
+}) {
+  function startItem(item: PlanningItem) {
+    onUpdateItem(item.kind, item.id, {
+      status: 'active',
+      scheduledFor:
+        item.kind === 'work-session' && !item.scheduledFor ? todayDate() : undefined,
+      completedAt: item.kind === 'work-session' ? '' : undefined,
+    })
+  }
+
+  function completeItem(item: PlanningItem) {
+    onUpdateItem(item.kind, item.id, {
+      status: 'done',
+      completedAt: item.kind === 'work-session' ? todayDate() : undefined,
+    })
+  }
+
+  return (
+    <section className="planning-execution-panel" aria-label="Planning execution">
+      <div className="panel-heading">
+        <Play size={17} />
+        <h2>Execution queue</h2>
+      </div>
+      {rows.length === 0 ? (
+        <p className="empty-state">No active or planned objectives and work sessions are queued.</p>
+      ) : null}
+      <div className="planning-execution-list">
+        {rows.slice(0, 8).map(({ item, record }) => (
+          <article className={`planning-execution-card planning-status-${item.status}`} key={item.id}>
+            <div>
+              <span className="section-label">
+                {kindLabel(item.kind)} / {record?.project.name ?? item.projectId}
+              </span>
+              <strong>{item.title}</strong>
+              <small>{statusLabel(item.status)} / {getItemDateLabel(item)}: {formatDateLabel(getItemDateValue(item))}</small>
+              {item.sourceLinks.length > 0 ? (
+                <small>
+                  Source: {item.sourceLinks.map((link) => link.label).join(', ')}
+                </small>
+              ) : null}
+            </div>
+            <div className="planning-execution-actions">
+              <button
+                type="button"
+                disabled={item.status === 'active'}
+                onClick={() => startItem(item)}
+              >
+                <Play size={14} />
+                Start
+              </button>
+              <button type="button" onClick={() => onUpdateItem(item.kind, item.id, { status: 'waiting' })}>
+                <PauseCircle size={14} />
+                Wait
+              </button>
+              <button type="button" onClick={() => onUpdateItem(item.kind, item.id, { status: 'deferred' })}>
+                Defer
+              </button>
+              <button type="button" onClick={() => completeItem(item)}>
+                <CheckCircle2 size={14} />
+                Done
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function PlanningCenter({
   planning,
   projectRecords,
@@ -329,6 +433,7 @@ export function PlanningCenter({
     projectRecords.find((record) => record.project.id === selectedProjectId) ?? projectRecords[0]
   const summary = useMemo(() => summarizePlanningState(planning), [planning])
   const rows = useMemo(() => buildPlanningRows(planning, projectRecords), [planning, projectRecords])
+  const executionRows = useMemo(() => buildExecutionRows(rows), [rows])
   const filteredRows = rows
     .filter((row) => kindFilter === 'all' || row.item.kind === kindFilter)
     .filter((row) => statusFilter === 'all' || row.item.status === statusFilter)
@@ -492,6 +597,8 @@ export function PlanningCenter({
         </aside>
 
         <div className="planning-main">
+          <PlanningExecutionPanel rows={executionRows} onUpdateItem={onUpdateItem} />
+
           <div className="planning-controls">
             <label className="search-control">
               <Search size={16} />

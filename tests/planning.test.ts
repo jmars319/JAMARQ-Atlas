@@ -3,6 +3,7 @@ import { seedWorkspace } from '../src/data/seedWorkspace'
 import { flattenProjects } from '../src/domain/atlas'
 import {
   addPlanningItem,
+  completePlanningWorkSession,
   createPlanningItem,
   deletePlanningItem,
   emptyPlanningStore,
@@ -10,6 +11,8 @@ import {
   hasPromotedPlanningNote,
   normalizePlanningState,
   promotePlanningNote,
+  setPlanningExecutionStatus,
+  startPlanningWorkSession,
   summarizePlanningState,
   updatePlanningItem,
 } from '../src/services/planning'
@@ -170,6 +173,71 @@ describe('planning center', () => {
     const deleted = deletePlanningItem(updated, 'objective', 'planning-objective-1', now)
 
     expect(getPlanningForProject(deleted, 'vaexcore-studio').objectives).toHaveLength(0)
+  })
+
+  it('tracks Planning-only execution transitions for work sessions', () => {
+    const session = createPlanningItem({
+      id: 'planning-work-session-1',
+      kind: 'work-session',
+      projectId: vaexcoreStudio.project.id,
+      title: 'Run pushed workspace pass',
+      detail: 'Execution record only.',
+      status: 'planned',
+      now,
+    })
+    const initial = addPlanningItem(emptyPlanningStore(now), session, now)
+    const started = startPlanningWorkSession(
+      initial,
+      session.id,
+      new Date('2026-05-29T13:00:00Z'),
+    )
+    const completed = completePlanningWorkSession(
+      started,
+      session.id,
+      new Date('2026-05-29T16:30:00Z'),
+    )
+
+    expect(started.workSessions[0]).toMatchObject({
+      status: 'active',
+      scheduledFor: '2026-05-29',
+      completedAt: '',
+    })
+    expect(completed.workSessions[0]).toMatchObject({
+      status: 'done',
+      completedAt: '2026-05-29',
+    })
+    expect(vaexcoreStudio.project.manual.status).toBe('Active')
+  })
+
+  it('sets active, waiting, done, and deferred execution statuses without changing workspace records', () => {
+    const objective = createPlanningItem({
+      id: 'planning-objective-execution-1',
+      kind: 'objective',
+      projectId: vaexcoreStudio.project.id,
+      title: 'Atlas execution panel',
+      detail: 'Planning-only execution.',
+      status: 'planned',
+      now,
+    })
+    const initial = addPlanningItem(emptyPlanningStore(now), objective, now)
+    const waiting = setPlanningExecutionStatus(
+      initial,
+      'objective',
+      objective.id,
+      'waiting',
+      new Date('2026-05-29T14:00:00Z'),
+    )
+    const deferred = setPlanningExecutionStatus(
+      waiting,
+      'objective',
+      objective.id,
+      'deferred',
+      new Date('2026-05-29T15:00:00Z'),
+    )
+
+    expect(waiting.objectives[0].status).toBe('waiting')
+    expect(deferred.objectives[0].status).toBe('deferred')
+    expect(JSON.stringify(seedWorkspace)).toContain('"vaexcore-studio"')
   })
 
   it('does not mutate workspace source-of-truth fields when planning changes', () => {

@@ -2937,6 +2937,63 @@ h3 {
   min-width: 0;
 }
 
+.planning-execution-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(9, 166, 214, 0.28);
+  background: rgba(9, 166, 214, 0.06);
+  padding: 12px;
+}
+
+.planning-execution-list {
+  display: grid;
+  gap: 8px;
+}
+
+.planning-execution-card {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 10px;
+}
+
+.planning-execution-card > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.planning-execution-card strong {
+  color: var(--paper-white);
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.planning-execution-card small {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.planning-execution-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.planning-execution-actions button {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 0.74rem;
+}
+
 .planning-controls {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(150px, 0.5fr));
@@ -4951,6 +5008,7 @@ code {
   .settings-sync-grid,
   .settings-preview-grid,
   .settings-compare-grid,
+  .planning-execution-card,
   .planning-layout,
   .planning-controls,
   .planning-mini-summary,

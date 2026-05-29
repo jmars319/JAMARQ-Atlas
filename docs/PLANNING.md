@@ -36,6 +36,7 @@ The top-level Planning tab provides:
 - A create form for planning records.
 - Filters by section, kind, planning status, and search text.
 - Editable cards for title, status, dates, and detail.
+- An execution queue for active/planned objectives and work sessions, with Planning-only start, wait, defer, and done actions.
 - Counts for objectives, milestones, work sessions, and notes.
 
 Project detail pages include a compact Planning panel with per-project counts and the most recent planning records.
@@ -43,6 +44,8 @@ Project detail pages include a compact Planning panel with per-project counts an
 Planning cards show source-link labels when a record was created from Review or another operator surface that passes a source link. Optimize-created Planning notes link back to their recommendation and do not synchronize state back to the imported snapshot.
 
 Planning notes can be promoted into one objective and one work session. Promotion preserves the project, section, group, note detail, and source links, adds a source link back to the original Planning note, and does not change Workspace status or imported snapshots.
+
+Execution queue actions only update Planning records. Starting a work session sets it active and schedules it for the current day when no date exists. Completing a work session marks it done and records the current day as the completed date.
 
 ## Future Work
 
