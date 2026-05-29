@@ -9,6 +9,14 @@ import {
   type RepoOperationsState,
 } from '../domain/repoOperations'
 import type { GithubRepoCommandSummary } from './githubCommand'
+import type { RepoWorkflowRun } from '../domain/repoWorkflowRuns'
+import {
+  isVerificationStale,
+  latestVerificationRun,
+  latestVerificationSuccess,
+  latestWorkflowRun,
+  workflowRunsForRepository,
+} from './repoWorkflowRuns'
 
 export type RepoOperationsGap =
   | 'dirty-local-clone'
@@ -17,6 +25,9 @@ export type RepoOperationsGap =
   | 'missing-github-binding'
   | 'missing-verification-command'
   | 'missing-planning-follow-up'
+  | 'failed-workflow-run'
+  | 'stale-verification'
+  | 'never-run-verification'
 
 export interface RepoOperationsRow {
   repository: RepoOperationsRepository
@@ -29,6 +40,9 @@ export interface RepoOperationsRow {
   localStatusLabel: string
   verificationLabel: string
   planningFollowUpCount: number
+  workflowRuns: RepoWorkflowRun[]
+  latestWorkflowRun: RepoWorkflowRun | null
+  latestVerificationRun: RepoWorkflowRun | null
 }
 
 const DEFAULT_GENERATED_AT = new Date('1970-01-01T00:00:00.000Z')
@@ -375,10 +389,12 @@ export function deriveRepoOperationsRows({
   state,
   projectRecords,
   commandSummaries,
+  workflowRuns = [],
 }: {
   state: RepoOperationsState
   projectRecords: ProjectRecord[]
   commandSummaries: GithubRepoCommandSummary[]
+  workflowRuns?: RepoWorkflowRun[]
 }): RepoOperationsRow[] {
   const snapshot = state.snapshots.find((candidate) => candidate.id === state.selectedSnapshotId)
 
@@ -396,6 +412,10 @@ export function deriveRepoOperationsRows({
         (summary) => summary.fullName.toLowerCase() === repoKey(repository).toLowerCase(),
       ) ?? null
     const localGit = commandSummary?.localGit
+    const repositoryWorkflowRuns = workflowRunsForRepository(workflowRuns, repository)
+    const latestRun = latestWorkflowRun(repositoryWorkflowRuns)
+    const latestVerifyRun = latestVerificationRun(repositoryWorkflowRuns)
+    const latestSuccessfulVerification = latestVerificationSuccess(repositoryWorkflowRuns)
     const gaps: RepoOperationsGap[] = []
 
     if (!githubBinding && repository.githubOwner && repository.githubRepo) {
@@ -416,6 +436,18 @@ export function deriveRepoOperationsRows({
 
     if ((localGit?.data?.behind ?? 0) > 0) {
       gaps.push('behind-upstream')
+    }
+
+    if (latestRun && latestRun.status !== 'completed') {
+      gaps.push('failed-workflow-run')
+    }
+
+    if (repository.verificationCommands.length > 0 && !latestSuccessfulVerification) {
+      gaps.push('never-run-verification')
+    }
+
+    if (repository.verificationCommands.length > 0 && isVerificationStale(latestSuccessfulVerification)) {
+      gaps.push('stale-verification')
     }
 
     const planningFollowUpCount = state.planningLinks.filter(
@@ -449,9 +481,14 @@ export function deriveRepoOperationsRows({
         : localGit?.status ?? 'not loaded',
       verificationLabel:
         repository.verificationCommands.length > 0
-          ? `${repository.verificationCommands.length} command(s)`
+          ? latestSuccessfulVerification
+            ? `Last passed ${new Date(latestSuccessfulVerification.endedAt).toLocaleString()}`
+            : `${repository.verificationCommands.length} command(s), never run in Atlas`
           : 'No verification command listed',
       planningFollowUpCount,
+      workflowRuns: repositoryWorkflowRuns,
+      latestWorkflowRun: latestRun,
+      latestVerificationRun: latestVerifyRun,
     }
   })
 }
@@ -515,6 +552,9 @@ export function summarizeRepoOperationRows(rows: RepoOperationsRow[]) {
     missingVerification: rows.filter((row) =>
       row.gaps.includes('missing-verification-command'),
     ).length,
+    failedWorkflowRuns: rows.filter((row) => row.gaps.includes('failed-workflow-run')).length,
+    staleVerification: rows.filter((row) => row.gaps.includes('stale-verification')).length,
+    neverRunVerification: rows.filter((row) => row.gaps.includes('never-run-verification')).length,
     needsPlanning: rows.filter((row) => row.gaps.includes('missing-planning-follow-up')).length,
   }
 }

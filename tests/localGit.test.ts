@@ -8,10 +8,12 @@ import {
   getLocalGitRepositoryStatus,
   localGitApiMiddleware,
   normalizeGithubRemoteUrl,
+  parseAllowedWorkflowCommand,
   parseGitNumstat,
   parseGitStatusFileChanges,
   parseGitStatusPorcelain,
   parseLatestCommit,
+  runLocalGitWorkflow,
 } from '../server/localGitApi'
 
 describe('local Git status parsing', () => {
@@ -175,6 +177,107 @@ describe('local Git status parsing', () => {
     )
 
     expect(response.statusCode).toBe(405)
-    expect(chunks.join('')).toContain('read-only GET routes only')
+    expect(chunks.join('')).toContain('status and preview routes expose GET only')
+  })
+
+  it('parses only allowlisted repo workflow commands', () => {
+    expect(parseAllowedWorkflowCommand('npm run lint')).toEqual({
+      executable: 'npm',
+      args: ['run', 'lint'],
+    })
+    expect(parseAllowedWorkflowCommand('mise exec -- pnpm run verify:contracts')).toEqual({
+      executable: 'mise',
+      args: ['exec', '--', 'pnpm', 'run', 'verify:contracts'],
+    })
+    expect(parseAllowedWorkflowCommand('git diff --check')).toEqual({
+      executable: 'git',
+      args: ['diff', '--check'],
+    })
+    expect(parseAllowedWorkflowCommand('git reset --hard')).toBeNull()
+    expect(parseAllowedWorkflowCommand('npm run build && git push')).toBeNull()
+  })
+
+  it('runs allowlisted workflow commands and blocks destructive commands', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'atlas-local-git-workflow-'))
+    const repoPath = path.join(root, 'JAMARQ-Atlas')
+
+    mkdirSync(repoPath)
+    execFileSync('git', ['-C', repoPath, 'init', '-b', 'main'])
+    execFileSync('git', [
+      '-C',
+      repoPath,
+      'remote',
+      'add',
+      'origin',
+      'git@github.com:jmars319/JAMARQ-Atlas.git',
+    ])
+    writeFileSync(path.join(repoPath, 'README.md'), 'Atlas workflow\n')
+
+    const completed = await runLocalGitWorkflow(
+      {
+        repositoryId: 'atlas',
+        owner: 'jmars319',
+        repo: 'JAMARQ-Atlas',
+        command: { kind: 'verify-command', command: 'git diff --check' },
+      },
+      { ATLAS_LOCAL_REPO_ROOTS: root },
+    )
+    const blocked = await runLocalGitWorkflow(
+      {
+        repositoryId: 'atlas',
+        owner: 'jmars319',
+        repo: 'JAMARQ-Atlas',
+        command: { kind: 'verify-command', command: 'git reset --hard' },
+      },
+      { ATLAS_LOCAL_REPO_ROOTS: root },
+    )
+
+    expect(completed.status).toBe('completed')
+    expect(completed.run?.commandLabel).toBe('git diff --check')
+    expect(blocked.status).toBe('blocked')
+    expect(blocked.run?.diagnostic).toContain('not allowlisted')
+  })
+
+  it('requires confirmation and a clean upstream branch before fast-forward pull', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'atlas-local-git-pull-'))
+    const repoPath = path.join(root, 'JAMARQ-Atlas')
+
+    mkdirSync(repoPath)
+    execFileSync('git', ['-C', repoPath, 'init', '-b', 'main'])
+    execFileSync('git', [
+      '-C',
+      repoPath,
+      'remote',
+      'add',
+      'origin',
+      'git@github.com:jmars319/JAMARQ-Atlas.git',
+    ])
+    writeFileSync(path.join(repoPath, 'README.md'), 'Atlas workflow\n')
+
+    const wrongConfirmation = await runLocalGitWorkflow(
+      {
+        repositoryId: 'atlas',
+        owner: 'jmars319',
+        repo: 'JAMARQ-Atlas',
+        command: { kind: 'git-pull-ff-only' },
+        confirmation: 'pull',
+      },
+      { ATLAS_LOCAL_REPO_ROOTS: root },
+    )
+    const dirtyRepo = await runLocalGitWorkflow(
+      {
+        repositoryId: 'atlas',
+        owner: 'jmars319',
+        repo: 'JAMARQ-Atlas',
+        command: { kind: 'git-pull-ff-only' },
+        confirmation: 'PULL jmars319/JAMARQ-Atlas',
+      },
+      { ATLAS_LOCAL_REPO_ROOTS: root },
+    )
+
+    expect(wrongConfirmation.status).toBe('blocked')
+    expect(wrongConfirmation.run?.diagnostic).toContain('typed confirmation')
+    expect(dirtyRepo.status).toBe('blocked')
+    expect(dirtyRepo.run?.diagnostic).toContain('working tree is clean')
   })
 })

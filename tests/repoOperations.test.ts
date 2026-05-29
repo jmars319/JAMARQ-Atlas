@@ -159,4 +159,37 @@ describe('repo operations', () => {
       }),
     ).toHaveLength(1)
   })
+
+  it('derives failed and stale Atlas workflow gaps from local run history', () => {
+    const snapshot = normalizeRepoOperationsSnapshot(packet)!
+    const state = addRepoOperationsSnapshot(normalizeRepoOperationsState({}), snapshot)
+    const rows = deriveRepoOperationsRows({
+      state,
+      projectRecords: flattenProjects(seedWorkspace),
+      commandSummaries: [atlasCommandSummary()],
+      workflowRuns: [
+        {
+          id: 'run-1',
+          repositoryId: 'atlas',
+          owner: 'jmars319',
+          repo: 'JAMARQ-Atlas',
+          command: { kind: 'verify-command', command: 'npm run lint' },
+          commandLabel: 'npm run lint',
+          status: 'failed',
+          startedAt: '2026-05-29T12:00:00.000Z',
+          endedAt: '2026-05-29T12:01:00.000Z',
+          exitCode: 1,
+          outputExcerpt: 'lint failed',
+          planningItemId: '',
+          diagnostic: 'Verification failed.',
+        },
+      ],
+    })
+    const atlasRow = rows.find((row) => row.repository.id === 'atlas')!
+
+    expect(atlasRow.gaps).toEqual(expect.arrayContaining(['failed-workflow-run', 'never-run-verification']))
+    expect(summarizeRepoOperationRows(rows).failedWorkflowRuns).toBe(1)
+    expect(filterRepoOperationsRows(rows, { query: '', suite: 'all', lifecycle: 'all', gap: 'failed-workflow-run' }))
+      .toHaveLength(1)
+  })
 })

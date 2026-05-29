@@ -7,6 +7,7 @@ import { githubAuthApiMiddleware } from './githubAuth'
 import { githubApiMiddleware } from './githubApi'
 import { githubWriteApiMiddleware } from './githubWriteApi'
 import { localGitApiMiddleware } from './localGitApi'
+import { repoOperationsApiMiddleware } from './repoOperationsApi'
 import { syncApiMiddleware } from './syncApi'
 import { vercelApiMiddleware } from './vercelApi'
 import { writingApiMiddleware } from './writingApi'
@@ -58,8 +59,10 @@ export function atlasApiMiddleware(
         void githubWriteApiMiddleware(request, response, () => {
           void githubApiMiddleware(request, response, () => {
             void localGitApiMiddleware(request, response, () => {
-              void syncApiMiddleware(request, response, () => {
-                void writingApiMiddleware(request, response, next)
+              void repoOperationsApiMiddleware(request, response, () => {
+                void syncApiMiddleware(request, response, () => {
+                  void writingApiMiddleware(request, response, next)
+                })
               })
             })
           })

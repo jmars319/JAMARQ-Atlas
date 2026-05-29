@@ -31,6 +31,7 @@ import { useLocalCalibration } from './hooks/useLocalCalibration'
 import { useLocalOptimization } from './hooks/useLocalOptimization'
 import { useLocalPlanning } from './hooks/useLocalPlanning'
 import { useLocalRepoOperations } from './hooks/useLocalRepoOperations'
+import { useLocalRepoWorkflowRuns } from './hooks/useLocalRepoWorkflowRuns'
 import { useLocalReports } from './hooks/useLocalReports'
 import { useLocalReview } from './hooks/useLocalReview'
 import { useLocalSettings } from './hooks/useLocalSettings'
@@ -214,6 +215,7 @@ function App() {
     updateFilters: updateRepoOperationsFilters,
     recordPlanningLink: recordRepoOperationsPlanningLink,
   } = useLocalRepoOperations()
+  const { repoWorkflowRuns, recordWorkflowRun } = useLocalRepoWorkflowRuns()
   const {
     reports,
     setReports,
@@ -275,8 +277,9 @@ function App() {
         state: repoOperations,
         projectRecords,
         commandSummaries: [],
+        workflowRuns: repoWorkflowRuns.runs,
       }),
-    [projectRecords, repoOperations],
+    [projectRecords, repoOperations, repoWorkflowRuns.runs],
   )
   const [selectedProjectId, setSelectedProjectId] = useState(
     () => projectRecords[0]?.project.id ?? '',
@@ -506,6 +509,8 @@ function App() {
             onUpdateFilters={updateRepoOperationsFilters}
             onCreatePlanningItem={createPlanningItem}
             onRecordPlanningLink={recordRepoOperationsPlanningLink}
+            repoWorkflowRuns={repoWorkflowRuns.runs}
+            onRecordWorkflowRun={recordWorkflowRun}
             onSelectProject={atlasActions.selectProject}
             onOpenPlanning={(projectId) => {
               atlasActions.selectProject(projectId)
@@ -561,6 +566,7 @@ function App() {
             writing={writing}
             sync={sync}
             repoOperations={repoOperations}
+            repoWorkflowRuns={repoWorkflowRuns.runs}
             timelineEvents={timelineEvents}
             onSelectProject={atlasActions.selectProject}
             onAddReviewSession={addReviewSession}

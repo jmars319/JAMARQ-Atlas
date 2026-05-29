@@ -1,4 +1,10 @@
 import { requestJson } from './requestClient'
+import type { RepoOperationsSnapshot } from '../domain/repoOperations'
+import type {
+  RepoWorkflowCommand,
+  RepoWorkflowRun,
+  RepoWorkflowRunStatus,
+} from '../domain/repoWorkflowRuns'
 
 export type LocalGitRepositoryStatusKind =
   | 'available'
@@ -111,6 +117,33 @@ export interface LocalGitRepositoryPreviewResponse {
   } | null
 }
 
+export interface LocalGitWorkflowRunResponse {
+  ok: boolean
+  configured: boolean
+  status: RepoWorkflowRunStatus | LocalGitRepositoryStatusKind
+  roots: string[]
+  run: RepoWorkflowRun | null
+  error: {
+    type: string
+    message: string
+  } | null
+}
+
+export interface LocalGitWorkflowRunsResponse {
+  ok: boolean
+  runs: RepoWorkflowRun[]
+}
+
+export interface DefaultRepoOperationsSnapshotResponse {
+  ok: boolean
+  path: string | null
+  snapshot: RepoOperationsSnapshot | null
+  error?: {
+    type: string
+    message: string
+  }
+}
+
 export function localGitStatusPath(owner: string, repo: string) {
   const params = new URLSearchParams({ owner, repo })
 
@@ -136,5 +169,52 @@ export async function fetchLocalGitPreview(owner: string, repo: string, signal?:
     localGitPreviewPath(owner, repo),
     {},
     { signal, retries: 1, retrySafe: true, timeoutMs: 12_000 },
+  )
+}
+
+export async function runLocalGitWorkflow(input: {
+  repositoryId: string
+  owner: string
+  repo: string
+  command: RepoWorkflowCommand
+  confirmation?: string
+  planningItemId?: string
+}) {
+  return requestJson<LocalGitWorkflowRunResponse>(
+    '/api/git/workflows/run',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    },
+    { timeoutMs: 240_000 },
+  )
+}
+
+export async function fetchLocalGitWorkflowRuns(owner?: string, repo?: string, signal?: AbortSignal) {
+  const params = new URLSearchParams()
+
+  if (owner) {
+    params.set('owner', owner)
+  }
+
+  if (repo) {
+    params.set('repo', repo)
+  }
+
+  return requestJson<LocalGitWorkflowRunsResponse>(
+    `/api/git/workflows/runs${params.size ? `?${params.toString()}` : ''}`,
+    {},
+    { signal, retries: 1, retrySafe: true },
+  )
+}
+
+export async function fetchDefaultRepoOperationsSnapshot(signal?: AbortSignal) {
+  return requestJson<DefaultRepoOperationsSnapshotResponse>(
+    '/api/repo-operations/default-snapshot',
+    {},
+    { signal, retries: 1, retrySafe: true },
   )
 }

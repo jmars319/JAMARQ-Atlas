@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState, type ChangeEvent } from 'react'
 import type { ProjectRecord } from '../domain/atlas'
+import type { RepoWorkflowCommand, RepoWorkflowRun } from '../domain/repoWorkflowRuns'
 import type {
   RepoOperationsFilters,
   RepoOperationsSnapshot,
@@ -30,6 +31,10 @@ import {
   type RepoOperationsRow,
 } from '../services/repoOperations'
 import type { PlanningItemKind, PlanningSourceLink } from '../domain/planning'
+import {
+  fetchDefaultRepoOperationsSnapshot,
+  runLocalGitWorkflow,
+} from '../services/localGit'
 
 interface RepoCommandCenterProps {
   repoOperations: RepoOperationsState
@@ -50,6 +55,8 @@ interface RepoCommandCenterProps {
     planningItemId: string
     kind: 'note' | 'work-session'
   }) => void
+  repoWorkflowRuns: RepoWorkflowRun[]
+  onRecordWorkflowRun: (run: RepoWorkflowRun) => void
   onSelectProject: (projectId: string) => void
   onOpenPlanning: (projectId: string) => void
 }
@@ -62,6 +69,9 @@ const GAP_LABELS: Array<{ id: 'all' | RepoOperationsGap; label: string }> = [
   { id: 'missing-github-binding', label: 'Missing GitHub binding' },
   { id: 'missing-verification-command', label: 'Missing verification command' },
   { id: 'missing-planning-follow-up', label: 'Missing Planning follow-up' },
+  { id: 'failed-workflow-run', label: 'Failed workflow run' },
+  { id: 'stale-verification', label: 'Stale verification' },
+  { id: 'never-run-verification', label: 'Never-run verification' },
 ]
 
 function unique(values: string[]) {
@@ -77,7 +87,11 @@ function gapLabel(gap: RepoOperationsGap) {
 }
 
 function rowState(row: RepoOperationsRow) {
-  if (row.gaps.some((gap) => ['dirty-local-clone', 'behind-upstream'].includes(gap))) {
+  if (
+    row.gaps.some((gap) =>
+      ['dirty-local-clone', 'behind-upstream', 'failed-workflow-run'].includes(gap),
+    )
+  ) {
     return 'danger'
   }
 
@@ -90,16 +104,35 @@ function rowState(row: RepoOperationsRow) {
 
 function RepoCard({
   row,
+  onRunWorkflow,
   onCreatePlanningHandoff,
   onOpenPlanning,
   onSelectProject,
 }: {
   row: RepoOperationsRow
+  onRunWorkflow: (
+    row: RepoOperationsRow,
+    command: RepoWorkflowCommand,
+    confirmation?: string,
+  ) => Promise<void>
   onCreatePlanningHandoff: (row: RepoOperationsRow, kind: 'note' | 'work-session') => void
   onOpenPlanning: (projectId: string) => void
   onSelectProject: (projectId: string) => void
 }) {
   const state = rowState(row)
+  const [pullConfirmation, setPullConfirmation] = useState('')
+  const [runningLabel, setRunningLabel] = useState('')
+  const canRun = Boolean(row.repository.githubOwner && row.repository.githubRepo)
+
+  async function run(command: RepoWorkflowCommand, confirmation?: string) {
+    setRunningLabel(command.command ?? command.kind)
+
+    try {
+      await onRunWorkflow(row, command, confirmation)
+    } finally {
+      setRunningLabel('')
+    }
+  }
 
   return (
     <article className={`repo-ops-card repo-ops-card-${state}`}>
@@ -156,10 +189,64 @@ function RepoCard({
       {row.repository.verificationCommands.length > 0 ? (
         <div className="repo-ops-command-list" aria-label={`${row.repository.name} commands`}>
           {row.repository.verificationCommands.map((command) => (
-            <code key={command}>{command}</code>
+            <div key={command} className="repo-ops-command-row">
+              <code>{command}</code>
+              <button
+                type="button"
+                disabled={!canRun || Boolean(runningLabel)}
+                onClick={() => run({ kind: 'verify-command', command })}
+              >
+                {runningLabel === command ? 'Running' : 'Run verify'}
+              </button>
+            </div>
           ))}
         </div>
       ) : null}
+
+      <div className="repo-ops-runner" aria-label={`${row.repository.name} safe workflow runner`}>
+        <div className="repo-ops-runner-actions">
+          <button
+            type="button"
+            disabled={!canRun || Boolean(runningLabel)}
+            onClick={() => run({ kind: 'git-fetch-prune' })}
+          >
+            <RefreshCcw size={14} />
+            {runningLabel === 'git-fetch-prune' ? 'Fetching' : 'Fetch'}
+          </button>
+          <label>
+            <span>Pull confirmation</span>
+            <input
+              value={pullConfirmation}
+              onChange={(event) => setPullConfirmation(event.target.value)}
+              placeholder={`PULL ${repoKey(row)}`}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!canRun || Boolean(runningLabel)}
+            onClick={() => run({ kind: 'git-pull-ff-only' }, pullConfirmation)}
+          >
+            {runningLabel === 'git-pull-ff-only' ? 'Pulling' : 'Pull FF'}
+          </button>
+        </div>
+        {row.latestWorkflowRun ? (
+          <div className={`repo-ops-run-status repo-ops-run-status-${row.latestWorkflowRun.status}`}>
+            <strong>
+              {row.latestWorkflowRun.commandLabel}: {row.latestWorkflowRun.status}
+            </strong>
+            <span>
+              {new Date(row.latestWorkflowRun.endedAt).toLocaleString()} / exit{' '}
+              {row.latestWorkflowRun.exitCode ?? 'n/a'}
+            </span>
+            {row.latestWorkflowRun.diagnostic ? <p>{row.latestWorkflowRun.diagnostic}</p> : null}
+            {row.latestWorkflowRun.outputExcerpt ? <pre>{row.latestWorkflowRun.outputExcerpt}</pre> : null}
+          </div>
+        ) : (
+          <div className="repo-ops-run-status">
+            <span>No Atlas workflow run recorded yet.</span>
+          </div>
+        )}
+      </div>
 
       <div className="github-card-actions">
         {row.boundProject ? (
@@ -173,7 +260,7 @@ function RepoCard({
               onClick={() => onCreatePlanningHandoff(row, 'note')}
             >
               <NotebookPen size={14} />
-              Planning note
+              {row.latestWorkflowRun?.status === 'failed' ? 'Failed-run note' : 'Planning note'}
             </button>
             <button
               type="button"
@@ -203,10 +290,13 @@ export function RepoCommandCenter({
   onUpdateFilters,
   onCreatePlanningItem,
   onRecordPlanningLink,
+  repoWorkflowRuns,
+  onRecordWorkflowRun,
   onSelectProject,
   onOpenPlanning,
 }: RepoCommandCenterProps) {
   const [message, setMessage] = useState('')
+  const [defaultSnapshotLoading, setDefaultSnapshotLoading] = useState(false)
   const selectedSnapshot = repoOperations.snapshots.find(
     (snapshot) => snapshot.id === repoOperations.selectedSnapshotId,
   )
@@ -230,8 +320,9 @@ export function RepoCommandCenter({
         state: repoOperations,
         projectRecords,
         commandSummaries: commandSummaries.data,
+        workflowRuns: repoWorkflowRuns,
       }),
-    [commandSummaries.data, projectRecords, repoOperations],
+    [commandSummaries.data, projectRecords, repoOperations, repoWorkflowRuns],
   )
   const filteredRows = useMemo(
     () => filterRepoOperationsRows(rows, repoOperations.filters),
@@ -266,6 +357,28 @@ export function RepoCommandCenter({
     setMessage(`Imported ${result.snapshot.repositories.length} repo operation records.`)
   }
 
+  async function loadDefaultSnapshot() {
+    setDefaultSnapshotLoading(true)
+    setMessage('')
+
+    try {
+      const response = await fetchDefaultRepoOperationsSnapshot()
+      const result = parseRepoOperationsSnapshotJson(JSON.stringify(response.snapshot))
+
+      if (!result.ok || !result.snapshot) {
+        setMessage('Default repo operations snapshot could not be normalized.')
+        return
+      }
+
+      onImportSnapshot(result.snapshot)
+      setMessage(`Loaded default snapshot with ${result.snapshot.repositories.length} repo records.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Default snapshot load failed.')
+    } finally {
+      setDefaultSnapshotLoading(false)
+    }
+  }
+
   function createPlanningHandoff(row: RepoOperationsRow, kind: 'note' | 'work-session') {
     if (!row.boundProject) {
       return
@@ -294,6 +407,40 @@ export function RepoCommandCenter({
     setMessage(`Planning ${kind === 'note' ? 'note' : 'work session'} created for ${row.repository.name}.`)
   }
 
+  async function runWorkflow(
+    row: RepoOperationsRow,
+    command: RepoWorkflowCommand,
+    confirmation?: string,
+  ) {
+    setMessage(`Running ${command.command ?? command.kind} for ${row.repository.name}.`)
+
+    try {
+      const response = await runLocalGitWorkflow({
+        repositoryId: row.repository.id,
+        owner: row.repository.githubOwner,
+        repo: row.repository.githubRepo,
+        command,
+        confirmation,
+        planningItemId: row.boundProject
+          ? repoOperations.planningLinks.find((link) => link.repositoryId === row.repository.id)
+              ?.planningItemId
+          : undefined,
+      })
+
+      if (response.run) {
+        onRecordWorkflowRun(response.run)
+      }
+
+      setMessage(
+        response.run
+          ? `${response.run.commandLabel} ${response.run.status} for ${row.repository.name}.`
+          : response.error?.message ?? 'Workflow run returned no evidence.',
+      )
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Workflow run failed.')
+    }
+  }
+
   if (!selectedSnapshot) {
     return (
       <section className="github-intake repo-ops-center">
@@ -303,7 +450,7 @@ export function RepoCommandCenter({
             <h1>Repos</h1>
             <p>
               Import the Repo Operations Snapshot v1 packet from agentic-instructions to make Atlas
-              the read-only command center for Git repos and workflow follow-up.
+              the safe command center for Git repos and workflow follow-up.
             </p>
           </div>
           <label className="repo-ops-import">
@@ -316,6 +463,15 @@ export function RepoCommandCenter({
               onChange={importSnapshot}
             />
           </label>
+          <button
+            className="repo-ops-import"
+            type="button"
+            disabled={defaultSnapshotLoading}
+            onClick={loadDefaultSnapshot}
+          >
+            <FileJson size={15} />
+            {defaultSnapshotLoading ? 'Loading' : 'Load default'}
+          </button>
         </div>
         {message ? <div className="github-error">{message}</div> : null}
         <div className="empty-state">
@@ -333,8 +489,8 @@ export function RepoCommandCenter({
           <span className="section-label">Repo Operations</span>
           <h1>Repos</h1>
           <p>
-            Read-only registry, local Git, and GitHub workflow interpretation. Atlas creates
-            Planning evidence here; Git commands still run outside this surface.
+            Registry, local Git, and GitHub workflow interpretation. Atlas can run allowlisted
+            fetch, fast-forward pull, and repo-owned verification commands with local evidence.
           </p>
         </div>
         <label className="repo-ops-import">
@@ -347,6 +503,15 @@ export function RepoCommandCenter({
             onChange={importSnapshot}
           />
         </label>
+        <button
+          className="repo-ops-import"
+          type="button"
+          disabled={defaultSnapshotLoading}
+          onClick={loadDefaultSnapshot}
+        >
+          <FileJson size={15} />
+          {defaultSnapshotLoading ? 'Loading' : 'Load default'}
+        </button>
       </div>
 
       <div className="github-command-bands" aria-label="Repo operations summary">
@@ -379,6 +544,16 @@ export function RepoCommandCenter({
           <ClipboardList size={16} />
           <strong>{summary.missingVerification}</strong>
           <span>Missing verify</span>
+        </div>
+        <div>
+          <AlertTriangle size={16} />
+          <strong>{summary.failedWorkflowRuns}</strong>
+          <span>Failed runs</span>
+        </div>
+        <div>
+          <RefreshCcw size={16} />
+          <strong>{summary.staleVerification + summary.neverRunVerification}</strong>
+          <span>Stale/never verified</span>
         </div>
         <div>
           <NotebookPen size={16} />
@@ -460,6 +635,7 @@ export function RepoCommandCenter({
           <RepoCard
             key={row.repository.id}
             row={row}
+            onRunWorkflow={runWorkflow}
             onCreatePlanningHandoff={createPlanningHandoff}
             onOpenPlanning={onOpenPlanning}
             onSelectProject={onSelectProject}

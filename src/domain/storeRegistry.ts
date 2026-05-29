@@ -2,6 +2,7 @@ import { ATLAS_CALIBRATION_SCHEMA_VERSION } from './calibration'
 import { ATLAS_OPTIMIZATION_SCHEMA_VERSION } from './optimization'
 import { ATLAS_PLANNING_SCHEMA_VERSION } from './planning'
 import { ATLAS_REPO_OPERATIONS_SCHEMA_VERSION } from './repoOperations'
+import { ATLAS_REPO_WORKFLOW_RUNS_SCHEMA_VERSION } from './repoWorkflowRuns'
 import { ATLAS_REPORTS_SCHEMA_VERSION } from './reports'
 import { ATLAS_REVIEW_SCHEMA_VERSION } from './review'
 import { ATLAS_SETTINGS_SCHEMA_VERSION } from './settings'
@@ -17,6 +18,7 @@ export type AtlasStoreId =
   | 'calibration'
   | 'optimization'
   | 'repo-ops'
+  | 'repo-workflow-runs'
   | 'settings'
   | 'sync'
 
@@ -147,6 +149,18 @@ export const ATLAS_STORE_REGISTRY = [
       'Local imported registry snapshots only. Re-import from agentic-instructions when needed.',
     secretPolicy:
       'Stores imported registry metadata, local path hints, command labels, manual notes, and Planning links only. No secrets, tokens, env vars, command output, or repo file contents are stored.',
+  },
+  {
+    id: 'repo-workflow-runs',
+    label: 'Repo Workflow Runs',
+    localStorageKey: 'jamarq-atlas.repo-workflow-runs.v1',
+    schemaVersionLabel: `v${ATLAS_REPO_WORKFLOW_RUNS_SCHEMA_VERSION}`,
+    backupIncluded: false,
+    syncSnapshotIncluded: false,
+    restoreBehavior: 'data-full-replace-only',
+    restoreBehaviorLabel: 'Local workflow evidence only; safe to rebuild by rerunning checks.',
+    secretPolicy:
+      'Stores allowlisted command labels, statuses, timestamps, exit codes, redacted output excerpts, and Planning links only. No secrets, raw env vars, or full repo contents are stored.',
   },
   {
     id: 'settings',

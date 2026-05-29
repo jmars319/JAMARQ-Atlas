@@ -14,6 +14,7 @@ import { formatDateTimeLabel, type ProjectRecord } from '../domain/atlas'
 import type { DispatchState } from '../domain/dispatch'
 import type { AtlasPlanningState } from '../domain/planning'
 import type { RepoOperationsState } from '../domain/repoOperations'
+import type { RepoWorkflowRun } from '../domain/repoWorkflowRuns'
 import {
   type ReviewNote,
   type ReviewOutcome,
@@ -74,6 +75,7 @@ interface ReviewCenterProps {
   writing: WritingWorkbenchState
   sync: AtlasSyncState
   repoOperations?: RepoOperationsState
+  repoWorkflowRuns?: RepoWorkflowRun[]
   timelineEvents: TimelineEvent[]
   onSelectProject: (projectId: string) => void
   onAddReviewSession: (session: ReviewSession) => void
@@ -222,6 +224,7 @@ export function ReviewCenter({
   writing,
   sync,
   repoOperations,
+  repoWorkflowRuns = [],
   timelineEvents,
   onSelectProject,
   onAddReviewSession,
@@ -289,9 +292,10 @@ export function ReviewCenter({
             state: repoOperations,
             projectRecords,
             commandSummaries: githubCommandSummaries.data,
+            workflowRuns: repoWorkflowRuns,
           })
         : [],
-    [githubCommandSummaries.data, projectRecords, repoOperations],
+    [githubCommandSummaries.data, projectRecords, repoOperations, repoWorkflowRuns],
   )
   const vercelTargetIds = useMemo(
     () => dispatch.targets.filter((target) => target.hostType === 'vercel').map((target) => target.id),

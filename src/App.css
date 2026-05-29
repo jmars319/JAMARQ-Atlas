@@ -1504,6 +1504,22 @@ h3 {
   gap: 6px;
 }
 
+.repo-ops-command-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.repo-ops-command-row button {
+  min-height: 31px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+  padding: 6px 9px;
+  font-size: 0.72rem;
+}
+
 .repo-ops-command-list code {
   overflow-wrap: anywhere;
   border: 1px solid var(--line);
@@ -1511,6 +1527,74 @@ h3 {
   color: var(--text-soft);
   padding: 6px 8px;
   font-size: 0.73rem;
+}
+
+.repo-ops-runner {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.025);
+  padding: 9px;
+}
+
+.repo-ops-runner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.repo-ops-runner-actions label {
+  display: grid;
+  min-width: min(100%, 230px);
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.repo-ops-runner-actions input {
+  min-height: 31px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.03);
+  color: var(--paper-white);
+  padding: 6px 8px;
+}
+
+.repo-ops-run-status {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.repo-ops-run-status strong {
+  color: var(--paper-white);
+}
+
+.repo-ops-run-status p {
+  margin: 0;
+}
+
+.repo-ops-run-status pre {
+  max-height: 160px;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-soft);
+}
+
+.repo-ops-run-status-failed,
+.repo-ops-run-status-blocked {
+  border-color: rgba(241, 113, 113, 0.28);
+}
+
+.repo-ops-run-status-completed {
+  border-color: rgba(66, 211, 146, 0.24);
 }
 
 .verification-center {
