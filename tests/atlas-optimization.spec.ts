@@ -89,10 +89,10 @@ test('Optimize imports, filters, exports, and creates Planning notes', async ({ 
   await clickAtlasNav(page, 'Optimize')
 
   await expect(page.getByRole('heading', { name: 'Portfolio Optimization' })).toBeVisible()
-  await expect(page.getByText('No optimization snapshot imported')).toBeVisible()
+  await expect(page.getByText('No optimization or boundary packet imported')).toBeVisible()
 
   await uploadJsonFile(
-    page.getByLabel('Import optimization packet'),
+    page.getByLabel('Import optimization or boundary packet'),
     'jamarq-optimization-e2e.json',
     optimizationPacket,
   )

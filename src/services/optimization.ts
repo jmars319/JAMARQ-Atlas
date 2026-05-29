@@ -26,6 +26,8 @@ const RECOMMENDATION_CATEGORIES: OptimizationRecommendationCategory[] = [
   'reusable-pattern',
 ]
 
+export type OptimizationSnapshotKind = 'portfolio-optimization' | 'app-boundary-audit'
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -317,6 +319,26 @@ export function categoryLabel(category: OptimizationRecommendationCategory) {
   return labels[category]
 }
 
+export function getOptimizationSnapshotKind(
+  snapshot: Pick<OptimizationSnapshot, 'id' | 'title' | 'source'>,
+): OptimizationSnapshotKind {
+  const searchable = [snapshot.id, snapshot.title, snapshot.source].join(' ').toLowerCase()
+
+  return searchable.includes('app-boundary-audit') ||
+    (searchable.includes('boundary') && searchable.includes('audit'))
+    ? 'app-boundary-audit'
+    : 'portfolio-optimization'
+}
+
+export function snapshotKindLabel(kind: OptimizationSnapshotKind) {
+  const labels: Record<OptimizationSnapshotKind, string> = {
+    'portfolio-optimization': 'Portfolio optimization',
+    'app-boundary-audit': 'Boundary audit',
+  }
+
+  return labels[kind]
+}
+
 export function summarizeOptimizationState(state: AtlasOptimizationState) {
   const selected =
     state.snapshots.find((snapshot) => snapshot.id === state.selectedSnapshotId) ??
@@ -331,9 +353,16 @@ export function summarizeOptimizationState(state: AtlasOptimizationState) {
   }
 }
 
-export function createOptimizationPlanningNote(recommendation: OptimizationRecommendation) {
+export function createOptimizationPlanningNote(
+  recommendation: OptimizationRecommendation,
+  snapshotKind: OptimizationSnapshotKind = 'portfolio-optimization',
+) {
+  const isBoundaryAudit = snapshotKind === 'app-boundary-audit'
+
   return {
-    title: `Optimization: ${recommendation.title}`,
-    detail: `${categoryLabel(recommendation.category)} recommendation from optimization snapshot.\n\n${recommendation.detail}`,
+    title: `${isBoundaryAudit ? 'Boundary' : 'Optimization'}: ${recommendation.title}`,
+    detail: `${categoryLabel(recommendation.category)} recommendation from ${
+      isBoundaryAudit ? 'boundary audit packet' : 'optimization snapshot'
+    }.\n\n${recommendation.detail}`,
   }
 }

@@ -486,6 +486,7 @@ h3 {
 .optimization-import-panel,
 .optimization-controls,
 .optimization-summary-grid,
+.optimization-boundary-callout,
 .optimization-card,
 .optimization-recommendation-card {
   background: var(--surface);
@@ -511,7 +512,8 @@ h3 {
 }
 
 .optimization-import-preview div,
-.optimization-card-heading div {
+.optimization-card-heading div,
+.optimization-boundary-callout div {
   display: grid;
   gap: 4px;
 }
@@ -520,6 +522,7 @@ h3 {
 .optimization-score-grid,
 .optimization-detail-grid,
 .optimization-recommendation-grid,
+.optimization-boundary-callout,
 .optimization-grid,
 .optimization-grid section,
 .optimization-recommendation-card {
@@ -528,8 +531,13 @@ h3 {
 }
 
 .optimization-summary-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: stretch;
+}
+
+.optimization-boundary-callout {
+  border-color: rgba(9, 166, 214, 0.35);
+  background: rgba(9, 166, 214, 0.1);
 }
 
 .optimization-summary-grid > div,

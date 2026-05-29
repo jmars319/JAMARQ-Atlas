@@ -12,9 +12,12 @@ import {
   bucketLabel,
   categoryLabel,
   createOptimizationPlanningNote,
+  getOptimizationSnapshotKind,
   groupAssessmentsByBucket,
   parseOptimizationSnapshotJson,
   sortAssessmentsByScore,
+  snapshotKindLabel,
+  type OptimizationSnapshotKind,
 } from '../services/optimization'
 
 type BucketFilter = OptimizationPriorityBucket | 'all'
@@ -156,13 +159,15 @@ function AssessmentCard({
 function RecommendationCard({
   recommendation,
   projectRecord,
+  snapshotKind,
   onCreatePlanningNote,
 }: {
   recommendation: OptimizationRecommendation
   projectRecord: ProjectRecord | undefined
+  snapshotKind: OptimizationSnapshotKind
   onCreatePlanningNote: (projectId: string, title: string, detail: string) => void
 }) {
-  const planningNote = createOptimizationPlanningNote(recommendation)
+  const planningNote = createOptimizationPlanningNote(recommendation, snapshotKind)
 
   return (
     <article className="optimization-recommendation-card">
@@ -204,22 +209,19 @@ export function OptimizationCenter({
   const [query, setQuery] = useState('')
   const [bucketFilter, setBucketFilter] = useState<BucketFilter>('all')
   const snapshot = selectedSnapshot(optimization)
+  const snapshotKind = snapshot ? getOptimizationSnapshotKind(snapshot) : 'portfolio-optimization'
   const recordsByProjectId = useMemo(
     () => new Map(projectRecords.map((record) => [record.project.id, record] as const)),
     [projectRecords],
   )
-  const visibleAssessments = useMemo(() => {
-    if (!snapshot) {
-      return []
-    }
-
-    return sortAssessmentsByScore(snapshot.assessments).filter(
-      (assessment) =>
-        (bucketFilter === 'all' || assessment.priorityBucket === bucketFilter) &&
-        assessmentMatchesQuery(assessment, query),
-    )
-  }, [bucketFilter, query, snapshot])
-  const grouped = useMemo(() => groupAssessmentsByBucket(visibleAssessments), [visibleAssessments])
+  const visibleAssessments = snapshot
+    ? sortAssessmentsByScore(snapshot.assessments).filter(
+        (assessment) =>
+          (bucketFilter === 'all' || assessment.priorityBucket === bucketFilter) &&
+          assessmentMatchesQuery(assessment, query),
+      )
+    : []
+  const grouped = groupAssessmentsByBucket(visibleAssessments)
   const mappedRecommendations = snapshot?.recommendations ?? []
 
   async function handleImport(event: ChangeEvent<HTMLInputElement>) {
@@ -240,7 +242,7 @@ export function OptimizationCenter({
     }
 
     setPendingSnapshot(result.snapshot)
-    setMessage('Optimization import preview is ready.')
+    setMessage(`${snapshotKindLabel(getOptimizationSnapshotKind(result.snapshot))} import preview is ready.`)
   }
 
   return (
@@ -250,15 +252,16 @@ export function OptimizationCenter({
           <span className="section-label">Registry-led operating review</span>
           <h1>Portfolio Optimization</h1>
           <p>
-            Import registry-generated snapshots, review priority buckets, and create explicit
-            Planning notes without mutating project status or repo lifecycle.
+            Import registry-generated optimization snapshots or owner-confirmed boundary packets,
+            review priority buckets, and create explicit Planning notes without mutating project
+            status or repo lifecycle.
           </p>
         </div>
       </div>
 
       <div className="optimization-import-panel">
         <label className="field">
-          <span>Import optimization packet</span>
+          <span>Import optimization or boundary packet</span>
           <input type="file" accept="application/json" onChange={handleImport} />
         </label>
         {pendingSnapshot ? (
@@ -267,6 +270,7 @@ export function OptimizationCenter({
             <div>
               <strong>{pendingSnapshot.title}</strong>
               <span>
+                {snapshotKindLabel(getOptimizationSnapshotKind(pendingSnapshot))} /{' '}
                 {pendingSnapshot.assessments.length} assessments /{' '}
                 {pendingSnapshot.recommendations.length} recommendations
               </span>
@@ -275,7 +279,9 @@ export function OptimizationCenter({
               type="button"
               onClick={() => {
                 onImportSnapshot(pendingSnapshot)
-                setMessage('Optimization snapshot stored locally.')
+                setMessage(
+                  `${snapshotKindLabel(getOptimizationSnapshotKind(pendingSnapshot))} snapshot stored locally.`,
+                )
                 setPendingSnapshot(null)
               }}
             >
@@ -301,6 +307,10 @@ export function OptimizationCenter({
               <strong>{snapshot.title}</strong>
             </div>
             <div>
+              <span>Packet type</span>
+              <strong>{snapshotKindLabel(snapshotKind)}</strong>
+            </div>
+            <div>
               <span>Repos</span>
               <strong>{snapshot.summary.repoCount}</strong>
             </div>
@@ -320,6 +330,20 @@ export function OptimizationCenter({
               Export snapshot
             </button>
           </div>
+
+          {snapshotKind === 'app-boundary-audit' ? (
+            <article className="optimization-boundary-callout">
+              <div>
+                <span className="section-label">Owner-confirmed boundaries</span>
+                <strong>Boundary audit packet</strong>
+              </div>
+              <p>
+                Use these recommendations to create Planning notes for confirmed app boundary,
+                module, and shared-capability work. Atlas stores the packet locally but does not
+                change registry lifecycle, repo status, or consolidation decisions.
+              </p>
+            </article>
+          ) : null}
 
           <div className="optimization-controls">
             <label className="field">
@@ -378,6 +402,7 @@ export function OptimizationCenter({
                   key={recommendation.id}
                   recommendation={recommendation}
                   projectRecord={recordsByProjectId.get(recommendation.atlasProjectId)}
+                  snapshotKind={snapshotKind}
                   onCreatePlanningNote={onCreatePlanningNote}
                 />
               ))}
@@ -386,10 +411,10 @@ export function OptimizationCenter({
         </>
       ) : (
         <div className="empty-state">
-          <strong>No optimization snapshot imported</strong>
+          <strong>No optimization or boundary packet imported</strong>
           <span>
-            Import the registry-generated JSON packet from agentic-instructions to review scorecards
-            in Atlas.
+            Import the registry-generated optimization JSON packet or the owner-confirmed boundary
+            audit packet from agentic-instructions to review scorecards in Atlas.
           </span>
         </div>
       )}

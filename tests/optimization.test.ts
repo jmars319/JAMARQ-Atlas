@@ -5,10 +5,12 @@ import {
   bucketLabel,
   createOptimizationPlanningNote,
   emptyOptimizationState,
+  getOptimizationSnapshotKind,
   groupAssessmentsByBucket,
   normalizeOptimizationState,
   parseOptimizationSnapshotJson,
   sortAssessmentsByScore,
+  snapshotKindLabel,
   summarizeOptimizationState,
 } from '../src/services/optimization'
 
@@ -138,5 +140,21 @@ describe('optimization snapshots', () => {
     expect(note.title).toBe('Optimization: Review optimization snapshot in Atlas')
     expect(note.detail).toContain('Critical path recommendation')
     expect(note.detail).toContain('Import the generated packet')
+  })
+
+  it('recognizes boundary audit packets and labels their planning notes', () => {
+    const boundarySnapshot: OptimizationSnapshot = {
+      ...snapshot,
+      id: 'app-boundary-audit-test',
+      title: 'App Boundary Audit Test',
+      source: 'Owner-confirmed boundary audit decisions',
+    }
+    const kind = getOptimizationSnapshotKind(boundarySnapshot)
+    const note = createOptimizationPlanningNote(boundarySnapshot.recommendations[0], kind)
+
+    expect(kind).toBe('app-boundary-audit')
+    expect(snapshotKindLabel(kind)).toBe('Boundary audit')
+    expect(note.title).toBe('Boundary: Review optimization snapshot in Atlas')
+    expect(note.detail).toContain('boundary audit packet')
   })
 })
