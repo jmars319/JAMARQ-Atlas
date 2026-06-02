@@ -1,0 +1,239 @@
+
+.writing-editor,
+.writing-history {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 12px;
+}
+
+.writing-editor-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.writing-warning {
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid rgba(244, 199, 107, 0.28);
+  background: rgba(244, 199, 107, 0.08);
+  color: var(--warning);
+  padding: 10px;
+}
+
+.writing-warning strong,
+.writing-warning span {
+  display: block;
+}
+
+.writing-warning span {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.writing-provider-suggestion {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(9, 166, 214, 0.3);
+  background: rgba(9, 166, 214, 0.07);
+  padding: 10px;
+}
+
+.writing-provider-status {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid rgba(128, 213, 138, 0.26);
+  background: rgba(128, 213, 138, 0.08);
+  color: var(--success);
+  padding: 10px;
+}
+
+.writing-provider-status strong,
+.writing-provider-status span {
+  display: block;
+}
+
+.writing-provider-status span {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.writing-provider-suggestion textarea {
+  width: 100%;
+  min-height: 150px;
+  border-color: rgba(9, 166, 214, 0.32);
+  background: rgba(13, 13, 15, 0.72);
+}
+
+.writing-action-message {
+  border: 1px solid rgba(128, 213, 138, 0.26);
+  background: rgba(128, 213, 138, 0.08);
+  color: var(--success);
+  padding: 9px 10px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.writing-audit {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.writing-audit > strong {
+  color: var(--paper-white);
+  font-size: 0.86rem;
+}
+
+.writing-audit ol {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.writing-audit li {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 9px 10px;
+}
+
+.writing-audit span,
+.writing-audit p {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.writing-audit strong {
+  display: block;
+  margin: 3px 0;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
+.writing-draft-list,
+.writing-mini-list {
+  display: grid;
+  gap: 8px;
+}
+
+.writing-draft-card,
+.writing-mini-list button {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: inherit;
+  padding: 10px;
+  text-align: left;
+}
+
+.writing-draft-card:hover,
+.writing-draft-card.is-selected,
+.writing-mini-list button:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.writing-draft-card strong,
+.writing-mini-list strong {
+  color: var(--paper-white);
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.writing-draft-card p {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.writing-mini-list {
+  margin-top: 10px;
+}
+
+.writing-mini-list span,
+.writing-mini-list small {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.writing-status-reviewed {
+  color: var(--success);
+}
+
+.writing-status-approved,
+.writing-status-exported {
+  color: var(--accent-cyan);
+}
+
+.writing-status-archived {
+  color: var(--text-muted);
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  min-height: 38px;
+  padding: 9px 10px;
+  font-size: 0.8rem;
+}
+
+.check-field input {
+  accent-color: var(--accent-cyan);
+}
+
+.integration-footer {
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.integration-footer div {
+  gap: 10px;
+}
+
+.integration-footer strong {
+  color: var(--paper-white);
+}
+
+.integration-footer span,
+code {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent-cyan);
+  padding: 3px 7px;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace;
+  font-size: 0.74rem;
+}
+
+.empty-state {
+  display: grid;
+  gap: 4px;
+  border: 1px dashed var(--line);
+  padding: 10px;
+  line-height: 1.4;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}

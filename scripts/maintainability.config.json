@@ -1,0 +1,80 @@
+{
+  "label": "jamarq-atlas",
+  "maxImplementationFileLines": 900,
+  "maxStyleFileLines": 400,
+  "maxAppShellLines": 425,
+  "maxDesktopMainLines": 500,
+  "maxDomainBarrelLines": 450,
+  "nearBudgetLineMargin": 25,
+  "nearBundleBudgetKb": 4,
+  "initialBundleBudgetKb": 235,
+  "routeChunkBudgetsKb": {
+    "index-": 235,
+    "react-vendor-": 190,
+    "dispatchQueue-": 70,
+    "SettingsCenter-": 58,
+    "GitHubIntakeDashboard-": 50,
+    "DataCenter-": 34,
+    "review-": 34,
+    "icons-vendor-": 30,
+    "ProjectInspectorRoute-": 90,
+    "DispatchDashboard-": 28,
+    "ReviewCenter-": 24,
+    "AppRouteRenderer-": 20
+  },
+  "specificFileBudgets": {
+    "src/services/calibration.ts": 2600,
+    "src/components/DispatchPanel.tsx": 2300,
+    "src/components/SettingsCenter.tsx": 2200,
+    "server/githubApi.ts": 1650,
+    "server/localGitApi.ts": 1400,
+    "server/githubAuth.ts": 930,
+    "src/services/review.ts": 1250,
+    "src/services/reports.ts": 1150,
+    "server/dispatchApi.ts": 1125,
+    "src/components/GitHubIntakeDashboard.tsx": 1050
+  },
+  "startupImportBoundaries": {
+    "paths": [
+      "src/main.tsx",
+      "src/App.tsx",
+      "src/routes/AtlasTopBar.tsx",
+      "src/routes/AtlasViewTabs.tsx",
+      "src/routes/atlasViews.ts"
+    ],
+    "bannedImportFragments": [
+      "components/DispatchPanel",
+      "components/SettingsCenter",
+      "components/GitHubIntakeDashboard",
+      "components/RepoCommandCenter",
+      "services/calibration",
+      "services/reports",
+      "server/"
+    ]
+  },
+  "contractSnapshots": [
+    {
+      "label": "Atlas local store ids",
+      "type": "string-union",
+      "source": "src/domain/storeRegistry.ts",
+      "typeName": "AtlasStoreId",
+      "snapshot": "scripts/contracts/atlas-store-ids.json"
+    }
+  ],
+  "assetBudgets": {
+    "public/jamarq-logo.png": 340000
+  },
+  "ignoredSegments": [],
+  "ignoredPathIncludes": [
+    "test-results"
+  ],
+  "allowedGenerated": [
+    "src/vite-env.d.ts",
+    "src/atlasDesktop.d.ts",
+    "src/marketDeskDesktop.d.ts",
+    "apps/webapp/next-env.d.ts",
+    "apps/desktopapp/src/vite-env.d.ts",
+    "apps/webapp/src/vite-env.d.ts",
+    "apps/desktop/src/vite-env.d.ts"
+  ]
+}

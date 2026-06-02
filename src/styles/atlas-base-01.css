@@ -1,0 +1,324 @@
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  width: min(1780px, 100%);
+  margin: 0 auto;
+  padding: 16px;
+  overflow-x: clip;
+}
+
+.topbar,
+.dashboard-header,
+.project-detail,
+.integration-footer {
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.94);
+}
+
+.topbar {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+}
+
+.brand-lockup,
+.topbar-meta,
+.topbar-meta span,
+.detail-actions,
+.panel-heading,
+.activity-line,
+.activity-meta,
+.repo-list li,
+.integration-footer,
+.integration-footer div,
+.card-topline,
+.card-footer,
+.lane-heading,
+.lane-heading div,
+.resource-panel-header,
+.resource-line,
+.resource-meta,
+.github-error,
+.github-source-state,
+.github-binding-state,
+.signal,
+.repo-selector,
+.repo-count,
+.github-card-actions,
+.repo-list-actions,
+.writing-editor-actions,
+.writing-warning,
+.dispatch-preflight-actions,
+.dispatch-card-actions,
+.settings-card-heading,
+.settings-panel-heading-row,
+.settings-panel-heading-row div,
+.settings-meta,
+.planning-card-heading,
+.planning-card-meta,
+.planning-summary,
+.planning-mini-list article div,
+.planning-mini-list small,
+.reports-subheading,
+.reports-scope,
+.reports-editor-heading,
+.reports-editor-actions {
+  display: flex;
+  align-items: center;
+}
+
+.app-tabs {
+  display: grid;
+  grid-template-columns: minmax(360px, auto) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.app-tab-group {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.74);
+  padding: 8px;
+}
+
+.app-tab-group > span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.app-tab-group > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.app-tabs button {
+  min-height: 36px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+.app-tab-group-secondary button {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.app-tabs button.is-selected {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+}
+
+.brand-lockup {
+  min-width: 220px;
+  gap: 12px;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.brand-lockup strong,
+.brand-lockup span,
+.topbar-meta span {
+  display: block;
+}
+
+.brand-lockup strong,
+h1,
+h2,
+h3 {
+  font-family: Montserrat, Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.brand-lockup strong {
+  color: var(--paper-white);
+  font-size: 1rem;
+}
+
+.brand-lockup span,
+.topbar-meta span,
+.section-label,
+.card-context,
+.card-footer,
+.activity-meta,
+.field span,
+.verification-grid span,
+.integration-footer p,
+.repo-list span,
+.empty-state,
+.board-summary,
+.resource-panel-header span,
+.resource-meta,
+.repo-overview-grid span,
+.signal span,
+.github-repo-facts span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.topbar-meta,
+.topbar-actions {
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.topbar-meta span,
+.current-project-chip,
+.inspector-toggle {
+  min-height: 30px;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.03);
+  padding: 5px 9px;
+  color: var(--text-soft);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+}
+
+.current-project-chip {
+  display: grid;
+  min-width: 220px;
+  gap: 2px;
+}
+
+.current-project-chip span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.current-project-chip strong {
+  overflow: hidden;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--paper-white);
+}
+
+.inspector-toggle[aria-pressed='true'] {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+}
+
+.app-layout {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+}
+
+.app-layout.is-inspector-open {
+  grid-template-columns: minmax(0, 1fr) minmax(430px, 0.42fr);
+}
+
+.app-layout.is-inspector-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dashboard,
+.project-detail,
+.surface-state {
+  min-width: 0;
+}
+
+.surface-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-height: 118px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.94);
+  padding: 18px;
+}
+
+.surface-state svg {
+  flex: 0 0 auto;
+  color: var(--accent-cyan);
+}
+
+.surface-state strong,
+.surface-state span {
+  display: block;
+}
+
+.surface-state strong {
+  color: var(--paper-white);
+  font-size: 0.96rem;
+}
+
+.surface-state span {
+  margin-top: 5px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.surface-state button {
+  margin-top: 12px;
+}
+
+.surface-state-loading svg {
+  animation: atlas-spin 1s linear infinite;
+}
+
+.surface-state-warning svg,
+.surface-state-error svg {
+  color: var(--warning);
+}
+
+.surface-state-success svg {
+  color: var(--success);
+}
+
+@keyframes atlas-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dashboard-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 0.65fr);
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.section-label {
+  margin: 0 0 7px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}

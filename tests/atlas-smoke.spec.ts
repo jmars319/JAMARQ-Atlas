@@ -68,7 +68,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.locator('.github-error')).toContainText(/Sign in with the configured GitHub App|GITHUB_TOKEN/)
   await clickAtlasNav(page, 'Review')
   await expect(page.getByRole('heading', { name: 'Review Center' })).toBeVisible()
-  await expect(page.getByLabel('Operator review queue')).toContainText('Midway Music Hall')
+  await expect(page.getByLabel('Operator review queue')).toContainText('Due / overdue')
   await page.getByLabel('Filter review source').selectOption('workspace')
   const statusBeforeReview = await page
     .locator('label.field')

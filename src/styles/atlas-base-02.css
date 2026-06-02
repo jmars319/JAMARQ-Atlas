@@ -1,0 +1,326 @@
+h1 {
+  color: var(--paper-white);
+  font-size: 1.9rem;
+  line-height: 1.08;
+  margin-bottom: 8px;
+}
+
+h2 {
+  color: var(--paper-white);
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+h3 {
+  color: var(--paper-white);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.dashboard-header p,
+.detail-header p,
+.activity-event p,
+.resource-list p,
+.project-card p {
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.dashboard-stats div {
+  min-height: 70px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 9px;
+}
+
+.dashboard-stats svg,
+.panel-heading,
+.search-control svg,
+.select-control svg,
+.repo-selector svg,
+.resource-panel-header button svg,
+.load-more svg {
+  color: var(--accent-cyan);
+}
+
+.dashboard-stats strong,
+.dashboard-stats span {
+  display: block;
+}
+
+.dashboard-stats strong {
+  margin: 6px 0 1px;
+  color: var(--paper-white);
+  font-size: 1.22rem;
+}
+
+.dashboard-stats span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.control-bar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(170px, 230px) minmax(160px, 210px);
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.search-control,
+.select-control,
+.repo-selector {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 0 11px;
+  color: var(--text-muted);
+}
+
+.search-control input,
+.select-control select,
+.repo-selector select,
+.field input,
+.field select,
+.field textarea,
+.draft-output {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--paper-white);
+}
+
+.search-control input,
+.select-control select,
+.repo-selector select {
+  min-width: 0;
+  min-height: 40px;
+}
+
+.select-control select,
+.repo-selector select,
+.field select,
+.field input[type='date'] {
+  color-scheme: dark;
+}
+
+.search-control input::placeholder {
+  color: var(--slate);
+}
+
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(94px, 1fr));
+  gap: 7px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 4px;
+  scrollbar-color: rgba(9, 166, 214, 0.38) rgba(250, 250, 250, 0.04);
+}
+
+.status-strip button,
+.repo-tabs button,
+.detail-actions button,
+.ai-action-grid button,
+.resource-panel-header button,
+.load-more,
+.primary-action,
+.writing-editor-actions button,
+.data-actions button,
+.danger-action,
+.github-card-actions button,
+.github-card-actions a,
+.optimization-card-actions button,
+.optimization-recommendation-card button,
+.optimization-summary-grid button,
+.repo-list-actions button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 7px 10px;
+}
+
+.optimization-center {
+  display: grid;
+  gap: 18px;
+}
+
+.optimization-import-panel,
+.optimization-controls,
+.optimization-summary-grid,
+.optimization-boundary-callout,
+.optimization-card,
+.optimization-recommendation-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.optimization-import-preview,
+.optimization-card-heading,
+.optimization-card-actions,
+.optimization-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.optimization-import-preview {
+  margin-top: 12px;
+  background: var(--surface-2);
+  border-radius: 6px;
+}
+
+.optimization-import-preview div,
+.optimization-card-heading div,
+.optimization-boundary-callout div {
+  display: grid;
+  gap: 4px;
+}
+
+.optimization-summary-grid,
+.optimization-score-grid,
+.optimization-detail-grid,
+.optimization-recommendation-grid,
+.optimization-boundary-callout,
+.optimization-grid,
+.optimization-grid section,
+.optimization-recommendation-card {
+  display: grid;
+  gap: 12px;
+}
+
+.optimization-summary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.optimization-boundary-callout {
+  border-color: rgba(9, 166, 214, 0.35);
+  background: rgba(9, 166, 214, 0.1);
+}
+
+.optimization-summary-grid > div,
+.optimization-score-grid div,
+.optimization-detail-grid div {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.optimization-summary-grid span,
+.optimization-score-grid dt,
+.optimization-detail-grid span,
+.optimization-card-heading span,
+.optimization-recommendation-card span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.optimization-summary-grid strong,
+.optimization-score-grid dd {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--text);
+}
+
+.optimization-grid {
+  gap: 18px;
+}
+
+.optimization-grid h2,
+.optimization-recommendations h2 {
+  margin: 0;
+}
+
+.optimization-score {
+  align-self: start;
+  min-width: 48px;
+  border-radius: 999px;
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--accent-cyan);
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.optimization-score-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.optimization-score-grid dd {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.optimization-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.optimization-card-actions {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.optimization-card-actions span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.optimization-recommendation-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.status-strip button {
+  justify-content: space-between;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.status-strip button.is-selected,
+.repo-tabs button.is-selected {
+  border-color: var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+}
+
+.status-strip span {
+  font-size: 0.75rem;
+}
+
+.status-strip strong {
+  font-size: 0.86rem;
+}
+
+.board-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 9px 0;
+}
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(250px, 1fr));
+  gap: 9px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 8px;
+  scrollbar-color: rgba(9, 166, 214, 0.38) rgba(250, 250, 250, 0.04);
+}

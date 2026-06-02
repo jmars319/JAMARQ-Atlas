@@ -1,0 +1,321 @@
+.dispatch-runbook-grid > div {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 10px;
+}
+
+.dispatch-runbook-grid strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
+.dispatch-artifact-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dispatch-artifact-line input {
+  max-width: 190px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.dispatch-mini-grid div,
+.dispatch-summary-grid div,
+.dispatch-signal-grid div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.dispatch-mini-grid span,
+.dispatch-summary-grid span,
+.dispatch-signal-grid span,
+.dispatch-url {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dispatch-mini-grid strong,
+.dispatch-summary-grid strong,
+.dispatch-signal-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-cyan);
+}
+
+.dispatch-panel,
+.dispatch-target-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.dispatch-target-detail {
+  padding: 12px;
+}
+
+.dispatch-summary-card,
+.dispatch-readiness,
+.dispatch-preflight,
+.dispatch-queue,
+.dispatch-closeout,
+.dispatch-automation,
+.dispatch-deploy-session,
+.dispatch-dry-run {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.dispatch-queue {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  margin-top: 12px;
+}
+
+.dispatch-queue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.dispatch-queue-item {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 12px;
+}
+
+.dispatch-queue-item.is-selected {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.dispatch-queue-heading,
+.dispatch-queue-actions,
+.dispatch-queue-closeout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dispatch-queue-closeout {
+  align-items: center;
+  border: 1px solid rgba(9, 166, 214, 0.22);
+  background: rgba(9, 166, 214, 0.06);
+  padding: 8px;
+}
+
+.dispatch-queue-closeout p,
+.dispatch-muted-note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.dispatch-closeout-focus {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.dispatch-closeout-focus-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.dispatch-closeout-focus-group .dispatch-summary-heading span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.dispatch-closeout-focus-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.dispatch-closeout-focus-counts span {
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: rgba(11, 13, 16, 0.34);
+  color: var(--text-muted);
+  padding: 6px;
+  font-size: 0.68rem;
+}
+
+.dispatch-closeout-focus-counts strong {
+  color: var(--paper-white);
+  font-size: 0.84rem;
+}
+
+.dispatch-closeout-focus-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dispatch-closeout-focus-list li {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.dispatch-closeout-focus-list strong,
+.dispatch-closeout-focus-list span,
+.dispatch-closeout-focus-list p {
+  display: block;
+}
+
+.dispatch-closeout-focus-list strong {
+  color: var(--paper-white);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-closeout-focus-list span,
+.dispatch-closeout-focus-list p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.69rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-queue-heading strong {
+  display: block;
+  color: var(--paper-white);
+}
+
+.dispatch-queue-signals,
+.dispatch-queue-runbook {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dispatch-queue-runbook {
+  grid-template-columns: 1.25fr 1fr 0.9fr;
+}
+
+.dispatch-queue-signal,
+.dispatch-queue-runbook > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.dispatch-queue-signal span,
+.dispatch-queue-signal small,
+.dispatch-queue-runbook small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-queue-signal p {
+  margin-top: 5px;
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.queue-chip {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: rgba(9, 166, 214, 0.1);
+  color: #bdefff;
+  padding: 4px 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.queue-passing,
+.queue-ready-for-manual-upload,
+.queue-recorded,
+.queue-closeout-ready {
+  background: rgba(128, 213, 138, 0.14);
+  color: var(--success);
+}
+
+.queue-warning,
+.queue-needs-artifacts,
+.queue-needs-evidence,
+.queue-needs-manual-record,
+.queue-needs-follow-up,
+.queue-session-active,
+.queue-not-started,
+.queue-not-configured,
+.queue-missing,
+.queue-skipped {
+  background: rgba(244, 199, 107, 0.14);
+  color: var(--warning);
+}
+
+.queue-failed {
+  background: rgba(249, 115, 115, 0.14);
+  color: #ffb3b3;
+}
+
+.queue-file-action {
+  display: inline-flex;
+  min-height: 30px;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: rgba(9, 166, 214, 0.08);
+  color: var(--paper-white);
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.queue-file-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dispatch-checklist {
+  display: grid;
+  gap: 8px;
+}

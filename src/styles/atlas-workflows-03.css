@@ -1,0 +1,319 @@
+.github-write-form label span,
+.github-write-target span,
+.github-write-confirmation span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.github-write-form input,
+.github-write-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--paper-white);
+  padding: 9px;
+}
+
+.github-write-form textarea {
+  resize: vertical;
+}
+
+.github-write-errors {
+  margin: 0;
+  border: 1px solid rgba(244, 199, 107, 0.28);
+  background: rgba(244, 199, 107, 0.07);
+  color: var(--warning);
+  padding: 10px 10px 10px 28px;
+  font-size: 0.78rem;
+}
+
+.github-command-explanation strong,
+.github-command-explanation span,
+.github-command-explanation small {
+  display: block;
+}
+
+.github-command-explanation span,
+.github-command-explanation small {
+  color: var(--text-soft);
+}
+
+.github-command-explanation a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: var(--accent-cyan);
+}
+
+.github-command-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.github-command-signal-grid h3 {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+
+.github-command-signals {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.github-command-signals li {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.github-command-signals strong,
+.github-command-signals p,
+.github-command-signals small {
+  display: block;
+}
+
+.github-command-signals strong {
+  margin-top: 6px;
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
+.github-command-signals p,
+.github-command-signals small {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.github-health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.github-health-grid.is-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.github-health-grid > div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 9px;
+}
+
+.github-health-grid svg {
+  color: var(--accent-cyan);
+}
+
+.github-health-grid strong {
+  color: var(--paper-white);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.github-health-grid span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.load-more {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.state-success,
+.state-completed,
+.state-confirmed,
+.state-recorded,
+.state-open,
+.state-active,
+.state-available,
+.state-satisfied,
+.state-passing {
+  color: var(--success);
+}
+
+.state-failure,
+.state-failed,
+.state-blocked,
+.state-missing,
+.state-cancelled,
+.state-closed {
+  color: var(--danger);
+}
+
+.state-in_progress,
+.state-in-progress,
+.state-queued,
+.state-requested,
+.state-pending,
+.state-waiting,
+.state-warning {
+  color: var(--warning);
+}
+
+.state-skipped,
+.state-none,
+.state-archived {
+  color: var(--text-muted);
+}
+
+.dispatch-dashboard {
+  min-width: 0;
+}
+
+.ops-entry-points {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.ops-entry-points button {
+  display: grid;
+  min-width: 0;
+  min-height: 70px;
+  gap: 4px;
+  align-content: center;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  color: var(--text-soft);
+  padding: 9px;
+  text-align: left;
+}
+
+.ops-entry-points button:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.ops-entry-points svg {
+  color: var(--accent-cyan);
+}
+
+.ops-entry-points strong,
+.ops-entry-points span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.ops-entry-points strong {
+  color: var(--paper-white);
+  font-size: 0.82rem;
+}
+
+.ops-entry-points span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.dispatch-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dispatch-card,
+.dispatch-summary-card,
+.dispatch-readiness,
+.dispatch-preflight,
+.dispatch-closeout,
+.dispatch-automation,
+.dispatch-deploy-session,
+.dispatch-dry-run,
+.dispatch-runbook,
+.dispatch-target-detail {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.dispatch-card {
+  display: grid;
+  gap: 10px;
+  color: inherit;
+  padding: 12px;
+  text-align: left;
+}
+
+.dispatch-card:hover,
+.dispatch-card.is-selected {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.dispatch-summary-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dispatch-summary-heading strong {
+  display: block;
+  color: var(--paper-white);
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.dispatch-status {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: rgba(9, 166, 214, 0.12);
+  color: #bdefff;
+  padding: 4px 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dispatch-blocked,
+.dispatch-failed,
+.dispatch-rollback-needed {
+  background: rgba(249, 115, 115, 0.13);
+  color: #ffb3b3;
+}
+
+.dispatch-verification,
+.dispatch-deploying {
+  background: rgba(244, 199, 107, 0.16);
+  color: var(--warning);
+}
+
+.dispatch-stable,
+.dispatch-ready {
+  background: rgba(128, 213, 138, 0.15);
+  color: var(--success);
+}
+
+.dispatch-mini-grid,
+.dispatch-summary-grid,
+.dispatch-signal-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.dispatch-mini-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dispatch-summary-grid,
+.dispatch-signal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dispatch-runbook-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}

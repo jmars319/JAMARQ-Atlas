@@ -1,0 +1,301 @@
+.github-intake-card h2 {
+  margin-bottom: 5px;
+}
+
+.github-intake-card p {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.github-command-card-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.github-command-card-state.command-danger {
+  border-color: rgba(241, 113, 113, 0.36);
+  background: rgba(241, 113, 113, 0.08);
+}
+
+.github-command-card-state.command-warning {
+  border-color: rgba(244, 199, 107, 0.32);
+  background: rgba(244, 199, 107, 0.08);
+}
+
+.github-command-card-state.command-ok,
+.github-command-card-state.command-muted {
+  border-color: rgba(128, 213, 138, 0.24);
+  background: rgba(128, 213, 138, 0.06);
+}
+
+.github-repo-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.github-repo-facts div {
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 8px;
+}
+
+.github-repo-facts strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--paper-white);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.github-binding-state {
+  gap: 7px;
+  border: 1px solid rgba(128, 213, 138, 0.26);
+  background: rgba(128, 213, 138, 0.09);
+  color: var(--success);
+  padding: 8px 9px;
+  font-size: 0.78rem;
+}
+
+.github-binding-state.is-unbound {
+  border-color: rgba(244, 199, 107, 0.28);
+  background: rgba(244, 199, 107, 0.08);
+  color: var(--warning);
+}
+
+.local-git-status {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.local-git-status .local-git-detail {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+}
+
+.github-card-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.github-card-actions button,
+.github-card-actions a {
+  min-height: 32px;
+  font-size: 0.76rem;
+  text-decoration: none;
+}
+
+.github-card-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.github-load-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.repo-ops-center .dashboard-header {
+  align-items: center;
+}
+
+.repo-ops-import {
+  display: inline-flex;
+  min-height: 36px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+  padding: 8px 11px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.repo-ops-import input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.repo-ops-controls {
+  grid-template-columns: minmax(240px, 1fr) minmax(420px, auto);
+}
+
+.repo-ops-controls .repo-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.repo-ops-controls select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 7px 9px;
+}
+
+.repo-ops-card {
+  display: grid;
+  gap: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.repo-ops-card-warning {
+  border-color: rgba(244, 199, 107, 0.28);
+}
+
+.repo-ops-card-danger {
+  border-color: rgba(241, 113, 113, 0.32);
+}
+
+.repo-ops-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.repo-ops-card-heading h2 {
+  margin: 0 0 4px;
+  color: var(--paper-white);
+  font-size: 0.98rem;
+}
+
+.repo-ops-card-heading span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.repo-ops-gap-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repo-ops-gap-list li {
+  border: 1px solid rgba(244, 199, 107, 0.28);
+  background: rgba(244, 199, 107, 0.08);
+  color: var(--warning);
+  padding: 4px 7px;
+  font-size: 0.72rem;
+}
+
+.repo-ops-command-list {
+  display: grid;
+  gap: 6px;
+}
+
+.repo-ops-command-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.repo-ops-command-row button {
+  min-height: 31px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+  padding: 6px 9px;
+  font-size: 0.72rem;
+}
+
+.repo-ops-command-list code {
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.03);
+  color: var(--text-soft);
+  padding: 6px 8px;
+  font-size: 0.73rem;
+}
+
+.repo-ops-runner {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.025);
+  padding: 9px;
+}
+
+.repo-ops-runner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.repo-ops-runner-actions label {
+  display: grid;
+  min-width: min(100%, 230px);
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.repo-ops-runner-actions input {
+  min-height: 31px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.03);
+  color: var(--paper-white);
+  padding: 6px 8px;
+}
+
+.repo-ops-run-status {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.02);
+  padding: 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.repo-ops-run-status strong {
+  color: var(--paper-white);
+}
+
+.repo-ops-run-status p {
+  margin: 0;
+}
+
+.repo-ops-run-status pre {
+  max-height: 160px;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-soft);
+}
+
+.repo-ops-run-status-failed,
+.repo-ops-run-status-blocked {
+  border-color: rgba(241, 113, 113, 0.28);
+}
+
+.repo-ops-run-status-completed {
+  border-color: rgba(66, 211, 146, 0.24);
+}
+
+.verification-center {
+  min-width: 0;
+}

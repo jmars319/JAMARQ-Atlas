@@ -1,0 +1,67 @@
+@media (max-width: 520px) {
+  .app-shell {
+    padding: 8px;
+  }
+
+  .topbar {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  h1 {
+    font-size: 1.72rem;
+  }
+
+  .dashboard-header {
+    padding: 15px 16px;
+  }
+
+  .brand-lockup {
+    min-width: 0;
+  }
+
+  .topbar-meta,
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+
+  .topbar-meta span,
+  .current-project-chip,
+  .inspector-toggle {
+    width: 100%;
+  }
+
+  .topbar-meta span {
+    justify-content: flex-start;
+  }
+
+  .app-tab-group > div,
+  .app-tab-group-secondary > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-tabs button {
+    justify-content: center;
+    font-size: 0.84rem;
+  }
+
+  .dashboard-stats {
+    gap: 7px;
+  }
+
+  .dashboard-stats div {
+    min-height: 66px;
+  }
+
+  .status-strip {
+    grid-template-columns: repeat(9, minmax(84px, 1fr));
+  }
+
+  .kanban-board {
+    grid-template-columns: repeat(9, minmax(232px, 80vw));
+  }
+
+  .kanban-lane {
+    min-width: 232px;
+  }
+}

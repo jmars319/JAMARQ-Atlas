@@ -17,6 +17,7 @@ const allStoreIds = [
   'calibration',
   'optimization',
   'repo-ops',
+  'repo-workflow-runs',
   'settings',
   'sync',
 ]
@@ -36,7 +37,9 @@ describe('Atlas store registry', () => {
   })
 
   it('marks backup and sync snapshot inclusion from one policy surface', () => {
-    expect(ATLAS_BACKUP_STORE_IDS).toEqual(allStoreIds.filter((id) => id !== 'repo-ops'))
+    expect(ATLAS_BACKUP_STORE_IDS).toEqual(
+      allStoreIds.filter((id) => id !== 'repo-ops' && id !== 'repo-workflow-runs'),
+    )
     expect(ATLAS_SYNC_SNAPSHOT_STORE_IDS).toEqual([
       'workspace',
       'dispatch',

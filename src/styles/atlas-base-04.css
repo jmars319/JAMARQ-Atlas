@@ -1,0 +1,321 @@
+.github-source-state svg {
+  color: var(--accent-cyan);
+}
+
+.github-setup-state {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(244, 199, 107, 0.34);
+  background: rgba(244, 199, 107, 0.08);
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
+.github-setup-state > div:first-child {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.github-setup-state svg {
+  flex: 0 0 auto;
+  color: var(--warning);
+}
+
+.github-setup-state strong,
+.github-setup-state span {
+  display: block;
+}
+
+.github-setup-state strong {
+  color: var(--paper-white);
+  font-size: 0.9rem;
+}
+
+.github-setup-state span {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.github-cache-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.github-cache-meta span {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: rgba(250, 250, 250, 0.03);
+  padding: 2px 6px;
+}
+
+.github-cache-meta button {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.1);
+  color: var(--paper-white);
+  padding: 2px 7px;
+  font-size: 0.72rem;
+}
+
+.github-intake-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, auto) minmax(260px, 360px);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.github-intake-controls .repo-tabs {
+  align-items: center;
+}
+
+.github-suggestion-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.72);
+  padding: 12px;
+}
+
+.github-disclosure {
+  border: 1px solid var(--line);
+  background: rgba(19, 20, 22, 0.64);
+  margin-bottom: 12px;
+}
+
+.github-disclosure > summary {
+  display: flex;
+  min-height: 42px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.github-disclosure > summary span,
+.github-disclosure > summary strong {
+  display: block;
+}
+
+.github-disclosure > summary span {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
+.github-disclosure > summary strong {
+  color: var(--paper-white);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.github-disclosure[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.github-disclosure > .github-source-grid,
+.github-disclosure > .github-suggestion-panel,
+.github-disclosure > .github-intake-grid,
+.github-disclosure > .action-planner-panel,
+.github-disclosure > .empty-state,
+.github-disclosure > .github-load-actions {
+  margin: 12px;
+}
+
+.github-suggestion-panel .resource-panel-header {
+  align-items: flex-start;
+}
+
+.github-suggestion-panel .resource-panel-header > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.github-suggestion-panel .resource-panel-header h2,
+.github-suggestion-card h3 {
+  margin: 0;
+}
+
+.github-suggestion-panel .resource-panel-header p,
+.github-suggestion-card p {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.github-suggestion-list {
+  display: grid;
+  gap: 10px;
+}
+
+.github-suggestion-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.github-suggestion-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 260px);
+  gap: 12px;
+  align-items: start;
+}
+
+.github-suggestion-target {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(9, 166, 214, 0.24);
+  background: rgba(9, 166, 214, 0.08);
+  padding: 9px;
+}
+
+.github-suggestion-target svg {
+  flex: 0 0 auto;
+  color: var(--accent-cyan);
+}
+
+.github-suggestion-target span,
+.suggestion-reasons {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.github-suggestion-target strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--paper-white);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.suggestion-reasons {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 17px;
+}
+
+.github-suggestion-actions {
+  display: grid;
+  grid-template-columns: minmax(230px, 360px) 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.github-suggestion-actions .github-card-actions {
+  justify-content: flex-end;
+}
+
+.confidence-chip {
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+  text-transform: capitalize;
+}
+
+.confidence-high {
+  border-color: rgba(128, 213, 138, 0.32);
+  color: var(--success);
+}
+
+.confidence-medium {
+  border-color: rgba(244, 199, 107, 0.32);
+  color: var(--warning);
+}
+
+.confidence-low {
+  border-color: rgba(154, 162, 176, 0.32);
+  color: var(--text-muted);
+}
+
+.github-intake-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.github-intake-card {
+  display: grid;
+  gap: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.github-intake-card.is-bound {
+  border-color: rgba(9, 166, 214, 0.42);
+}
+
+.github-connection-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(9, 166, 214, 0.34);
+  background: rgba(9, 166, 214, 0.08);
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
+.github-connection-panel > div,
+.github-connection-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.github-connection-panel svg {
+  flex: 0 0 auto;
+  color: var(--accent-cyan);
+}
+
+.github-connection-panel strong,
+.github-connection-panel span {
+  display: block;
+}
+
+.github-connection-panel strong {
+  color: var(--paper-white);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.github-connection-panel span {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.github-connection-panel button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 166, 214, 0.12);
+  color: var(--paper-white);
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.github-connection-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}

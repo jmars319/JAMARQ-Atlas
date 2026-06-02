@@ -1,0 +1,192 @@
+@media (max-width: 1280px) {
+  .app-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .app-layout,
+  .app-layout.is-inspector-open {
+    grid-template-columns: 1fr;
+  }
+
+  .project-detail {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 10px;
+  }
+
+  .app-tabs {
+    gap: 8px;
+  }
+
+  .app-tab-group {
+    padding: 7px;
+  }
+
+  .app-tab-group > div {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  }
+
+  .app-tab-group-secondary > div {
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  }
+
+  .app-tabs button,
+  .app-tab-group-secondary button {
+    min-height: 38px;
+    padding: 7px 9px;
+    white-space: normal;
+  }
+
+  .topbar,
+  .dashboard-header,
+  .integration-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-header {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px 18px;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .writing-workbench .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .data-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .timeline-dashboard .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planning-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reports-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-center .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .control-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .board-summary {
+    flex-direction: column;
+  }
+
+  .verification-summary {
+    flex-direction: column;
+  }
+
+  .kanban-board {
+    grid-template-columns: repeat(9, minmax(238px, 82vw));
+    scroll-snap-type: x proximity;
+  }
+
+  .kanban-lane {
+    min-width: 238px;
+    scroll-snap-align: start;
+  }
+
+  .field-grid,
+  .verification-grid,
+  .repo-overview-grid,
+  .ai-action-grid,
+  .github-source-grid,
+  .github-command-bands,
+  .github-command-signal-grid,
+  .github-intake-controls,
+  .github-repo-facts,
+  .github-deep-summary,
+  .github-health-grid,
+  .github-suggestion-summary,
+  .github-suggestion-actions,
+  .optimization-summary-grid,
+  .optimization-score-grid,
+  .optimization-detail-grid,
+  .optimization-recommendation-grid,
+  .verification-controls,
+  .verification-row,
+  .verification-row-meta,
+  .dispatch-mini-grid,
+  .dispatch-summary-grid,
+  .dispatch-signal-grid,
+  .dispatch-closeout-focus,
+  .dispatch-closeout-focus-counts,
+  .dispatch-closeout-focus-list li,
+  .ops-entry-points,
+  .dispatch-queue-signals,
+  .dispatch-queue-runbook,
+  .dispatch-runbook-grid,
+  .data-summary-grid,
+  .data-preview-grid,
+  .data-diagnostics-grid,
+  .settings-form-grid,
+  .settings-bulk-calibration,
+  .settings-calibration-card,
+  .settings-calibration-group-heading,
+  .settings-calibration-group-counts,
+  .settings-calibration-groups,
+  .settings-calibration-summary,
+  .settings-calibration-actions,
+  .settings-connection-grid,
+  .settings-subpanel-heading,
+  .settings-sync-grid,
+  .settings-preview-grid,
+  .settings-compare-grid,
+  .planning-execution-card,
+  .planning-layout,
+  .planning-controls,
+  .planning-mini-summary,
+  .review-layout,
+  .review-note-grid,
+  .review-source-grid,
+  .reports-layout,
+  .reports-workspace,
+  .timeline-controls,
+  .writing-controls,
+  .writing-context-grid,
+  .writing-meta-grid,
+  .writing-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-line,
+  .optimization-import-preview,
+  .optimization-card-heading,
+  .optimization-card-actions,
+  .optimization-controls,
+  .resource-line,
+  .resource-panel-header,
+  .reports-editor-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .dispatch-preflight-history li {
+    grid-template-columns: 1fr;
+  }
+}
