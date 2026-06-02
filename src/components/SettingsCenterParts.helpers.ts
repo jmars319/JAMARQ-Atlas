@@ -12,7 +12,7 @@ export function statusLabel(status: AtlasConnectionCard['status']) {
   const labels: Record<AtlasConnectionCard['status'], string> = {
     available: 'Available',
     missing: 'Missing',
-    stub: 'Stubbed',
+    stub: 'Local draft',
     'local-only': 'Local only',
     unknown: 'Unknown',
   }

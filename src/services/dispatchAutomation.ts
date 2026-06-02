@@ -238,7 +238,7 @@ export function createDispatchAutomationDryRunPlan({
     summary:
       evaluation.blockers.length > 0
         ? 'Automation dry-run plan is blocked by incomplete readiness documentation.'
-        : 'Automation dry-run plan is advisory and not implemented for execution.',
+        : 'Automation dry-run plan is advisory only; Atlas has no execution path for this action in this release.',
     blockers: evaluation.blockers,
     warnings: evaluation.warnings,
     steps,

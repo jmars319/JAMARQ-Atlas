@@ -30,7 +30,7 @@ function noOpResult(
     status: 'not-implemented',
     requiresConfirmation,
     message:
-      'Dispatch runner is a safety stub. No network write, file overwrite, database operation, or deployment command was executed.',
+      'Dispatch runner is advisory-only. No network write, file overwrite, database operation, or deployment command was executed.',
   }
 }
 

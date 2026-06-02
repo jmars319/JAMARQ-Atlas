@@ -160,14 +160,88 @@ function extractStringUnion(source, typeName) {
   return [...match[1].matchAll(/'([^']+)'/g)].map((item) => item[1])
 }
 
+function extractApiRoutes(sources) {
+  const routes = new Set()
+
+  for (const source of sources ?? []) {
+    const text = readTextIfExists(source)
+    if (!text) continue
+
+    for (const match of text.matchAll(/['"]((?:\/api\/)[^'"]*)['"]/g)) {
+      routes.add(match[1])
+    }
+
+    for (const route of extractApiRegexLiterals(text)) routes.add(`regex:${route}`)
+  }
+
+  return [...routes].sort()
+}
+
+function extractApiRegexLiterals(text) {
+  const routes = []
+  let index = 0
+
+  while (index < text.length) {
+    const start = text.indexOf('/^\\/api\\/', index)
+    if (start === -1) break
+
+    let escaped = false
+    let inCharacterClass = false
+    let end = start + 1
+
+    for (; end < text.length; end += 1) {
+      const char = text[end]
+
+      if (escaped) {
+        escaped = false
+        continue
+      }
+
+      if (char === '\\') {
+        escaped = true
+        continue
+      }
+
+      if (char === '[') {
+        inCharacterClass = true
+        continue
+      }
+
+      if (char === ']') {
+        inCharacterClass = false
+        continue
+      }
+
+      if (char === '/' && !inCharacterClass) {
+        end += 1
+        while (/[a-z]/i.test(text[end] ?? '')) end += 1
+        routes.push(text.slice(start, end))
+        break
+      }
+    }
+
+    index = Math.max(end, start + 1)
+  }
+
+  return routes
+}
+
 function checkContractSnapshots() {
   const findings = []
 
   for (const contract of config.contractSnapshots ?? []) {
-    if (contract.type !== 'string-union') continue
-    const actual = extractStringUnion(contract.source, contract.typeName)
+    let actual = null
+
+    if (contract.type === 'string-union') {
+      actual = extractStringUnion(contract.source, contract.typeName)
+    } else if (contract.type === 'api-routes') {
+      actual = extractApiRoutes(contract.sources)
+    } else {
+      continue
+    }
+
     if (!actual) {
-      findings.push(`${contract.label}: source union ${contract.typeName} was not found.`)
+      findings.push(`${contract.label}: source contract was not found.`)
       continue
     }
     const snapshotPath = path.join(root, contract.snapshot)

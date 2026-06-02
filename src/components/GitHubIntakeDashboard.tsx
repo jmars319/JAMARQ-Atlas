@@ -14,19 +14,11 @@ import {
   Target,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import type {
-  GithubConnectionState,
-  GithubRepositorySource,
-  GithubRepositorySummary,
-} from '../services/githubIntegration'
-import type { ProjectRecord } from '../domain/atlas'
-import type { DispatchState } from '../domain/dispatch'
-import type { ReviewNote } from '../domain/review'
+import type { GithubConnectionState } from '../services/githubIntegration'
 import { formatDateTimeLabel } from '../domain/atlas'
 import { useGithubCommandSummaries } from '../hooks/useGithubCommandSummaries'
 import { useGithubRepositories } from '../hooks/useGithubRepositories'
 import { useVercelCommandSummaries } from '../hooks/useVercelCommandSummaries'
-import type { GithubRepoCommandSummary } from '../services/githubCommand'
 import { deriveAtlasActionIntents } from '../services/actionPlanner'
 import {
   createGithubIssueDraftFromIntent,
@@ -38,7 +30,6 @@ import { findRepositoryBinding, repositorySummaryToLink } from '../services/repo
 import { deriveRepoPlacementSuggestions } from '../services/repoSuggestions'
 import { createReviewNote } from '../services/review'
 import { ActionPlannerPanel } from './ActionPlannerPanel'
-import { GitHubCacheMeta } from './GitHubCacheMeta'
 import { GitHubRepoDeepDive } from './GitHubRepoDeepDive'
 import { GitHubWritePilotDialog } from './GitHubWritePilotDialog'
 import {
@@ -46,162 +37,16 @@ import {
   vercelDeploymentLabel,
 } from '../services/vercelIntegration'
 import { atlasApiUrl } from '../services/apiBase'
-
-type IntakeFilter = 'all' | GithubRepositorySource | 'unbound'
-
-interface IntakeRepository {
-  repository: GithubRepositorySummary
-  sources: GithubRepositorySource[]
-}
-
-interface GitHubIntakeDashboardProps {
-  projectRecords: ProjectRecord[]
-  dispatch: DispatchState
-  selectedProjectId: string
-  onSelectProject: (projectId: string) => void
-  onBindRepository: (projectId: string, repository: GithubRepositorySummary) => void
-  onCreateInboxProject: (repository: GithubRepositorySummary) => void
-  onAddReviewNote: (note: ReviewNote) => void
-}
-
-function mergeRepositories(
-  configured: GithubRepositorySummary[],
-  viewer: GithubRepositorySummary[],
-) {
-  const repositories = new Map<string, IntakeRepository>()
-
-  function add(repository: GithubRepositorySummary, source: GithubRepositorySource) {
-    const key = repository.fullName.toLowerCase()
-    const existing = repositories.get(key)
-
-    if (existing) {
-      if (!existing.sources.includes(source)) {
-        existing.sources.push(source)
-      }
-      return
-    }
-
-    repositories.set(key, {
-      repository,
-      sources: [source],
-    })
-  }
-
-  configured.forEach((repository) => add(repository, 'configured'))
-  viewer.forEach((repository) => add(repository, 'viewer'))
-
-  return [...repositories.values()].sort((left, right) =>
-    left.repository.fullName.localeCompare(right.repository.fullName),
-  )
-}
-
-function sourceLabel(sources: GithubRepositorySource[], viewerLabel: string) {
-  if (sources.length > 1) {
-    return `Configured + ${viewerLabel}`
-  }
-
-  return sources[0] === 'configured' ? 'Configured' : viewerLabel
-}
-
-function uniqueRepoKeys(repoKeys: string[]) {
-  return repoKeys
-    .filter(Boolean)
-    .filter(
-      (repoKey, index, keys) =>
-        keys.findIndex((candidate) => candidate.toLowerCase() === repoKey.toLowerCase()) === index,
-    )
-}
-
-function summaryFor(
-  summaries: GithubRepoCommandSummary[],
-  fullName: string,
-) {
-  return summaries.find((summary) => summary.fullName.toLowerCase() === fullName.toLowerCase())
-}
-
-function localGitSummaryLabel(summary: GithubRepoCommandSummary) {
-  if (summary.localGit.status !== 'available' || !summary.localGit.data) {
-    return summary.localGit.status
-  }
-
-  const { data } = summary.localGit
-  const dirty = data.dirty ? `${data.changedFiles} changed` : 'clean'
-  const sync =
-    data.ahead !== null && data.behind !== null
-      ? `${data.ahead} ahead / ${data.behind} behind`
-      : 'upstream unknown'
-
-  return `${data.branch} / ${dirty} / ${sync}`
-}
-
-function isRecentlyPushed(repository: GithubRepositorySummary) {
-  if (!repository.pushedAt) {
-    return false
-  }
-
-  const pushedAt = new Date(repository.pushedAt).getTime()
-
-  return Number.isFinite(pushedAt) && Date.now() - pushedAt <= 14 * 86_400_000
-}
-
-interface SourceNoticeProps {
-  label: string
-  loading: boolean
-  error: ReturnType<typeof useGithubRepositories>['error']
-  count: number
-  cacheMetadata: ReturnType<typeof useGithubRepositories>['cacheMetadata']
-  page: number
-  hasNextPage: boolean
-  onReload: () => void
-}
-
-function SourceNotice({
-  label,
-  loading,
-  error,
-  count,
-  cacheMetadata,
-  page,
-  hasNextPage,
-  onReload,
-}: SourceNoticeProps) {
-  if (loading) {
-    return (
-      <div className="github-source-state">
-        <RefreshCcw size={15} />
-        <span>{label} loading...</span>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="github-error">
-        <AlertTriangle size={16} />
-        <div>
-          <strong>{label} unavailable</strong>
-          <span>{error.message}</span>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="github-source-state">
-      <GitBranch size={15} />
-      <span>
-        {label}: {count} repos
-      </span>
-      <GitHubCacheMeta
-        metadata={cacheMetadata}
-        page={page}
-        hasNextPage={hasNextPage}
-        onReload={onReload}
-        loading={loading}
-      />
-    </div>
-  )
-}
+import { SourceNotice } from './githubIntake/SourceNotice'
+import type { GitHubIntakeDashboardProps, IntakeFilter } from './githubIntake/types'
+import {
+  isRecentlyPushed,
+  localGitSummaryLabel,
+  mergeRepositories,
+  sourceLabel,
+  summaryFor,
+  uniqueRepoKeys,
+} from './githubIntake/helpers'
 
 export function GitHubIntakeDashboard({
   projectRecords,

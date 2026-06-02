@@ -62,6 +62,23 @@ function statusLabel(status: WritingDraftStatus) {
   return status.slice(0, 1).toUpperCase() + status.slice(1)
 }
 
+function providerStatusLabel(status: WritingProviderResult['status']) {
+  switch (status) {
+    case 'stub':
+      return 'Local draft mode'
+    case 'not-configured':
+      return 'Not configured'
+    case 'generated':
+      return 'Suggestion ready'
+    case 'configured':
+      return 'Configured'
+    case 'error':
+      return 'Needs attention'
+    default:
+      return status
+  }
+}
+
 function filterDrafts(drafts: WritingDraft[], filter: DraftFilter, query: string) {
   const normalizedQuery = query.trim().toLowerCase()
 
@@ -407,7 +424,7 @@ export function WritingWorkbench({
                 </div>
                 <div>
                   <span>Provider</span>
-                  <strong>{selectedDraft.providerResult.status}</strong>
+                  <strong>{providerStatusLabel(selectedDraft.providerResult.status)}</strong>
                 </div>
                 <div>
                   <span>Updated</span>
@@ -442,7 +459,7 @@ export function WritingWorkbench({
                   <ShieldAlert size={16} />
                   <div>
                     <strong>
-                      Provider {selectedDraft.providerResult.status}
+                      Provider {providerStatusLabel(selectedDraft.providerResult.status)}
                       {selectedDraft.providerResult.model
                         ? ` / ${selectedDraft.providerResult.model}`
                         : ''}

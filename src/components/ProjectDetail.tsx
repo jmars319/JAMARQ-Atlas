@@ -559,7 +559,7 @@ export function ProjectDetail({
       <section className="detail-panel">
         <div className="panel-heading">
           <GitBranch size={17} />
-          <h3>Manual / Mock Activity</h3>
+          <h3>Manual Activity</h3>
         </div>
         <ActivityFeed events={project.activity} />
       </section>

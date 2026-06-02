@@ -43,6 +43,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Maintainability audit
+        run: npm run audit:maintainability
+
+      - name: Bundle budget
+        run: npm run budget:bundle
+
       - name: Unit tests
         run: npm run test:unit
 

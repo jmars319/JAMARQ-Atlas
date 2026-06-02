@@ -8,7 +8,7 @@ Atlas Dispatch extends that model for deployment readiness. Atlas maps work. Dis
 
 ## Current Reality
 
-This is a working local-first MVP, not a placeholder. It now runs primarily as a local macOS desktop app, with the existing React/Vite browser app retained as a development and CI harness. Desktop state is stored in a local SQLite database, while browser harness state still uses browser local storage. GitHub and other optional integrations stay behind a local server boundary so tokens stay out of browser code.
+This is a working local-first MVP, not a demo shell. It now runs primarily as a local macOS desktop app, with the existing React/Vite browser app retained as a development and CI harness. Desktop state is stored in a local SQLite database, while browser harness state still uses browser local storage. GitHub and other optional integrations stay behind a local server boundary so tokens stay out of browser code.
 
 The dashboard currently supports:
 
@@ -55,7 +55,7 @@ No hosted production URL is configured yet. Run the app locally until a deployme
 - Dispatch automation readiness helpers and no-op dry-run planning.
 - Dispatch deploy session helpers for manual session steps, evidence capture, and typed-confirmation deployment records.
 - Dispatch closeout helpers that derive advisory closeout posture without storing a new source of truth.
-- Separate local writing draft storage, writing templates, context snapshots, and provider stubs.
+- Separate local writing draft storage, writing templates, context snapshots, and provider boundaries.
 - Separate Reports storage for local packet Markdown, source summaries, and report-only audit events.
 - Separate Review storage for human review sessions, notes, and outcomes.
 - Versioned local backup/export helpers for Workspace, Dispatch, Writing, Planning, Reports, Review, Calibration, Optimization, Settings, and Sync data.
@@ -86,7 +86,7 @@ Timeline rows can be filtered by project, section, source, type, date range, and
 
 ## Calibration Operations
 
-Settings includes Calibration Operations for unresolved placeholders and real-data readiness across Workspace and Dispatch. It flags placeholder hosts, paths, domains, health URLs, backup notes, rollback notes, missing repo bindings, verification gaps, and credential-reference registry mismatches.
+Settings includes Calibration Operations for sample-value cleanup and real-data readiness across Workspace and Dispatch. It flags unconfirmed hosts, paths, domains, health URLs, backup notes, rollback notes, missing repo bindings, verification gaps, and credential-reference registry mismatches.
 
 Calibration is stored separately under `jamarq-atlas.calibration.v1`. It tracks field progress (`needs-value`, `entered`, `verified`, `deferred`), calibration notes, audit events, and a non-secret credential reference registry.
 
@@ -265,7 +265,7 @@ Dispatch tracks deployment posture without executing deployments. Dispatch data 
 Current Dispatch data:
 
 - Deployment targets and environments.
-- Host type and placeholder host/path configuration.
+- Host type and sample host/path configuration.
 - Public URL and health check URLs.
 - Read-only preflight runs and check evidence.
 - Read-only host evidence history.
@@ -310,7 +310,7 @@ Seed targets exist for:
 - JAMARQ website production.
 - Tenra public site production.
 
-Placeholder values are clearly marked and must be confirmed before any future automation work.
+Sample values are clearly marked and must be confirmed before any future automation work.
 
 Dispatch intentionally does not automate:
 
@@ -569,7 +569,7 @@ Atlas separates manual intent from raw activity.
 - `src/components/WritingWorkbench.tsx` renders local writing draft creation, editing, review state, and draft history.
 - `src/components/DataCenter.tsx` renders local backup export, import validation, restore preview, and typed restore.
 - `src/components/SettingsCenter.tsx` renders local workspace identity and integration-readiness status.
-- `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, mock/manual activity, verification, and Writing launchers.
+- `src/components/ProjectDetail.tsx` renders manual operational fields, GitHub activity, sample/manual activity, verification, and Writing launchers.
 - `src/components/RepoActivityPanel.tsx` renders GitHub tabs, pagination, resource errors, and advisory signals.
 - `src/services/repoBinding.ts` binds, unbinds, dedupes, and explicitly creates Inbox projects from GitHub repositories.
 - `src/services/repoSuggestions.ts` derives advisory placement suggestions for unbound GitHub repositories without mutating Workspace or GitHub data.
@@ -582,14 +582,14 @@ Atlas separates manual intent from raw activity.
 - `src/services/dispatchPreflight.ts` assembles read-only preflight evidence without mutating status or readiness.
 - `src/services/dispatchEvidence.ts` normalizes and stores host/runbook verification evidence histories.
 - `src/services/dispatchHealthChecks.ts` calls the local read-only Dispatch health API.
-- `src/services/dispatchRunner.ts` contains safety-stub runner phases for future automation.
+- `src/services/dispatchRunner.ts` contains advisory-only runner phases for future automation.
 - `src/services/automationSignals.ts` generates non-decision signals such as failed workflows, commits since verification, stale PRs, and permission gaps.
 - `src/services/aiWritingAssistant.ts` creates Writing context snapshots, prompt packets, and local template drafts.
 - `src/services/writingProvider.ts` calls the local Writing provider API and normalizes suggestions/errors.
 - `server/writingApi.ts` provides the optional server-side OpenAI draft-only route.
 - `src/services/dataPortability.ts` builds backup bundles, Markdown reports, restore previews, and backup validation.
 - `src/services/settings.ts` normalizes local Settings state and static connection-readiness cards.
-- `src/services/syncSnapshots.ts` builds local snapshots, fingerprints stores, previews snapshot restore, and exposes sync provider stubs.
+- `src/services/syncSnapshots.ts` builds local snapshots, fingerprints stores, previews snapshot restore, and exposes sync provider boundaries.
 - `src/services/hostedSync.ts` calls the local hosted sync API and normalizes scoped provider errors.
 
 ## Guardrails
@@ -639,7 +639,7 @@ Reports are local/manual:
 - Report packets are assembled only by explicit action.
 - Report export does not mean anything was sent, published, deployed, shipped, or verified.
 - Reports do not mutate Workspace, Dispatch, Planning, Review, Verification, Writing, Optimization, GitHub bindings, Settings, or Sync state.
-- External publishing integrations are not implemented.
+- External publishing integrations remain outside the current product boundary.
 
 Review is local/manual:
 

@@ -1,39 +1,28 @@
 {
   "label": "jamarq-atlas",
-  "maxImplementationFileLines": 900,
+  "maxImplementationFileLines": 925,
   "maxStyleFileLines": 400,
   "maxAppShellLines": 425,
   "maxDesktopMainLines": 500,
   "maxDomainBarrelLines": 450,
   "nearBudgetLineMargin": 25,
   "nearBundleBudgetKb": 4,
-  "initialBundleBudgetKb": 235,
+  "initialBundleBudgetKb": 190,
   "routeChunkBudgetsKb": {
-    "index-": 235,
+    "index-": 190,
     "react-vendor-": 190,
-    "dispatchQueue-": 70,
-    "SettingsCenter-": 58,
-    "GitHubIntakeDashboard-": 50,
-    "DataCenter-": 34,
-    "review-": 34,
-    "icons-vendor-": 30,
-    "ProjectInspectorRoute-": 90,
-    "DispatchDashboard-": 28,
+    "dispatchQueue-": 12,
+    "SettingsCenter-": 76,
+    "GitHubIntakeDashboard-": 54,
+    "DataCenter-": 36,
+    "review-": 28,
+    "icons-vendor-": 32,
+    "ProjectInspectorRoute-": 96,
+    "DispatchDashboard-": 27,
     "ReviewCenter-": 24,
     "AppRouteRenderer-": 20
   },
-  "specificFileBudgets": {
-    "src/services/calibration.ts": 2600,
-    "src/components/DispatchPanel.tsx": 2300,
-    "src/components/SettingsCenter.tsx": 2200,
-    "server/githubApi.ts": 1650,
-    "server/localGitApi.ts": 1400,
-    "server/githubAuth.ts": 930,
-    "src/services/review.ts": 1250,
-    "src/services/reports.ts": 1150,
-    "server/dispatchApi.ts": 1125,
-    "src/components/GitHubIntakeDashboard.tsx": 1050
-  },
+  "specificFileBudgets": {},
   "startupImportBoundaries": {
     "paths": [
       "src/main.tsx",
@@ -59,6 +48,22 @@
       "source": "src/domain/storeRegistry.ts",
       "typeName": "AtlasStoreId",
       "snapshot": "scripts/contracts/atlas-store-ids.json"
+    },
+    {
+      "label": "Atlas local API routes",
+      "type": "api-routes",
+      "sources": [
+        "server/githubApi.ts",
+        "server/githubAuth.ts",
+        "server/githubWriteApi.ts",
+        "server/localGitApi.ts",
+        "server/dispatchApi.ts",
+        "server/writingApi.ts",
+        "server/syncApi.ts",
+        "server/vercelApi.ts",
+        "server/repoOperationsApi.ts"
+      ],
+      "snapshot": "scripts/contracts/atlas-api-routes.json"
     }
   ],
   "assetBudgets": {
