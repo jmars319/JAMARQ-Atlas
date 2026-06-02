@@ -41,7 +41,7 @@ function project(seed: ProjectSeed): AtlasProject {
 
 export const seedWorkspace: Workspace = {
   id: 'jamarq-atlas',
-  name: 'JAMARQ Atlas',
+  name: 'Atlas by Tenra',
   purpose:
     'Operator dashboard for interpreting open work across client systems, software suites, experiments, and outlier repositories.',
   sections: [
@@ -580,7 +580,7 @@ export const seedWorkspace: Workspace = {
           projects: [
             project({
               id: 'jamarq-atlas',
-              name: 'JAMARQ Atlas',
+              name: 'Atlas by Tenra',
               kind: 'app',
               summary: 'Local-first operator dashboard for the whole work portfolio.',
               manual: {

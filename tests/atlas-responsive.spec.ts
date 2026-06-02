@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { clickAtlasNav, type AtlasNavLabel } from './helpers/atlasTestUtils'
 
 const criticalViews: Array<{ nav: AtlasNavLabel | null; heading: string; landmark: string }> = [
-  { nav: null, heading: 'JAMARQ Atlas', landmark: 'Atlas status board' },
+  { nav: null, heading: 'Atlas by Tenra', landmark: 'Atlas status board' },
   { nav: 'Optimize', heading: 'Portfolio Optimization', landmark: 'Portfolio Optimization Center' },
   { nav: 'Review', heading: 'Review Center', landmark: 'Operator review queue' },
   { nav: 'Planning', heading: 'Planning Center', landmark: 'Planning records' },

@@ -113,7 +113,7 @@ describe('data portability', () => {
   it('builds a Markdown inventory report with counts and guardrails', () => {
     const report = createAtlasBackupMarkdownReport(createAtlasBackupEnvelope(stores, now))
 
-    expect(report).toContain('# JAMARQ Atlas Backup Report')
+    expect(report).toContain('# Atlas by Tenra Backup Report')
     expect(report).toContain('Workspace:')
     expect(report).toContain('Dispatch:')
     expect(report).toContain('Writing:')
@@ -252,7 +252,7 @@ describe('data portability', () => {
   it('creates a compact backup summary for clipboard use', () => {
     const summary = createBackupSummaryText(createAtlasBackupEnvelope(stores, now))
 
-    expect(summary).toContain('JAMARQ Atlas backup')
+    expect(summary).toContain('Atlas by Tenra backup')
     expect(summary).toContain('projects')
     expect(summary).toContain('writing drafts')
     expect(summary).toContain('sync snapshots')

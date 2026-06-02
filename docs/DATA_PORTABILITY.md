@@ -1,6 +1,6 @@
 # Atlas Data Portability
 
-Data Center is the local-first backup and restore surface for JAMARQ Atlas.
+Data Center is the local-first backup and restore surface for Atlas by Tenra.
 
 It exists to protect browser-local Atlas data before hosted persistence is introduced.
 

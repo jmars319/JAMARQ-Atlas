@@ -58,7 +58,7 @@ function target(): DeploymentTarget {
   return {
     id: 'jamarq-atlas-vercel-production',
     projectId: 'jamarq-atlas',
-    name: 'JAMARQ Atlas Vercel production',
+    name: 'Atlas by Tenra Vercel production',
     environment: 'production',
     hostType: 'vercel',
     credentialRef: 'vercel-atlas',

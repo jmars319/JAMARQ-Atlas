@@ -1,6 +1,6 @@
 # Atlas Optimize
 
-Optimize is the local portfolio optimization review surface for JAMARQ Atlas.
+Optimize is the local portfolio optimization review surface for Atlas by Tenra.
 
 It imports registry-generated JSON packets from `agentic-instructions`, stores them locally under `jamarq-atlas.optimization.v1`, and lets the operator review scorecards, priority buckets, critical paths, readiness gaps, consolidation suggestions, reusable patterns, and recommendations.
 

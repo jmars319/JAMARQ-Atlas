@@ -1,4 +1,4 @@
-# JAMARQ Atlas System Overview
+# Atlas by Tenra System Overview
 
 Atlas is a local-first operator dashboard for understanding open work across JAMARQ client systems, software suites, experiments, internal infrastructure, and outlier repositories.
 

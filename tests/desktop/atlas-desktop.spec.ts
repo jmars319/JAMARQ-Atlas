@@ -46,7 +46,7 @@ test.describe('Atlas desktop app', () => {
     try {
       const page = await firstWindow(app)
 
-      await expect(page.getByText('JAMARQ operator dashboard')).toBeVisible()
+      await expect(page.getByText('Tenra operator dashboard')).toBeVisible()
       await page.getByRole('button', { name: 'Settings' }).click()
       await expect(page.getByRole('heading', { name: 'Local Workspace Identity' })).toBeVisible()
       await expect(page.getByText('Storage: SQLite')).toBeVisible()

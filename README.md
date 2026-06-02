@@ -1,6 +1,6 @@
-# JAMARQ Atlas
+# Atlas by Tenra
 
-JAMARQ Atlas is a local-first operator dashboard for mapping open work across client systems, software suites, experiments, business infrastructure, and outlier repositories.
+Atlas by Tenra is a local-first operator dashboard for mapping open work across client systems, software suites, experiments, business infrastructure, and outlier repositories.
 
 Atlas is not a replacement for GitHub, deployment dashboards, or human judgment. GitHub can show what happened. Atlas keeps the operational interpretation separate: status, next action, blockers, risk, deferred work, decisions, and verification state.
 

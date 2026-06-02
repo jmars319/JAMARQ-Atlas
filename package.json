@@ -2,7 +2,7 @@
   "name": "jamarq-atlas",
   "private": true,
   "version": "0.1.0",
-  "description": "Local-first operator dashboard for mapping work, GitHub activity, and deployment readiness across JAMARQ systems.",
+  "description": "Atlas by Tenra is a local-first operator dashboard for mapping work, GitHub activity, and deployment readiness across the Tenra software portfolio.",
   "type": "module",
   "main": ".vite/build/main.js",
   "scripts": {

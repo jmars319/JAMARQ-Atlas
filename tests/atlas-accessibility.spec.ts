@@ -28,7 +28,7 @@ async function expectCriticalScreenAccessible(
 
 test.describe('critical screen accessibility', () => {
   test('Board has no serious automated accessibility violations', async ({ page }) => {
-    await expectCriticalScreenAccessible(page, null, 'JAMARQ Atlas')
+    await expectCriticalScreenAccessible(page, null, 'Atlas by Tenra')
   })
 
   test('Settings has no serious automated accessibility violations', async ({ page }) => {

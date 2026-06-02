@@ -147,7 +147,7 @@ export function createWritingProviderInput(payload: WritingGeneratePayload) {
     {
       role: 'developer' as const,
       content: [
-        'You are the JAMARQ Atlas draft-only Writing provider.',
+        'You are the Atlas by Tenra draft-only Writing provider.',
         'Return draft text only for human review.',
         'You may summarize, rewrite, format, and draft operational language.',
         'You must not decide or change status, risk, priority, roadmap, verification, Dispatch readiness, GitHub bindings, or what ships.',

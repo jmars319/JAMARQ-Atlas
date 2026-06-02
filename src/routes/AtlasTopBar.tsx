@@ -20,7 +20,7 @@ export function AtlasTopBar({
         <img src="/jamarq-logo.png" alt="" className="brand-mark" />
         <div>
           <strong>Atlas</strong>
-          <span>JAMARQ operator dashboard</span>
+          <span>Tenra operator dashboard</span>
         </div>
       </div>
       <div className="topbar-meta">

@@ -358,7 +358,7 @@ export function createAtlasBackupEnvelope(
     kind: ATLAS_BACKUP_KIND,
     schemaVersion: ATLAS_BACKUP_SCHEMA_VERSION,
     exportedAt: now.toISOString(),
-    appName: 'JAMARQ Atlas',
+    appName: 'Atlas by Tenra',
     stores: normalizedStores,
     summary: summarizeAtlasStores(normalizedStores),
   }
@@ -768,7 +768,7 @@ export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {
   } =
     envelope.summary
 
-  return `# JAMARQ Atlas Backup Report
+  return `# Atlas by Tenra Backup Report
 
 Generated: ${envelope.exportedAt}
 Schema: ${envelope.schemaVersion}
@@ -815,7 +815,7 @@ export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
   const { workspace, dispatch, writing, planning, reports, review, calibration, optimization, sync } =
     envelope.summary
 
-  return `JAMARQ Atlas backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${dispatch.recoveryPlans} recovery plans, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${calibration.progressRecords} calibration progress records, ${optimization.snapshots} optimization snapshots, ${sync.snapshots} sync snapshots.`
+  return `Atlas by Tenra backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${dispatch.recoveryPlans} recovery plans, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${calibration.progressRecords} calibration progress records, ${optimization.snapshots} optimization snapshots, ${sync.snapshots} sync snapshots.`
 }
 
 export function canApplyAtlasRestore(confirmation: string) {

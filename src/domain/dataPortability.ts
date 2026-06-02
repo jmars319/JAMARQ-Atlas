@@ -100,7 +100,7 @@ export interface AtlasBackupEnvelope {
   kind: typeof ATLAS_BACKUP_KIND
   schemaVersion: AtlasBackupSchemaVersion
   exportedAt: string
-  appName: 'JAMARQ Atlas'
+  appName: 'Atlas by Tenra'
   stores: AtlasBackupStores
   summary: AtlasBackupStoreSummary
 }

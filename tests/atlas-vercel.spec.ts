@@ -93,7 +93,7 @@ function atlasVercelCommandSummary() {
         category: 'mapping',
         severity: 'ok',
         title: 'Vercel project mapped',
-        detail: 'JAMARQ Atlas Vercel production maps to jamarq-atlas.',
+        detail: 'Atlas by Tenra Vercel production maps to jamarq-atlas.',
         evidence: ['prj_atlas', 'jamarq-atlas'],
         url: null,
       },
@@ -157,7 +157,7 @@ test('Vercel deployment evidence stays read-only across Settings, Dispatch, Proj
 
   await clickAtlasNav(page, 'Dispatch')
   const vercelPanel = page.getByLabel('Vercel deployment evidence')
-  await expect(vercelPanel).toContainText('JAMARQ Atlas Vercel production')
+  await expect(vercelPanel).toContainText('Atlas by Tenra Vercel production')
   await expect(vercelPanel).toContainText('READY / production / main / b38c67b')
   await expect(vercelPanel).toContainText('READY / preview / feature/atlas-preview / c41f7ad')
   await expect(vercelPanel).toContainText('Production deployment is stale')
@@ -168,8 +168,8 @@ test('Vercel deployment evidence stays read-only across Settings, Dispatch, Proj
   await expect(page.getByRole('button', { name: /^Rollback$/ })).toHaveCount(0)
 
   await clickAtlasNav(page, 'Board')
-  await page.getByLabel('Search projects').fill('JAMARQ Atlas')
-  await page.locator('.project-card').filter({ hasText: 'JAMARQ Atlas' }).click()
+  await page.getByLabel('Search projects').fill('Atlas by Tenra')
+  await page.locator('.project-card').filter({ hasText: 'Atlas by Tenra' }).click()
   const projectDetail = page.locator('.project-detail')
   await expect(projectDetail).toContainText('Project Command Summary')
   await expect(projectDetail).toContainText('READY / production / main / b38c67b')
@@ -180,7 +180,7 @@ test('Vercel deployment evidence stays read-only across Settings, Dispatch, Proj
   const reviewQueue = page.getByLabel('Operator review queue')
   const vercelReviewItem = reviewQueue
     .locator('.review-item')
-    .filter({ hasText: 'JAMARQ Atlas: Production deployment is stale' })
+    .filter({ hasText: 'Atlas by Tenra: Production deployment is stale' })
   await expect(vercelReviewItem).toContainText('Latest production deployment is')
   await vercelReviewItem.getByRole('button', { name: 'Review' }).click()
   await expect(vercelReviewItem).toContainText(

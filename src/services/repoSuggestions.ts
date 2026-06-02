@@ -143,7 +143,7 @@ const PORTFOLIO_HINTS: PortfolioHint[] = [
     matchAllTokens: ['tenra'],
   },
   {
-    label: 'JAMARQ Atlas',
+    label: 'Atlas by Tenra',
     sectionId: 'jamarq',
     groupId: 'jamarq-internal-tools',
     projectId: 'jamarq-atlas',

@@ -1,6 +1,6 @@
 # Atlas Planning Center
 
-Planning Center is the manual planning layer for JAMARQ Atlas. It tracks lightweight objectives, milestones, work sessions, and planning notes linked to Atlas projects.
+Planning Center is the manual planning layer for Atlas by Tenra. It tracks lightweight objectives, milestones, work sessions, and planning notes linked to Atlas projects.
 
 ## What It Stores
 

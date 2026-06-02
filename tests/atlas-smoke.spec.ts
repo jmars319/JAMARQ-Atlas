@@ -51,7 +51,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: 'JAMARQ Atlas' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Atlas by Tenra' })).toBeVisible()
   await expect(page.getByLabel('Atlas status board')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Active' })).toBeVisible()
 
