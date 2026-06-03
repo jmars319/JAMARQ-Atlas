@@ -109,8 +109,9 @@ function copyPackagedNodeModules(buildPath) {
 
 module.exports = {
   packagerConfig: {
-    name: 'JAMARQ Atlas',
-    executableName: 'JAMARQ Atlas',
+    name: 'Atlas by Tenra',
+    executableName: 'Atlas by Tenra',
+    appBundleId: 'com.electron.jamarq-atlas',
     asar: false,
     osxSign: {
       identity: '-',

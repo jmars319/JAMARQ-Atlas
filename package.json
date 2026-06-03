@@ -14,7 +14,7 @@
     "desktop:make:mac": "env -u ELECTRON_RUN_AS_NODE electron-forge make --platform=darwin",
     "desktop:make:windows": "env -u ELECTRON_RUN_AS_NODE electron-forge make --platform=win32",
     "desktop:make:linux": "env -u ELECTRON_RUN_AS_NODE electron-forge make --platform=linux",
-    "desktop:verify:bundle": "codesign --verify --deep --strict --verbose=2 \"out/JAMARQ Atlas-darwin-arm64/JAMARQ Atlas.app\"",
+    "desktop:verify:bundle": "codesign --verify --deep --strict --verbose=2 \"out/Atlas by Tenra-darwin-arm64/Atlas by Tenra.app\"",
     "ingest:github": "node scripts/ingest-github.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

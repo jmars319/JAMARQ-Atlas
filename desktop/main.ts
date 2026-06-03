@@ -116,7 +116,7 @@ async function createMainWindow() {
     height: 980,
     minWidth: 1120,
     minHeight: 720,
-    title: 'JAMARQ Atlas',
+    title: 'Atlas by Tenra',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
