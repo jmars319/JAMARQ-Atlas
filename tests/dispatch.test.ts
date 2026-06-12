@@ -137,6 +137,10 @@ const readiness: DispatchReadiness = {
 
 const projectRecords = flattenProjects(seedWorkspace)
 
+function freshRecoveryReviewDate() {
+  return new Date().toISOString()
+}
+
 function passingPreflightRun(projectId: string, targetId: string): DispatchPreflightRun {
   return {
     id: `preflight-${targetId}`,
@@ -928,7 +932,7 @@ describe('dispatch readiness', () => {
         rollbackReference: 'mms-rollback-note',
         rollbackSteps: ['Restore previous zip', 'Run verification checks'],
         escalationContactRef: 'jamarq-ops-card',
-        lastReviewedAt: '2026-05-10T12:00:00Z',
+        lastReviewedAt: freshRecoveryReviewDate(),
       },
       new Date('2026-05-10T12:00:00Z'),
     ).state
@@ -1115,7 +1119,7 @@ describe('dispatch readiness', () => {
         rollbackReference: 'mms-rollback-note',
         rollbackSteps: ['Restore previous zip', 'Run verification checks'],
         escalationContactRef: 'jamarq-ops-card',
-        lastReviewedAt: '2026-05-10T12:00:00Z',
+        lastReviewedAt: freshRecoveryReviewDate(),
       },
       new Date('2026-05-10T12:30:00Z'),
     ).state
