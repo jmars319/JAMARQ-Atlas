@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { expectNoActionableA11yViolations } from './helpers/accessibilityBaseline'
 import { clickAtlasNav, type AtlasNavLabel } from './helpers/atlasTestUtils'
 
 async function expectCriticalScreenAccessible(
@@ -15,15 +15,7 @@ async function expectCriticalScreenAccessible(
 
   await expect(page.getByRole('heading', { name: heading })).toBeVisible()
 
-  const results = await new AxeBuilder({ page })
-    .include('.app-shell')
-    .disableRules(['color-contrast'])
-    .analyze()
-  const actionableViolations = results.violations.filter((violation) =>
-    ['critical', 'serious'].includes(violation.impact ?? ''),
-  )
-
-  expect(actionableViolations).toEqual([])
+  await expectNoActionableA11yViolations(page)
 }
 
 test.describe('critical screen accessibility', () => {

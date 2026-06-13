@@ -1,0 +1,9 @@
+{
+  "routes": [
+    { "name": "board", "path": "/", "surface": "desktop" },
+    { "name": "settings", "path": "/#settings", "surface": "desktop" },
+    { "name": "data", "path": "/#data", "surface": "desktop" },
+    { "name": "dispatch", "path": "/#dispatch", "surface": "desktop" },
+    { "name": "github", "path": "/#github", "surface": "desktop" }
+  ]
+}

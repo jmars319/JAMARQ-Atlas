@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './tests/desktop',
   testMatch: /.*\.spec\.ts/,
   timeout: 60_000,
+  reporter: [['list'], ['json', { outputFile: 'test-results/playwright-desktop-results.json' }]],
   use: {
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
