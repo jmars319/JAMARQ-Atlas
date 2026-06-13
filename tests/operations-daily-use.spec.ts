@@ -111,18 +111,21 @@ test('operator imports operational data and completes daily Ops readiness edits'
     .locator('label.field')
     .filter({ hasText: 'Filename' })
     .locator('input')
+    // selector-intentional-first: this runbook has one editable filename field in the active panel.
     .first()
     .fill('frontend-e2e.zip')
   await runbookPanel
     .locator('label.field')
     .filter({ hasText: 'Artifact notes' })
     .locator('textarea')
+    // selector-intentional-first: this runbook has one editable artifact notes field in the active panel.
     .first()
     .fill('E2E artifact expectation note.')
   await runbookPanel
     .locator('label.field')
     .filter({ hasText: 'Check notes' })
     .locator('textarea')
+    // selector-intentional-first: this runbook has one editable check notes field in the active panel.
     .first()
     .fill('E2E verification check note.')
 
@@ -146,6 +149,7 @@ test('operator imports operational data and completes daily Ops readiness edits'
       .locator('label.field')
       .filter({ hasText: 'Filename' })
       .locator('input')
+      // selector-intentional-first: persisted assertion targets the active deploy runbook filename field.
       .first(),
   ).toHaveValue('frontend-e2e.zip')
   await expect(
@@ -154,6 +158,7 @@ test('operator imports operational data and completes daily Ops readiness edits'
       .locator('label.field')
       .filter({ hasText: 'Check notes' })
       .locator('textarea')
+      // selector-intentional-first: persisted assertion targets the active deploy runbook check notes field.
       .first(),
   ).toHaveValue('E2E verification check note.')
 

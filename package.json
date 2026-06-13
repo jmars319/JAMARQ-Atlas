@@ -20,8 +20,10 @@
     "preview": "vite preview",
     "test:e2e": "env -u NO_COLOR -u FORCE_COLOR playwright test",
     "test:desktop": "npm run desktop:build && env -u NO_COLOR -u FORCE_COLOR playwright test -c playwright.desktop.config.ts",
+    "test:selectors": "node scripts/verify-playwright-selectors.mjs",
     "test:unit": "env NODE_OPTIONS=--disable-warning=ExperimentalWarning vitest run tests/actionPlanner.test.ts tests/automationSignals.test.ts tests/browserLocalStorageMigration.test.ts tests/calibration.test.ts tests/calibrationWorkflow.test.ts tests/dataIntegrity.test.ts tests/dataPortability.test.ts tests/desktopConfig.test.ts tests/desktopStorage.test.ts tests/dispatch.test.ts tests/githubAuth.test.ts tests/githubCommand.test.ts tests/githubHealth.test.ts tests/githubIntegration.test.ts tests/githubWritePilot.test.ts tests/localGit.test.ts tests/localStore.test.ts tests/operations.test.ts tests/optimization.test.ts tests/planning.test.ts tests/reports.test.ts tests/repoBinding.test.ts tests/repoOperations.test.ts tests/requestClient.test.ts tests/review.test.ts tests/settings.test.ts tests/storeRegistry.test.ts tests/sync.test.ts tests/timeline.test.ts tests/vercelIntegration.test.ts tests/verification.test.ts tests/writing.test.ts",
-    "verify:desktop": "npm run lint && npm run build && npm run audit:maintainability && npm run budget:bundle && npm run test:unit && npm run test:e2e && npm run test:desktop && npm run desktop:make && npm run desktop:verify:bundle",
+    "security:local": "just security",
+    "verify:desktop": "npm run lint && npm run test:selectors && npm run security:local && npm run build && npm run audit:maintainability && npm run budget:bundle && npm run test:unit && npm run test:e2e && npm run test:desktop && npm run desktop:make && npm run desktop:verify:bundle",
     "analyze:bundle": "node scripts/analyze-build.mjs",
     "budget:bundle": "node scripts/analyze-build.mjs --strict",
     "audit:maintainability": "node scripts/audit-maintainability.mjs --strict"

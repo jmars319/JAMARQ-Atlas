@@ -89,6 +89,7 @@ export async function expectSettingsConnectionStatus(page: Page, title: string, 
 
 export async function expectDataStoreDiagnosticDetail(page: Page, text: string | RegExp) {
   const diagnostics = page.getByLabel('Local store diagnostics')
+  // selector-intentional-first: diagnostics renders one active Store details disclosure.
   await diagnostics.getByText('Store details').first().click()
   await expect(diagnostics).toContainText(text)
 }

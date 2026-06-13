@@ -1073,7 +1073,13 @@ test('GitHub command center auto-loads later installed repo pages for search', a
   await page.goto('/')
   await clickAtlasNav(page, 'GitHub')
 
-  await expect(page.getByText(/Installed repos: 2 repos \/ issue comments/)).toBeVisible()
+  await expect(page.getByPlaceholder('Search repositories')).toBeVisible()
+  await expect(
+    page.locator('.github-intake-card').filter({ hasText: 'jmars319/Assembly' }),
+  ).toHaveCount(1)
+  await expect(
+    page.locator('.github-intake-card').filter({ hasText: 'jmars319/JAMARQ-Atlas' }),
+  ).toHaveCount(1)
   await page.getByPlaceholder('Search repositories').fill('JAMARQ-Atlas')
   await expect(
     page.locator('.github-intake-card').filter({ hasText: 'jmars319/JAMARQ-Atlas' }),
@@ -1135,6 +1141,7 @@ test('GitHub write pilot creates issues and comments with typed confirmation', a
 
   await openGithubDisclosure(page, 'Action planner')
   const actionPlanner = page.getByRole('region', { name: 'Action Planner' })
+  // selector-intentional-first: action planner can render duplicate draft buttons across responsive controls.
   await actionPlanner.getByRole('button', { name: 'Draft GitHub issue' }).first().click()
   const writeDialog = page.getByRole('dialog', { name: 'Draft GitHub Issue' })
   await expect(writeDialog).toBeVisible()

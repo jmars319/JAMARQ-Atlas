@@ -79,6 +79,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   const reviewItem = reviewQueue
     .locator('.review-item')
     .filter({ hasText: 'Midway Music Hall website has blocked or waiting work' })
+    // selector-intentional-first: this smoke fixture has one matching review item in the queue.
     .first()
   await expect(reviewItem).toBeVisible()
   await reviewItem.getByRole('button', { name: /^Review(?:ing)?$/ }).click()
@@ -143,9 +144,9 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(groupedCalibration).not.toContainText(
     'Confirm the production host without storing passwords or tokens.',
   )
-  await groupedCalibration.locator('.settings-calibration-group-heading').first().click()
+  await groupedCalibration.locator('.settings-calibration-group-heading').first().click() // selector-intentional-first: first grouped issue is the active Host config group opened above.
   await expect(page.getByLabel('Atlas calibration operations')).toContainText('Remote host')
-  const calibrationCard = page.locator('.settings-calibration-card').filter({ hasText: 'Remote host' }).first()
+  const calibrationCard = page.locator('.settings-calibration-card').filter({ hasText: 'Remote host' }).first() // selector-intentional-first: Remote host calibration card is unique in the active operations panel.
   await calibrationCard.getByLabel(/Calibration note/).fill('Confirmed during E2E calibration.')
   await calibrationCard.getByRole('button', { name: 'Mark verified' }).click()
   await expect(page.getByLabel('Calibration audit events')).toContainText('marked verified')
