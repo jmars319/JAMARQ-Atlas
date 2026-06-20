@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test'
 import { clickAtlasNav, uploadJsonFile } from './helpers/atlasTestUtils'
 
 test('operator imports operational data and completes daily Ops readiness edits', async ({ page }) => {
+  const reviewedAt = new Date().toISOString()
+
   await page.goto('/')
 
   await clickAtlasNav(page, 'Ops')
@@ -30,7 +32,7 @@ test('operator imports operational data and completes daily Ops readiness edits'
         rollbackReference: 'mms-rollback-note',
         rollbackSteps: 'Restore previous frontend zip|Run health verification',
         escalationContactRef: 'jamarq-ops-card',
-        lastReviewedAt: '2026-05-13T12:00:00Z',
+        lastReviewedAt: reviewedAt,
       },
       {
         kind: 'runbook-artifact',
