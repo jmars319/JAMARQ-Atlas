@@ -10,7 +10,6 @@ function loadServerEnv(mode: string) {
   }
 }
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   loadServerEnv(mode)
 
