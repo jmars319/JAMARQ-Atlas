@@ -35,7 +35,7 @@ function noOpResult(
 }
 
 /**
- * Safety rules for future implementation:
+ * Guardrails stay explicit because this runner may later gain write access:
  * - Production database imports/restores require explicit typed confirmation.
  * - Production file overwrites require a verified backup first.
  * - phpMyAdmin should not be automated directly.

@@ -14,8 +14,7 @@ function resolveNodeModuleRoot(packageName) {
   try {
     return path.dirname(require.resolve(`${packageName}/package.json`))
   } catch {
-    // Some packages hide package.json behind exports. Fall through to the
-    // module entrypoint or direct node_modules path.
+    // Some packages hide package.json behind exports, so fall through to the module entrypoint or direct node_modules path.
   }
 
   try {
