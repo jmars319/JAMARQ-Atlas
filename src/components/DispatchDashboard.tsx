@@ -76,11 +76,11 @@ interface DispatchDashboardProps {
   onCreateReadinessReport: (projectId: string) => void
 }
 
-function projectName(projectRecords: ProjectRecord[], projectId: string) {
+/* Project label boundary */ function projectName(projectRecords: ProjectRecord[], projectId: string) {
   return projectRecords.find((record) => record.project.id === projectId)?.project.name ?? projectId
 }
 
-export function DispatchDashboard({
+/* Dispatch command surface */ export function DispatchDashboard({
   dispatch,
   reports,
   projectRecords,

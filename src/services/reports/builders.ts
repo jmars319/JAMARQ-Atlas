@@ -33,7 +33,7 @@ import {
 } from '../reportTemplates'
 import { createOperationsCockpitSummary } from '../operations'
 
-export function selectedRecords(projectRecords: ProjectRecord[], projectIds: string[]) {
+/* Report scope boundary */ export function selectedRecords(projectRecords: ProjectRecord[], projectIds: string[]) {
   if (projectIds.length === 0) {
     return projectRecords
   }
@@ -142,7 +142,7 @@ function buildWritingSection(drafts: WritingDraft[]) {
     .join('\n\n')
 }
 
-function buildDispatchSection(records: ProjectRecord[], dispatch: DispatchState) {
+/* Dispatch report boundary */ function buildDispatchSection(records: ProjectRecord[], dispatch: DispatchState) {
   const lines = records.flatMap((record) => {
     const targets = dispatch.targets.filter((target) => target.projectId === record.project.id)
 
@@ -159,7 +159,7 @@ function buildDispatchSection(records: ProjectRecord[], dispatch: DispatchState)
   return list(lines, 'No Dispatch context available.')
 }
 
-function buildDeploymentRunbookSection(records: ProjectRecord[], dispatch: DispatchState) {
+/* Runbook report boundary */ function buildDeploymentRunbookSection(records: ProjectRecord[], dispatch: DispatchState) {
   const projectIds = new Set(records.map((record) => record.project.id))
   const runbooks = dispatch.runbooks
     .filter((runbook) => projectIds.has(runbook.projectId))
@@ -275,7 +275,7 @@ function buildDeploySessionSection(records: ProjectRecord[], dispatch: DispatchS
     .join('\n\n')
 }
 
-function buildStoredDispatchEvidenceSection(records: ProjectRecord[], dispatch: DispatchState) {
+/* Stored evidence boundary */ function buildStoredDispatchEvidenceSection(records: ProjectRecord[], dispatch: DispatchState) {
   const projectIds = new Set(records.map((record) => record.project.id))
   const hostRuns = dispatch.hostEvidenceRuns
     .filter((run) => projectIds.has(run.projectId))
@@ -309,7 +309,7 @@ function buildStoredDispatchEvidenceSection(records: ProjectRecord[], dispatch: 
   ].join('\n')
 }
 
-function buildDispatchCloseoutSection(
+/* Closeout report boundary */ function buildDispatchCloseoutSection(
   records: ProjectRecord[],
   dispatch: DispatchState,
   reports: ReportsState,
@@ -505,7 +505,7 @@ function buildCalibrationSection(
   ].join('\n')
 }
 
-function buildOperationsReadinessSections({
+/* Operations readiness boundary */ function buildOperationsReadinessSections({
   workspace,
   dispatch,
   reports,
@@ -632,7 +632,7 @@ function buildOperationsReadinessSections({
   ]
 }
 
-export function buildReportMarkdown({
+/* Report assembly boundary */ export function buildReportMarkdown({
   type,
   records,
   dispatch,

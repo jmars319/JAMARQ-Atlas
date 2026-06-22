@@ -339,6 +339,7 @@ function githubStatus() {
   }
 }
 
+// GitHub mock contract
 async function installGithubApiMocks(page: Page) {
   await page.route('**/api/github/status', async (route) => {
     await route.fulfill({
@@ -774,6 +775,7 @@ async function installGithubApiMocks(page: Page) {
   })
 }
 
+// Command center integration path
 test('operator can connect and import repositories from GitHub command center', async ({ page }) => {
   await installGithubApiMocks(page)
 
@@ -852,6 +854,7 @@ test('operator can connect and import repositories from GitHub command center', 
   )
 })
 
+// Missing-auth boundary
 test('GitHub command center labels zero repositories as connection required', async ({ page }) => {
   await page.route('**/api/github/status', async (route) => {
     await route.fulfill({
@@ -936,6 +939,7 @@ test('GitHub command center labels zero repositories as connection required', as
   )
 })
 
+// Repository pagination boundary
 test('GitHub command center auto-loads later installed repo pages for search', async ({ page }) => {
   await page.route('**/api/github/status', async (route) => {
     await route.fulfill({
@@ -1089,6 +1093,7 @@ test('GitHub command center auto-loads later installed repo pages for search', a
   ).toHaveCount(0)
 })
 
+// Advisory evidence boundary
 test('GitHub command center shows advisory failure and stale evidence', async ({ page }) => {
   await installGithubApiMocks(page)
   await page.unroute(commandSummariesRoute)
@@ -1133,6 +1138,7 @@ test('GitHub command center shows advisory failure and stale evidence', async ({
   await expect(deepDive).toContainText('Historical failure')
 })
 
+// Write pilot safety gate
 test('GitHub write pilot creates issues and comments with typed confirmation', async ({ page }) => {
   await installGithubApiMocks(page)
 
@@ -1177,6 +1183,7 @@ test('GitHub write pilot creates issues and comments with typed confirmation', a
   await expect(reviewNotes).toContainText('Open on GitHub')
 })
 
+// Auth settings boundary
 test('settings shows GitHub App sign-in state without active write controls', async ({ page }) => {
   await installGithubApiMocks(page)
 

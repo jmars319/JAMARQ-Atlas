@@ -48,6 +48,7 @@ import {
   uniqueRepoKeys,
 } from './githubIntake/helpers'
 
+// GitHub command boundary
 export function GitHubIntakeDashboard({
   projectRecords,
   dispatch,
@@ -69,6 +70,7 @@ export function GitHubIntakeDashboard({
   const [writeRefreshToken, setWriteRefreshToken] = useState(0)
   const viewerLabel = githubStatus?.authMode === 'github-app-user' ? 'Installed' : 'Viewer'
 
+  // Connection status boundary
   useEffect(() => {
     const controller = new AbortController()
 
@@ -89,6 +91,7 @@ export function GitHubIntakeDashboard({
     [configuredRepos.data, viewerRepos.data],
   )
 
+  // Repository filter boundary
   const visibleRepositories = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
@@ -135,6 +138,7 @@ export function GitHubIntakeDashboard({
       ),
     [projectRecords],
   )
+  // Command evidence boundary
   const commandRepoKeys = useMemo(
     () =>
       uniqueRepoKeys([
@@ -156,6 +160,7 @@ export function GitHubIntakeDashboard({
   const selectedCommandSummary = selectedDeepDive
     ? summaryFor(commandSummaries.data, selectedDeepDive.repository.fullName)
     : null
+  // Deployment evidence boundary
   const selectedVercelTargets = useMemo(
     () =>
       selectedDeepDiveBinding
@@ -214,6 +219,7 @@ export function GitHubIntakeDashboard({
     viewerRepos.error?.message ||
     'Connect GitHub App sign-in or configure a local read token before treating repository counts as product data.'
 
+  // Binding selection boundary
   function selectProjectBoundRepository(projectId: string) {
     const record = projectRecords.find((candidate) => candidate.project.id === projectId)
     const firstRepository = record?.project.repositories[0]
@@ -241,12 +247,14 @@ export function GitHubIntakeDashboard({
     selectProjectBoundRepository(projectId)
   }
 
+  // Write pilot audit boundary
   function handleWriteSuccess(result: GithubWritePilotResult, draft: GithubWritePilotDraft) {
     onAddReviewNote(createReviewNote(githubWritePilotReviewNoteInput(result, draft)))
     setWriteRefreshToken((current) => current + 1)
     commandSummaries.reload()
   }
 
+  // Command surface composition
   return (
     <section className="github-intake" aria-labelledby="github-intake-title">
       <div className="dashboard-header">

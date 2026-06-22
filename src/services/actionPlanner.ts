@@ -112,7 +112,7 @@ export interface AtlasProjectActionRollup {
   topRecommendedActions: AtlasActionIntent[]
 }
 
-const riskRank: Record<AtlasActionIntentRisk, number> = {
+/* Action risk contract */ const riskRank: Record<AtlasActionIntentRisk, number> = {
   high: 0,
   medium: 1,
   low: 2,
@@ -139,7 +139,7 @@ function slug(value: string) {
     .replace(/^-+|-+$/g, '')
 }
 
-function projectByRepo(projectRecords: ProjectRecord[]) {
+/* Repository binding boundary */ function projectByRepo(projectRecords: ProjectRecord[]) {
   return new Map(
     projectRecords.flatMap((record) =>
       record.project.repositories.map((repository) => [
@@ -202,7 +202,7 @@ type CreateIntentInput = Omit<AtlasActionIntent, 'id' | 'locked' | 'occurredAt' 
   status?: AtlasActionIntentStatus
 }
 
-function createIntent({
+/* Intent safety boundary */ function createIntent({
   kind,
   group,
   source,
@@ -251,7 +251,7 @@ function sortIntents(intents: AtlasActionIntent[]) {
   })
 }
 
-export function deriveAtlasActionIntents({
+/* Action derivation boundary */ export function deriveAtlasActionIntents({
   projectRecords,
   summaries,
 }: {
@@ -476,7 +476,7 @@ export function deriveAtlasActionIntents({
   )
 }
 
-function requiredPermissions(intent: AtlasActionIntent) {
+/* Permission gate boundary */ function requiredPermissions(intent: AtlasActionIntent) {
   if (intent.kind === 'prepare-commit') {
     return ['local git write access', 'future explicit commit confirmation']
   }
@@ -618,7 +618,7 @@ function dryRunSteps(intent: AtlasActionIntent): AtlasActionDryRunStep[] {
   return base
 }
 
-export function evaluateAtlasActionExecutionGate(intent: AtlasActionIntent): AtlasActionExecutionGate {
+/* Execution safety gate */ export function evaluateAtlasActionExecutionGate(intent: AtlasActionIntent): AtlasActionExecutionGate {
   return {
     id: `${intent.id}-execution-gate`,
     locked: true,
@@ -632,7 +632,7 @@ export function evaluateAtlasActionExecutionGate(intent: AtlasActionIntent): Atl
   }
 }
 
-export function createAtlasActionDryRunPlan(
+/* Dry-run boundary */ export function createAtlasActionDryRunPlan(
   intent: AtlasActionIntent,
   now = new Date(),
 ): AtlasActionDryRunPlan {

@@ -8,6 +8,7 @@ type ProjectSeed = Omit<AtlasProject, 'activity' | 'links' | 'repositories' | 'm
   repositories?: AtlasProject['repositories']
 }
 
+// Workspace seed contract
 function activity(
   id: string,
   type: ActivityEvent['type'],
@@ -39,6 +40,7 @@ function project(seed: ProjectSeed): AtlasProject {
   }
 }
 
+// Portfolio fixture boundary
 export const seedWorkspace: Workspace = {
   id: 'jamarq-atlas',
   name: 'Atlas by Tenra',

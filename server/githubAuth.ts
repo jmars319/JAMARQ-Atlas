@@ -113,7 +113,7 @@ const LOGIN_TTL_MS = 10 * 60 * 1000
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000
 const INSTALLATION_STATUS_TTL_MS = 60 * 1000
 
-export const GITHUB_APP_OPERATOR_PERMISSION_PLAN: GithubAppPermissionPlan[] = [
+/* GitHub permission boundary */ export const GITHUB_APP_OPERATOR_PERMISSION_PLAN: GithubAppPermissionPlan[] = [
   { key: 'metadata', label: 'Metadata', access: 'read', activeControls: false },
   { key: 'contents', label: 'Contents', access: 'write', activeControls: false },
   { key: 'issues', label: 'Issues', access: 'write', activeControls: false },
@@ -124,7 +124,7 @@ export const GITHUB_APP_OPERATOR_PERMISSION_PLAN: GithubAppPermissionPlan[] = [
   { key: 'statuses', label: 'Commit statuses', access: 'write', activeControls: false },
 ]
 
-const sessions = new Map<string, GithubSession>()
+/* Session memory boundary */ const sessions = new Map<string, GithubSession>()
 let desktopAuthStore: GithubDesktopAuthStore | null = null
 let desktopSession: GithubSession | null = null
 
@@ -176,7 +176,7 @@ function safeEqual(left: string, right: string) {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }
 
-function signCookieValue(sessionId: string, secret: string) {
+/* Signed cookie boundary */ function signCookieValue(sessionId: string, secret: string) {
   return `${sessionId}.${hmac(sessionId, secret)}`
 }
 
@@ -272,7 +272,7 @@ function clearSessionCookie(secure: boolean) {
     .join('; ')
 }
 
-export function getGithubAppConfig(env: EnvRecord = process.env): GithubAppConfig {
+/* Environment config boundary */ export function getGithubAppConfig(env: EnvRecord = process.env): GithubAppConfig {
   const clientId = env.GITHUB_APP_CLIENT_ID?.trim() ?? ''
   const clientSecret = env.GITHUB_APP_CLIENT_SECRET?.trim() ?? ''
   const appSlug = env.GITHUB_APP_SLUG?.trim() ?? ''
@@ -313,7 +313,7 @@ export function resolveConfiguredRepo(repo: string, env: EnvRecord = process.env
   return repo.includes('/') || !env.GITHUB_OWNER ? repo : `${env.GITHUB_OWNER}/${repo}`
 }
 
-function createSession() {
+/* Session lifecycle boundary */ function createSession() {
   const now = Date.now()
   const session: GithubSession = {
     id: randomBase64Url(32),
@@ -419,7 +419,7 @@ export function normalizeGithubInstallation(value: unknown): GithubInstallationS
   }
 }
 
-async function requestGithubJson(path: string, token: string) {
+/* GitHub API boundary */ async function requestGithubJson(path: string, token: string) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       Accept: 'application/vnd.github+json',
@@ -506,7 +506,7 @@ function tokenNeedsRefresh(token: GithubTokenState) {
   return token.expiresAt !== null && Date.now() + TOKEN_REFRESH_SKEW_MS >= token.expiresAt
 }
 
-async function ensureFreshSessionToken(session: GithubSession, config: GithubAppConfig) {
+/* Token refresh boundary */ async function ensureFreshSessionToken(session: GithubSession, config: GithubAppConfig) {
   if (!session.token) {
     return null
   }
@@ -617,7 +617,7 @@ function statusMessage(status: GithubAuthStatus) {
   return 'GitHub App sign-in is not configured yet.'
 }
 
-export async function createGithubAuthStatus(
+/* Auth status boundary */ export async function createGithubAuthStatus(
   request: IncomingMessage,
   env: EnvRecord = process.env,
 ): Promise<GithubAuthStatus> {
@@ -716,7 +716,7 @@ export function clearGithubAuthSessionsForTests() {
   sessions.clear()
 }
 
-async function handleLogin(request: IncomingMessage, response: ServerResponse, url: URL) {
+/* OAuth login boundary */ async function handleLogin(request: IncomingMessage, response: ServerResponse, url: URL) {
   const config = getGithubAppConfig()
 
   if (!config.configured) {
@@ -825,7 +825,7 @@ async function handleLogout(request: IncomingMessage, response: ServerResponse) 
   })
 }
 
-export async function githubAuthApiMiddleware(
+/* Auth route boundary */ export async function githubAuthApiMiddleware(
   request: IncomingMessage,
   response: ServerResponse,
   next?: () => void,

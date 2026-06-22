@@ -13,6 +13,7 @@ import type {
   HealthCheckResult,
 } from '../domain/dispatch'
 
+// Seed fixture boundary
 function health(
   id: string,
   url: string,
@@ -61,6 +62,7 @@ function recoveryPlan(seed: DispatchRecoveryPlan): DispatchRecoveryPlan {
   return seed
 }
 
+// cPanel verification boundary
 function cpanelChecks(projectId: string, targetId: string): DeploymentVerificationCheck[] {
   return [
     verificationCheck({
@@ -110,6 +112,7 @@ function cpanelChecks(projectId: string, targetId: string): DeploymentVerificati
   ]
 }
 
+// Deploy artifact contract
 function frontendArtifact(projectId: string, targetId: string, sourceRepo: string) {
   return artifact({
     id: `${targetId}-frontend-zip`,
@@ -185,6 +188,7 @@ function vercelProjectLinkArtifact(projectId: string, targetId: string, sourceRe
   })
 }
 
+// Vercel verification boundary
 function vercelChecks(projectId: string, targetId: string): DeploymentVerificationCheck[] {
   return [
     verificationCheck({
@@ -236,6 +240,7 @@ function preserve(projectId: string, targetId: string, path: string, reason: str
   })
 }
 
+// Production target contract
 function productionTarget({
   id,
   projectId,
@@ -326,6 +331,7 @@ function productionRecord({
   })
 }
 
+// Dispatch seed boundary
 export const seedDispatchState: DispatchState = {
   targets: [
     productionTarget({

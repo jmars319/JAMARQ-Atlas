@@ -136,7 +136,7 @@ export interface GithubProjectCommandRollupInput {
   summaries: GithubRepoCommandSummary[]
 }
 
-const DANGER_CONCLUSIONS = new Set(['action_required', 'failure', 'timed_out'])
+/* Workflow status contract */ const DANGER_CONCLUSIONS = new Set(['action_required', 'failure', 'timed_out'])
 const WARNING_CONCLUSIONS = new Set(['cancelled', 'neutral', 'skipped', 'startup_failure'])
 const FAILURE_CONCLUSIONS = new Set([...DANGER_CONCLUSIONS, 'cancelled', 'startup_failure'])
 
@@ -158,7 +158,7 @@ function repoKey(owner: string, repo: string) {
   return `${owner}/${repo}`
 }
 
-function signal({
+/* Attention signal boundary */ function signal({
   id,
   category,
   severity,
@@ -256,7 +256,7 @@ function derivePermissionGaps({
   ].filter((gap): gap is GithubPermissionGap => gap !== null)
 }
 
-function deriveSignals(input: GithubRepoCommandSummaryInput, permissionGaps: GithubPermissionGap[]) {
+/* Repository evidence boundary */ function deriveSignals(input: GithubRepoCommandSummaryInput, permissionGaps: GithubPermissionGap[]) {
   const {
     owner,
     repo,
@@ -612,7 +612,7 @@ function deriveSignals(input: GithubRepoCommandSummaryInput, permissionGaps: Git
   return signals
 }
 
-export function deriveGithubRepoCommandSummary(
+/* Repository summary contract */ export function deriveGithubRepoCommandSummary(
   input: GithubRepoCommandSummaryInput,
 ): GithubRepoCommandSummary {
   const permissionGaps = derivePermissionGaps(input)
@@ -692,7 +692,7 @@ function latestCiStatus(summary: GithubRepoCommandSummary) {
   return 'Unavailable'
 }
 
-export function deriveGithubProjectCommandRollup({
+/* Project rollup boundary */ export function deriveGithubProjectCommandRollup({
   projectId,
   projectName,
   repositories,
@@ -759,4 +759,3 @@ export function sortGithubSummariesByAttention(summaries: GithubRepoCommandSumma
       return right.fetchedAt.localeCompare(left.fetchedAt)
     })
 }
-

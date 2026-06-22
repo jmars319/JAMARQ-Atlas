@@ -92,6 +92,7 @@ interface ReviewCenterProps {
   onOpenPlanning: (projectId: string) => void
 }
 
+// Repository intake boundary
 function mergeRepositories(
   configured: GithubRepositorySummary[],
   viewer: GithubRepositorySummary[],
@@ -120,6 +121,7 @@ function mergeRepositories(
   )
 }
 
+// Review search boundary
 function itemMatchesQuery(item: ReviewQueueItem, query: string) {
   const normalizedQuery = query.trim().toLowerCase()
 
@@ -144,6 +146,7 @@ function itemMatchesQuery(item: ReviewQueueItem, query: string) {
     .includes(normalizedQuery)
 }
 
+// Review audit surface
 function ReviewHistoryNoteCard({
   note,
   projectRecords,
@@ -215,6 +218,7 @@ function ReviewHistoryNoteCard({
   )
 }
 
+// Review queue orchestration
 export function ReviewCenter({
   review,
   projectRecords,
@@ -365,6 +369,7 @@ export function ReviewCenter({
   const activeReviewItemId =
     visibleQueue.find((item) => item.id === expandedItemId)?.id ?? visibleQueue[0]?.id ?? null
 
+  // Manual review boundary
   function startSession(items: ReviewQueueItem[]) {
     if (items.length === 0) {
       return
@@ -488,6 +493,7 @@ export function ReviewCenter({
     setSelectedReviewItemIds(visiblePlanningItems.map((item) => item.id))
   }
 
+  // Planning handoff boundary
   function createPlanningNotesForSelected() {
     if (selectedPlanningItems.length === 0) {
       setPlanningJumpProjectId(null)
@@ -526,6 +532,7 @@ export function ReviewCenter({
     )
   }
 
+  // Review surface composition
   return (
     <section className="review-center" aria-labelledby="review-center-title">
       <div className="dashboard-header">

@@ -70,7 +70,7 @@ interface GithubWritePilotResult {
 
 type WriteBody = Record<string, unknown>
 
-const API_VERSION = '2022-11-28'
+/* GitHub write contract */ const API_VERSION = '2022-11-28'
 const API_BASE = 'https://api.github.com'
 const BODY_LIMIT_BYTES = 64 * 1024
 const TITLE_LIMIT = 256
@@ -105,7 +105,7 @@ function repositoryKey(owner: string, repo: string) {
   return `${owner}/${repo}`
 }
 
-function confirmationPhrase(kind: GithubWritePilotKind, owner: string, repo: string, issueNumber?: number) {
+/* Typed confirmation boundary */ function confirmationPhrase(kind: GithubWritePilotKind, owner: string, repo: string, issueNumber?: number) {
   if (kind === 'create-comment') {
     return `COMMENT ${repositoryKey(owner, repo)}#${issueNumber ?? ''}`
   }
@@ -230,7 +230,7 @@ function mapGithubWriteError(
   }
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<WriteBody> {
+/* Request body safety boundary */ async function readJsonBody(request: IncomingMessage): Promise<WriteBody> {
   const contentType = request.headers['content-type'] ?? ''
 
   if (!String(contentType).toLowerCase().includes('application/json')) {
@@ -267,7 +267,7 @@ async function readJsonBody(request: IncomingMessage): Promise<WriteBody> {
   }
 }
 
-async function createCapability(
+/* Capability checkpoint boundary */ async function createCapability(
   request: IncomingMessage,
   owner: string,
   repo: string,
@@ -323,7 +323,7 @@ async function createCapability(
   }
 }
 
-function validateIssueBody(body: WriteBody) {
+/* Issue payload boundary */ function validateIssueBody(body: WriteBody) {
   const owner = readString(body.owner)
   const repo = readString(body.repo)
   const title = readString(body.title)
@@ -368,7 +368,7 @@ function validateIssueBody(body: WriteBody) {
   }
 }
 
-function validateCommentBody(body: WriteBody) {
+/* Comment payload boundary */ function validateCommentBody(body: WriteBody) {
   const owner = readString(body.owner)
   const repo = readString(body.repo)
   const issueNumber = readNumber(body.issueNumber)
@@ -409,7 +409,7 @@ function validateCommentBody(body: WriteBody) {
   }
 }
 
-async function postGithubJson({
+/* External write boundary */ async function postGithubJson({
   path,
   resource,
   auth,
@@ -672,7 +672,7 @@ async function handleCommentCreate(request: IncomingMessage, response: ServerRes
   )
 }
 
-export async function githubWriteApiMiddleware(
+/* Write route boundary */ export async function githubWriteApiMiddleware(
   request: IncomingMessage,
   response: ServerResponse,
   next?: () => void,

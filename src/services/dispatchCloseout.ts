@@ -96,7 +96,7 @@ export interface DispatchCloseoutFocusGroup {
   items: DispatchCloseoutFocusItem[]
 }
 
-export const deploymentReportPacketTypes: ReportPacketType[] = [
+/* Report packet contract */ export const deploymentReportPacketTypes: ReportPacketType[] = [
   'deployment-readiness-packet',
   'post-deploy-verification-packet',
   'client-site-update-packet',
@@ -113,7 +113,7 @@ export const closeoutStateLabels: Record<DispatchCloseoutState, string> = {
   'closeout-ready': 'Closeout ready',
 }
 
-const closeoutFocusDefinitions: Array<{
+/* Closeout focus contract */ const closeoutFocusDefinitions: Array<{
   id: DispatchCloseoutFocusGroupId
   label: string
   detail: string
@@ -197,7 +197,7 @@ function requiredArtifacts(runbook: DeploymentRunbook | undefined) {
   return runbook?.artifacts.filter((artifact) => artifact.required) ?? []
 }
 
-function artifactRequirement(runbook: DeploymentRunbook | undefined): DispatchCloseoutRequirement {
+/* Artifact evidence boundary */ function artifactRequirement(runbook: DeploymentRunbook | undefined): DispatchCloseoutRequirement {
   const artifacts = requiredArtifacts(runbook)
 
   if (!runbook) {
@@ -319,7 +319,7 @@ function sessionStepsRequirement(
   }
 }
 
-function evidenceRequirement({
+/* Dispatch evidence boundary */ function evidenceRequirement({
   id,
   label,
   evidence,
@@ -556,7 +556,7 @@ function evidenceSignal({
   }
 }
 
-function stateFromRequirements({
+/* Closeout state boundary */ function stateFromRequirements({
   requirements,
   latestSession,
   latestManualRecord,
@@ -619,7 +619,7 @@ function summaryDetail(state: DispatchCloseoutState, requirements: DispatchClose
   return 'Closeout is advisory and awaiting human review.'
 }
 
-export function deriveDispatchCloseoutForTarget({
+/* Target closeout derivation */ export function deriveDispatchCloseoutForTarget({
   dispatch,
   reports = emptyReportsState,
   target,
@@ -742,7 +742,7 @@ function focusItemStatus(
   return 'satisfied'
 }
 
-export function deriveDispatchCloseoutFocusGroups(
+/* Focus group boundary */ export function deriveDispatchCloseoutFocusGroups(
   summaries: DispatchCloseoutSummary[],
   limitPerGroup = 4,
 ): DispatchCloseoutFocusGroup[] {

@@ -121,7 +121,7 @@ function collectSyncSummary(sync: AtlasSyncState) {
   }
 }
 
-export function summarizeAtlasStores(stores: AtlasBackupStores): AtlasBackupStoreSummary {
+/* Backup summary boundary */ export function summarizeAtlasStores(stores: AtlasBackupStores): AtlasBackupStoreSummary {
   return {
     workspace: collectWorkspaceSummary(stores.workspace),
     dispatch: collectDispatchSummary(stores.dispatch),
@@ -136,7 +136,7 @@ export function summarizeAtlasStores(stores: AtlasBackupStores): AtlasBackupStor
   }
 }
 
-export function normalizeBackupStores(value: unknown): {
+/* Restore normalization boundary */ export function normalizeBackupStores(value: unknown): {
   stores: AtlasBackupStores | null
   warnings: AtlasRestoreWarning[]
   errors: string[]
@@ -377,7 +377,7 @@ export function parseAtlasBackupJson(text: string): AtlasBackupValidationResult 
   }
 }
 
-export function validateAtlasBackupEnvelope(value: unknown): AtlasBackupValidationResult {
+/* Backup schema boundary */ export function validateAtlasBackupEnvelope(value: unknown): AtlasBackupValidationResult {
   const errors: string[] = []
   const warnings: AtlasRestoreWarning[] = []
 
@@ -435,7 +435,7 @@ export function validateAtlasBackupEnvelope(value: unknown): AtlasBackupValidati
   }
 }
 
-export function createRestorePreview(
+/* Restore preview boundary */ export function createRestorePreview(
   currentStores: AtlasBackupStores,
   incomingEnvelope: AtlasBackupEnvelope,
 ): AtlasRestorePreview {
@@ -478,7 +478,7 @@ function diffStatus(current: number, incoming: number) {
   return 'ok' as const
 }
 
-export function createBackupDiffItems(
+/* Restore diff boundary */ export function createBackupDiffItems(
   currentSummary: AtlasBackupStoreSummary,
   incomingSummary: AtlasBackupStoreSummary,
 ): AtlasBackupDiffItem[] {
@@ -594,7 +594,7 @@ function storeDiagnosticMetadata(id: AtlasStoreId, storageBackend: string) {
   }
 }
 
-export function createAtlasStoreDiagnostics(
+/* Store diagnostic boundary */ export function createAtlasStoreDiagnostics(
   stores: AtlasBackupStores,
 ): AtlasStoreDiagnostic[] {
   const summary = summarizeAtlasStores(stores)
@@ -753,7 +753,7 @@ export function createAtlasStoreDiagnostics(
   return diagnostics
 }
 
-export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {
+/* Backup report surface */ export function createAtlasBackupMarkdownReport(envelope: AtlasBackupEnvelope) {
   const {
     workspace,
     dispatch,
@@ -818,6 +818,6 @@ export function createBackupSummaryText(envelope: AtlasBackupEnvelope) {
   return `Atlas by Tenra backup ${envelope.exportedAt}: ${workspace.projects} projects, ${dispatch.targets} dispatch targets, ${dispatch.preflightRuns} preflight runs, ${dispatch.hostEvidenceRuns + dispatch.verificationEvidenceRuns} dispatch evidence runs, ${dispatch.recoveryPlans} recovery plans, ${writing.drafts} writing drafts, ${planning.objectives + planning.milestones + planning.workSessions + planning.notes} planning records, ${reports.packets} report packets, ${review.sessions} review sessions, ${calibration.progressRecords} calibration progress records, ${optimization.snapshots} optimization snapshots, ${sync.snapshots} sync snapshots.`
 }
 
-export function canApplyAtlasRestore(confirmation: string) {
+/* Restore confirmation safety gate */ export function canApplyAtlasRestore(confirmation: string) {
   return confirmation === RESTORE_CONFIRMATION_PHRASE
 }

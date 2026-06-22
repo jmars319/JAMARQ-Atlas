@@ -177,7 +177,7 @@ interface TextAreaFieldProps {
   onChange: (value: string[]) => void
 }
 
-function TextAreaField({ label, value, onChange }: TextAreaFieldProps) {
+/* Manual field boundary */ function TextAreaField({ label, value, onChange }: TextAreaFieldProps) {
   return (
     <label className="field field-full">
       <span>{label}</span>
@@ -190,7 +190,7 @@ function TextAreaField({ label, value, onChange }: TextAreaFieldProps) {
   )
 }
 
-export function ProjectDetail({
+/* Project detail workflow */ export function ProjectDetail({
   record,
   dispatch,
   planning,

@@ -13,7 +13,7 @@ import type {
   DispatchState,
 } from '../domain/dispatch'
 
-export const MANUAL_DEPLOYMENT_RECORD_CONFIRMATION = 'RECORD MANUAL DEPLOYMENT'
+/* Manual record safety gate */ export const MANUAL_DEPLOYMENT_RECORD_CONFIRMATION = 'RECORD MANUAL DEPLOYMENT'
 
 export type DeploySessionChecklistPresetId =
   | 'pre-upload-evidence-reviewed'
@@ -27,7 +27,7 @@ export interface DeploySessionChecklistPreset {
   note: string
 }
 
-export const DEPLOY_SESSION_CHECKLIST_PRESETS: DeploySessionChecklistPreset[] = [
+/* Checklist preset contract */ export const DEPLOY_SESSION_CHECKLIST_PRESETS: DeploySessionChecklistPreset[] = [
   {
     id: 'pre-upload-evidence-reviewed',
     label: 'Confirm pre-upload review',
@@ -119,7 +119,7 @@ export function isCpanelQueueRunbook(runbook: DeploymentRunbook) {
   return CPANEL_QUEUE_RUNBOOK_IDS.includes(runbook.id)
 }
 
-function createSessionSteps(
+/* Session step contract */ function createSessionSteps(
   sessionId: string,
   runbook: DeploymentRunbook,
   target: DeploymentTarget,
@@ -199,7 +199,7 @@ function createSessionSteps(
   ]
 }
 
-export function createDispatchDeploySession({
+/* Deploy session boundary */ export function createDispatchDeploySession({
   runbook,
   target,
   orderGroupId = 'current-cpanel-sites',
@@ -322,7 +322,7 @@ function normalizeEvent(value: unknown): DispatchDeploySessionEvent | null {
   }
 }
 
-export function normalizeDeploySessions(value: unknown, now = new Date()) {
+/* Session migration boundary */ export function normalizeDeploySessions(value: unknown, now = new Date()) {
   if (!Array.isArray(value)) {
     return []
   }
@@ -400,7 +400,7 @@ function nextSessionStatus(
   return 'active'
 }
 
-export function startDeploySession(
+/* Manual start boundary */ export function startDeploySession(
   state: DispatchState,
   runbookId: string,
   now = new Date(),
@@ -544,7 +544,7 @@ function appendEvidenceLine(value: string, line: string) {
   return value.trim() ? `${value.trim()}\n${line}` : line
 }
 
-export function applyDeploySessionChecklistPreset(
+/* Preset application boundary */ export function applyDeploySessionChecklistPreset(
   state: DispatchState,
   sessionId: string,
   presetId: DeploySessionChecklistPresetId,
@@ -691,7 +691,7 @@ export function createDeploymentRecordFromSession(
   }
 }
 
-export function recordManualDeploymentFromSession(
+/* Human confirmation boundary */ export function recordManualDeploymentFromSession(
   state: DispatchState,
   sessionId: string,
   confirmation: string,

@@ -248,6 +248,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// Dispatch safety matrix
 describe('dispatch readiness', () => {
   it('returns a safe blocked state when no target is configured', () => {
     const result = evaluateDispatchReadiness({})
@@ -319,6 +320,7 @@ describe('dispatch readiness', () => {
     })
   })
 
+  // Storage migration gates
   it('normalizes older dispatch storage with empty preflight history', () => {
     const normalized = normalizeDispatchState({
       targets: [target],
@@ -559,6 +561,7 @@ describe('dispatch readiness', () => {
     )
   })
 
+  // Read-only preflight boundary
   it('records missing GitHub token as scoped preflight warnings', async () => {
     vi.stubGlobal(
       'fetch',
@@ -788,6 +791,7 @@ describe('dispatch readiness', () => {
     expect(runnerSource).not.toMatch(/writeFile|unlink|rm\(|rmdir|sftp\.put|ssh2|exec\(/i)
   })
 
+  // Deployment runbook fixtures
   it('seeds cPanel deploy runbooks for the current five-site deploy queue', () => {
     const queue = seedDispatchState.orderGroups.find(
       (group) => group.id === 'current-cpanel-sites',
@@ -986,6 +990,7 @@ describe('dispatch readiness', () => {
     expect(inspectedSummary?.lastInspectedAt).toBeTruthy()
   })
 
+  // Closeout evidence boundary
   it('derives closeout analytics without mutating dispatch or report state', () => {
     const runbook = getRunbookForTarget(seedDispatchState, 'midway-mobile-storage-production')
     const target = seedDispatchState.targets.find(
@@ -1193,6 +1198,7 @@ describe('dispatch readiness', () => {
     expect(JSON.stringify(dispatchWithEvidence)).toBe(before)
   })
 
+  // Manual session safeguards
   it('starts cPanel deploy sessions with the expected ordered manual steps', () => {
     const runbookIds = [
       'mms-cpanel-runbook',
@@ -1404,6 +1410,7 @@ describe('dispatch readiness', () => {
     expect(JSON.stringify(updated.records)).toBe(recordsBefore)
   })
 
+  // Artifact safety gates
   it('inspects deployment artifacts locally for filename, checksum, entries, and warnings', async () => {
     const runbook = getRunbookForTarget(seedDispatchState, 'midway-music-hall-production')
     const artifact = runbook?.artifacts.find((candidate) => candidate.role === 'frontend')
@@ -1579,6 +1586,7 @@ describe('dispatch readiness', () => {
     expect(updated.deploySessions).toBe(seedDispatchState.deploySessions)
   })
 
+  // Host access boundary
   it('runs read-only host and preserve-path checks without write probes', async () => {
     const root = mkdtempSync(path.join(tmpdir(), 'atlas-host-preflight-'))
     mkdirSync(path.join(root, 'api', 'logs'), { recursive: true })

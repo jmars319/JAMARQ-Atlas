@@ -9,6 +9,7 @@ import {
   uploadJsonFile,
 } from './helpers/atlasTestUtils'
 
+// Upload fixture boundary
 function createZipBuffer(entries: string[]) {
   const chunks = entries.map((entry) => {
     const encoded = Buffer.from(entry)
@@ -24,6 +25,7 @@ function createZipBuffer(entries: string[]) {
   return Buffer.concat(chunks)
 }
 
+// Operator journey smoke
 test('operator can edit manual state and manage writing drafts', async ({ page }) => {
   test.setTimeout(120_000)
   await installAtlasClipboardMock(page)
@@ -63,9 +65,11 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Timeline evidence rows')).toContainText('baseline')
   await expect(page.locator('.project-detail')).toContainText('Evidence Timeline')
 
+  // GitHub connection boundary
   await clickAtlasNav(page, 'GitHub')
   await expect(page.getByRole('heading', { name: 'Command Center' })).toBeVisible()
   await expect(page.locator('.github-error')).toContainText(/Sign in with the configured GitHub App|GITHUB_TOKEN/)
+  // Review workflow boundary
   await clickAtlasNav(page, 'Review')
   await expect(page.getByRole('heading', { name: 'Review Center' })).toBeVisible()
   await expect(page.getByLabel('Operator review queue')).toContainText('Due / overdue')
@@ -108,6 +112,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   )
   await clickAtlasNav(page, 'Writing')
   await expect(page.getByRole('heading', { name: 'Writing Workbench' })).toBeVisible()
+  // Local calibration boundary
   await clickAtlasNav(page, 'Settings')
   await expect(page.getByRole('heading', { name: 'Settings & Connections' })).toBeVisible()
   await expectSettingsConnectionStatus(
@@ -204,6 +209,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.locator('label.field').filter({ hasText: 'Operator label' }).locator('input')).toHaveValue(
     'E2E operator',
   )
+  // Snapshot restore boundary
   await page.getByRole('textbox', { name: 'Snapshot label', exact: true }).fill('E2E checkpoint')
   await page
     .getByRole('textbox', { name: 'Snapshot note', exact: true })
@@ -233,6 +239,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await clickAtlasNav(page, 'Settings')
   await expect(page.getByText('No local sync snapshots yet')).toBeVisible()
 
+  // Remote sync boundary
   let remoteSnapshot: Record<string, unknown> | null = null
   const remoteMetadata = (snapshot: Record<string, unknown>) => ({
     id: snapshot.id,
@@ -424,6 +431,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
 
   await clickAtlasNav(page, 'Board')
 
+  // Dispatch workflow boundary
   await clickAtlasNav(page, 'Dispatch')
   await expect(page.getByRole('heading', { name: 'Deployment Readiness' })).toBeVisible()
   await expect(page.getByLabel('Dispatch closeout analytics')).toBeVisible()
@@ -969,6 +977,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
   await expect(page.getByLabel('Writing review audit')).toContainText('approved')
   await expect(page.getByLabel('Writing review audit')).toContainText('markdown-exported')
 
+  // Report packet boundary
   await clickAtlasNav(page, 'Reports')
   await expect(page.getByRole('heading', { name: 'Report Packet Builder' })).toBeVisible()
   await expect(page.getByLabel('Report writing drafts')).toContainText('Client update - VaexCore Studio')
@@ -1045,6 +1054,7 @@ test('operator can edit manual state and manage writing drafts', async ({ page }
     'jamarq-atlas.workspace.v1',
     { sections: [] },
   )
+  // Backup restore boundary
   const restoreBackup = JSON.stringify({
     kind: 'jamarq-atlas-backup',
     schemaVersion: 6,

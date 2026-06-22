@@ -20,7 +20,7 @@ import {
 
 type EnvRecord = Record<string, string | undefined>
 
-const VERCEL_API_BASE_URL = 'https://api.vercel.com'
+/* Vercel API contract */ const VERCEL_API_BASE_URL = 'https://api.vercel.com'
 const VERCEL_TIMEOUT_MS = 12_000
 const DEFAULT_DEPLOYMENT_LIMIT = 6
 const MAX_DEPLOYMENT_LIMIT = 20
@@ -94,7 +94,7 @@ function parseProjectMap(raw: string | undefined) {
   return { entries, errors }
 }
 
-export function getVercelConfig(env: EnvRecord = process.env): VercelConfig {
+/* Environment config boundary */ export function getVercelConfig(env: EnvRecord = process.env): VercelConfig {
   const mapped = parseProjectMap(env.ATLAS_VERCEL_PROJECT_MAP)
 
   return {
@@ -181,7 +181,7 @@ function errorMessage(body: unknown, fallback: string) {
   return readString(nested?.message) || readString(body.message) || fallback
 }
 
-function apiError({
+/* Provider error boundary */ function apiError({
   type,
   status,
   resource,
@@ -218,7 +218,7 @@ function appendTeamScope(url: URL, config: VercelConfig) {
   }
 }
 
-async function fetchVercel<T>({
+/* External fetch boundary */ async function fetchVercel<T>({
   path,
   resource,
   config,
@@ -478,7 +478,7 @@ function emptySummary({
   }
 }
 
-async function commandSummaryForTarget(
+/* Deployment summary boundary */ async function commandSummaryForTarget(
   config: VercelConfig,
   targetId: string,
 ): Promise<VercelDeploymentCommandSummary> {
@@ -644,7 +644,7 @@ function routeSegments(url: URL) {
     .map((segment) => decodeURIComponent(segment))
 }
 
-export async function vercelApiMiddleware(
+/* Vercel route boundary */ export async function vercelApiMiddleware(
   request: IncomingMessage,
   responseMessage: ServerResponse,
   next?: () => void,

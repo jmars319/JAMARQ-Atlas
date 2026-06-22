@@ -31,7 +31,7 @@ export const SYNC_RESTORE_CONFIRMATION_PHRASE = 'RESTORE ATLAS'
 export const REMOTE_SYNC_SNAPSHOT_LIMIT = 50
 const SYNC_NORMALIZATION_FALLBACK_DATE = new Date('1970-01-01T00:00:00.000Z')
 
-export function getSyncSnapshotStoreDefinitions() {
+/* Sync store contract */ export function getSyncSnapshotStoreDefinitions() {
   return ATLAS_SYNC_SNAPSHOT_STORE_IDS.map((storeId) => getAtlasStoreDefinition(storeId))
 }
 
@@ -218,7 +218,7 @@ function hashText(value: string) {
   return (hash >>> 0).toString(16).padStart(8, '0')
 }
 
-export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStoreSummary {
+/* Sync summary boundary */ export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStoreSummary {
   const groups = stores.workspace.sections.flatMap((section) => section.groups)
   const projects = groups.flatMap((group) => group.projects)
 
@@ -266,7 +266,7 @@ export function summarizeSyncStores(stores: AtlasSyncCoreStores): AtlasSyncStore
   }
 }
 
-export function normalizeSyncStores(value: unknown): AtlasSyncCoreStores {
+/* Snapshot normalization boundary */ export function normalizeSyncStores(value: unknown): AtlasSyncCoreStores {
   if (!isRecord(value)) {
     throw new Error('Sync stores must be an object.')
   }
@@ -411,7 +411,7 @@ export function normalizeSyncState(value: unknown, now = new Date()): AtlasSyncS
   }
 }
 
-export function createSyncSnapshot({
+/* Local snapshot boundary */ export function createSyncSnapshot({
   stores,
   settings,
   sync,
@@ -446,7 +446,7 @@ export function createSyncSnapshot({
   }
 }
 
-export function normalizeRemoteSyncSnapshot(value: unknown): AtlasRemoteSyncSnapshot | null {
+/* Remote snapshot boundary */ export function normalizeRemoteSyncSnapshot(value: unknown): AtlasRemoteSyncSnapshot | null {
   if (!isRecord(value)) {
     return null
   }
@@ -564,7 +564,7 @@ export function deleteSyncSnapshot(
   }
 }
 
-export function createSyncRestorePreview(
+/* Restore preview boundary */ export function createSyncRestorePreview(
   currentStores: AtlasSyncCoreStores,
   snapshot: AtlasSyncSnapshot,
 ): AtlasSyncRestorePreview {
@@ -708,7 +708,7 @@ function countDrops(
   return drops
 }
 
-export function compareSyncSnapshot(
+/* Snapshot diff boundary */ export function compareSyncSnapshot(
   currentStores: AtlasSyncCoreStores,
   snapshot: Pick<
     AtlasSyncSnapshot | AtlasRemoteSyncSnapshot,
@@ -771,7 +771,7 @@ export function createRemoteSnapshotRetentionNotice(
   }
 }
 
-export function canApplySyncRestore(confirmation: string) {
+/* Restore confirmation safety gate */ export function canApplySyncRestore(confirmation: string) {
   return confirmation === SYNC_RESTORE_CONFIRMATION_PHRASE
 }
 

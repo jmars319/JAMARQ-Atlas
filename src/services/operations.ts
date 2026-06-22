@@ -18,7 +18,7 @@ import { deriveDispatchQueueItems } from './dispatchQueue'
 import type { RepoOperationsRow } from './repoOperations'
 import { evaluateVerification } from './verification'
 
-export const DEFAULT_OPERATIONS_STALE_EVIDENCE_DAYS = 7
+/* Operations freshness contract */ export const DEFAULT_OPERATIONS_STALE_EVIDENCE_DAYS = 7
 export const DEFAULT_OPERATIONS_STALE_SNAPSHOT_DAYS = 7
 
 type QueueReasonInput = Omit<OperationsQueueReason, 'priority'> & { priority: number }
@@ -80,7 +80,7 @@ function worstGrade(grades: OperationsReadinessGrade[]): OperationsReadinessGrad
   return 'ready'
 }
 
-function reason(input: QueueReasonInput): OperationsQueueReason {
+/* Queue reason boundary */ function reason(input: QueueReasonInput): OperationsQueueReason {
   return input
 }
 
@@ -183,7 +183,7 @@ function latest(values: string[]) {
   return values.sort((left, right) => right.localeCompare(left))[0] ?? ''
 }
 
-function staleEvidenceReason(
+/* Stale evidence boundary */ function staleEvidenceReason(
   item: DispatchQueueItem,
   now: Date,
   staleEvidenceDays: number,
@@ -317,7 +317,7 @@ function targetVerificationReason(
   })
 }
 
-function buildTargetQueueItems({
+/* Dispatch target queue boundary */ function buildTargetQueueItems({
   dispatchItems,
   now,
   staleEvidenceDays,
@@ -357,7 +357,7 @@ function buildTargetQueueItems({
   })
 }
 
-function buildProjectVerificationItems({
+/* Project verification boundary */ function buildProjectVerificationItems({
   projectRecords,
   dispatchItems,
   now,
@@ -405,7 +405,7 @@ function buildProjectVerificationItems({
   })
 }
 
-function buildDataIntegrityItems(
+/* Data integrity boundary */ function buildDataIntegrityItems(
   diagnostics: DataIntegrityDiagnostic[],
   generatedAt: string,
 ): OperationsQueueItem[] {
@@ -565,7 +565,7 @@ function buildSnapshotItem({
   return null
 }
 
-function buildRepoOperationsItems(
+/* Repository operations boundary */ function buildRepoOperationsItems(
   rows: RepoOperationsRow[],
   generatedAt: string,
 ): OperationsQueueItem[] {
@@ -654,7 +654,7 @@ function latestSnapshotAt(sync: AtlasSyncState) {
   return sync.snapshots.map((snapshot) => snapshot.createdAt).sort().at(-1) ?? null
 }
 
-export function createOperationsCockpitSummary({
+/* Cockpit summary boundary */ export function createOperationsCockpitSummary({
   workspace,
   dispatch,
   reports,
