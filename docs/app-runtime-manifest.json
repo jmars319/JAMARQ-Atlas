@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "appId": "atlas",
+  "displayName": "Atlas by Tenra",
+  "productLine": "Tenra Business Suite / JAMARQ Operations",
+  "runtime": {
+    "primaryMode": "standalone-local-first-operator-console",
+    "uiShell": "electron-forge-vite-local-api",
+    "launch": [
+      "Atlas by Tenra.app",
+      "npm run desktop:dev",
+      "npm run desktop:make"
+    ],
+    "health": [
+      "desktop runtime exposes atlasDesktop.apiBaseUrl",
+      "local Atlas API server starts on 127.0.0.1",
+      "npm run test:unit"
+    ],
+    "degradedStates": [
+      "optional GitHub token or GitHub App session is unavailable",
+      "optional Supabase hosted sync is not configured",
+      "optional provider credentials are unavailable",
+      "browser-harness migration has no source profile to import"
+    ]
+  },
+  "capabilities": [
+    "portfolio.mapping",
+    "dispatch.readiness",
+    "github.readonly-summary",
+    "local.sqlite-storage",
+    "data.export-restore",
+    "planning.review",
+    "writing.reports"
+  ],
+  "storage": {
+    "records": [
+      "desktop SQLite atlas.sqlite in the app userData folder",
+      "browser harness localStorage for development and CI",
+      "versioned JSON backup and restore packets"
+    ],
+    "secrets": [
+      "Electron safeStorage encrypted GitHub auth state",
+      "server-side environment variables for optional providers"
+    ],
+    "logs": [
+      "Electron and local API process output",
+      "Playwright and verification artifacts when tests run"
+    ],
+    "exports": [
+      "Atlas data center JSON backups",
+      "Markdown reports",
+      "registry and portfolio snapshot imports"
+    ]
+  },
+  "integrations": {
+    "inbound": [
+      "repository operations snapshots",
+      "portfolio optimization snapshots",
+      "GitHub read-only API data through the local API boundary",
+      "optional Supabase hosted sync snapshots"
+    ],
+    "outbound": [
+      "Planning notes",
+      "Reports packets",
+      "Dispatch evidence summaries",
+      "Data Center backup files"
+    ],
+    "discovery": [
+      "docs/app-runtime-manifest.json",
+      "desktop atlasDesktop bridge runtime info",
+      "scripts/contracts/atlas-api-routes.json"
+    ]
+  },
+  "security": {
+    "networkPolicy": "desktop local API binds to 127.0.0.1 and renderer navigation is restricted to the app or API origin",
+    "sensitiveActions": [
+      "deployment records require explicit human confirmation",
+      "write automation remains locked",
+      "tokens stay behind the local API or safeStorage boundary"
+    ]
+  }
+}

@@ -4,7 +4,7 @@ default:
     @just --list
 
 verify:
-    npm run lint && npm run build && npm run audit:maintainability && npm run budget:bundle && npm run test:unit
+    npm run lint && npm run verify:runtime-contract && npm run build && npm run audit:maintainability && npm run budget:bundle && npm run test:unit
 
 doctor:
     just verify
